@@ -45,3 +45,60 @@ export async function createRun(
   }
   return response.json();
 }
+
+// review:P5-T3
+export interface RetroMetrics {
+  sentiment: { positive: number; negative: number; neutral: number };
+  spread_by_step: number[];
+  totals: Record<string, number>;
+}
+
+export interface Insights {
+  verdict: string;
+  suggestions: string[];
+}
+
+export async function interviewActor(
+  runId: string,
+  actorId: number,
+  question: string,
+  creds: Creds,
+): Promise<{ answer: string }> {
+  const response = await fetch(`/api/runs/${runId}/interview`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-LLM-Key": creds.key,
+      "X-LLM-Model": creds.model,
+    },
+    body: JSON.stringify({ actor_id: actorId, question }),
+  });
+  if (!response.ok) {
+    throw new Error("interview failed");
+  }
+  return response.json();
+}
+
+export async function fetchRetro(runId: string): Promise<RetroMetrics> {
+  const response = await fetch(`/api/runs/${runId}/retro`);
+  if (!response.ok) {
+    throw new Error("failed to load retro");
+  }
+  return response.json();
+}
+
+export async function fetchInsights(runId: string, creds: Creds): Promise<Insights> {
+  const response = await fetch(`/api/runs/${runId}/insights`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-LLM-Key": creds.key,
+      "X-LLM-Model": creds.model,
+    },
+    body: "{}",
+  });
+  if (!response.ok) {
+    throw new Error("failed to load insights");
+  }
+  return response.json();
+}
