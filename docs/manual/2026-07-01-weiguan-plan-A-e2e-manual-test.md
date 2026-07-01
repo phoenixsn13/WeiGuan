@@ -110,4 +110,61 @@ cd frontend && npx vitest run && npx tsc -b
 
 ## 手测记录（PA-T4，codex/用户填写）
 
-_五屏截图路径 + 缺陷表 + 主链路是否走通结论。_
+### 前置整改状态
+
+PA-T1/PA-T2/PA-T3 已完成，等待用户代跑 PA-T4 真链路手测。LLM key 不写入文档；需要 key 的命令由用户本机执行。
+
+已完成提交：
+
+| Task | Commit | 说明 |
+|------|--------|------|
+| PA-T1 | `a55d28b` | 后端 `weiguan.api.main:app` 可导入，按 run 隔离工作目录 |
+| PA-T2 | `73b0e72` | Vite dev `/api` 代理到 `127.0.0.1:8000` |
+| PA-T3 | `df1d916` | 前端 BYOK 补齐 base_url/model/reasoning/thinking，本地保存并随三处 LLM 请求发送 |
+
+### 用户代跑命令
+
+终端 1：
+
+```bash
+cd backend
+WEIGUAN_WORKDIR=/tmp/weiguan-e2e \
+  /home/sunrise/.virtualenvs/my-oasis-backend/bin/python -m uvicorn weiguan.api.main:app --port 8000
+```
+
+终端 2：
+
+```bash
+cd frontend
+npm run dev
+```
+
+浏览器打开 `http://127.0.0.1:5173`，在发布页 `BYOK 设置` 中填写：
+
+| 字段 | 值 |
+|------|----|
+| API Key | 用户本地填写，不回填文档 |
+| Base URL | `https://api.deepseek.com` |
+| Model | `deepseek-v4-pro` |
+| Reasoning | `high` |
+| Thinking | `enabled` |
+
+### 截图回填
+
+| 屏幕 | 截图路径 | 关键观察 |
+|------|----------|----------|
+| 圈子画廊 | 待回填：`e2e-gallery.png` | 待回填 |
+| 发布页 | 待回填：`e2e-compose.png` | Network 确认 `X-LLM-Base-Url` 已发送 |
+| Live | 待回填：`e2e-live.png` | 待回填首条 delta 耗时、总耗时、seed 评论条数 |
+| 追问 | 待回填：`e2e-interview.png` | 待回填接地情况；未参与 actor 的 404/置灰表现 |
+| 复盘 | 待回填：`e2e-retro.png` | 待回填 totals/insights 与 live 是否一致 |
+
+### 缺陷表
+
+| 屏/步骤 | 现象 | 期望 | 严重度 | 截图 | 建议归属 |
+|---------|------|------|--------|------|----------|
+| 待回填 | 待回填 | 待回填 | 待回填 | 待回填 | 待回填 |
+
+### 主链路结论
+
+待用户代跑后回填：是否完成 `选圈子 -> 写内容 -> Live 流式看到 seed 真评论 -> 追问拿到接地回答 -> 复盘出建议`。
