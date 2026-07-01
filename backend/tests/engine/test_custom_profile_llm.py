@@ -5,20 +5,17 @@ import pytest
 
 from weiguan.engine.config import Audience, RunConfig
 from weiguan.engine.custom_profile import generate_custom_profile
+from tests.llm_config import llm_kwargs
 
 pytestmark = pytest.mark.llm
 
 
 def _cfg():
-    key = os.environ.get("WEIGUAN_TEST_LLM_KEY")
-    if not key:
-        pytest.skip("set WEIGUAN_TEST_LLM_KEY to run")
     return RunConfig(
         audience=Audience(custom="一二线城市、重性价比的年轻妈妈"),
         content="x",
         steps=6,
-        llm_key=key,
-        llm_model=os.environ.get("WEIGUAN_TEST_LLM_MODEL", "gpt-4o-mini"),
+        **llm_kwargs(),
     )
 
 

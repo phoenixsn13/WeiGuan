@@ -36,6 +36,26 @@ def _sse(event: str, data: object) -> str:
     return f"event: {event}\ndata: {json.dumps(data)}\n\n"
 
 
+def _thinking_enabled(value: str | None) -> bool:
+    return (value or "").strip().lower() in {"1", "true", "yes", "enabled", "on"}
+
+
+def _llm_update(
+    key: str,
+    model: str,
+    base_url: str | None,
+    reasoning_effort: str | None,
+    thinking: str | None,
+) -> dict:
+    return {
+        "llm_key": key,
+        "llm_model": model,
+        "llm_base_url": base_url,
+        "llm_reasoning_effort": reasoning_effort,
+        "llm_thinking_enabled": _thinking_enabled(thinking),
+    }
+
+
 # review:P2-T4
 @router.post("/runs")
 async def create_run(
@@ -43,6 +63,9 @@ async def create_run(
     request: Request,
     x_llm_key: str | None = Header(default=None),
     x_llm_model: str = Header(default="gpt-4o-mini"),
+    x_llm_base_url: str | None = Header(default=None),
+    x_llm_reasoning_effort: str | None = Header(default=None),
+    x_llm_thinking: str | None = Header(default=None),
 ):
     if not x_llm_key:
         raise HTTPException(status_code=401, detail="missing X-LLM-Key")
@@ -52,8 +75,13 @@ async def create_run(
             content=body.content,
             steps=body.steps,
             platform=body.platform,
-            llm_key=x_llm_key,
-            llm_model=x_llm_model,
+            **_llm_update(
+                x_llm_key,
+                x_llm_model,
+                x_llm_base_url,
+                x_llm_reasoning_effort,
+                x_llm_thinking,
+            ),
         )
     except ValidationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -138,6 +166,9 @@ async def insights(
     request: Request,
     x_llm_key: str | None = Header(default=None),
     x_llm_model: str = Header(default="gpt-4o-mini"),
+    x_llm_base_url: str | None = Header(default=None),
+    x_llm_reasoning_effort: str | None = Header(default=None),
+    x_llm_thinking: str | None = Header(default=None),
 ):  # review:P5-T2
     record = request.app.state.store.get(run_id)
     if record is None:
@@ -145,6 +176,12 @@ async def insights(
     if not x_llm_key:
         raise HTTPException(status_code=401, detail="missing X-LLM-Key")
     config = record.config.model_copy(
-        update={"llm_key": x_llm_key, "llm_model": x_llm_model}
+        update=_llm_update(
+            x_llm_key,
+            x_llm_model,
+            x_llm_base_url,
+            x_llm_reasoning_effort,
+            x_llm_thinking,
+        )
     )
     return generate_insights(record.snapshot, config).model_dump()

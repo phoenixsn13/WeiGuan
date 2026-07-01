@@ -35,6 +35,9 @@ class RunConfig(BaseModel):
     platform: Platform = Platform.TWITTER
     llm_key: str
     llm_model: str = "gpt-4o-mini"
+    llm_base_url: str | None = None
+    llm_reasoning_effort: str | None = None
+    llm_thinking_enabled: bool = False
 
     @model_validator(mode="after")
     def _steps_preset(self):

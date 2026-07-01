@@ -91,16 +91,17 @@ cd frontend && npx tsc -b                                                       
 
 ## 回填区（codex 执行后填写）
 
-- [ ] **R1 依赖**：pyproject 已增补 engine 组，新增 `backend/requirements-engine.txt`（`openai>=1.30`、`camel-oasis`）。安装待用户执行；安装后验证命令：
+- [x] **R1 依赖**：pyproject 已增补 engine 组，新增 `backend/requirements-engine.txt`（`openai>=1.30`、`camel-oasis`）。用户已安装并验证：
       ```bash
       /home/sunrise/.virtualenvs/my-oasis-backend/bin/python -c "import openai, camel; print('deps ok')"
+      deps ok
       ```
-- [ ] **R2 真跑 LLM**：等待用户安装依赖并提供 `WEIGUAN_TEST_LLM_KEY` 后执行。`pytest -m llm` 结果：`__ passed`。若改了实现，列出改动文件与原因：`____`
+- [ ] **R2 真跑 LLM**：已支持 OpenAI protocol compatible 参数；等待用户本机用 key 执行 `backend/scripts/run_llm_smoke.sh` 后回传结果。默认 DeepSeek 参数：`WEIGUAN_TEST_LLM_BASE_URL=https://api.deepseek.com`、`WEIGUAN_TEST_LLM_MODEL=deepseek-v4-pro`、`WEIGUAN_TEST_LLM_REASONING_EFFORT=high`、`WEIGUAN_TEST_LLM_THINKING=enabled`。`pytest -m llm` 结果：`__ passed`。若改了实现，列出改动文件与原因：`____`
       粘贴命令输出：
       ```
       （待真实 key 真跑后粘贴 pytest -m llm -v 的尾部输出）
       ```
 - [x] **R3 act 警告**：修复后 `no act warning`；`npx vitest run` 为 `14 passed / 39 passed`。
-- [ ] **全量回归**：backend not-llm `34 passed` / llm `待 key 真跑` / frontend `39 passed` / tsc `exit 0`
+- [ ] **全量回归**：backend not-llm `40 passed` / llm `待用户 key 真跑` / frontend `39 passed` / tsc `exit 0`
 
 > 全部打勾并粘好 R2 输出后，交回设计/审核者做二次核验（`grep -rn "review:" ` 对照各计划审核索引表 + 复跑上述命令）。

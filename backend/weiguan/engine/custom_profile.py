@@ -36,11 +36,11 @@ def _parse_json_array(text: str):
 
 # review:P4-T3  自定义受众 -> OASIS profile（真 LLM）
 def generate_custom_profile(config: RunConfig, workdir: str, n: int = 60) -> str:
-    from openai import OpenAI
+    from weiguan.analysis.llm_client import completion_options, make_openai_client
 
-    client = OpenAI(api_key=config.llm_key)
+    client = make_openai_client(config)
     response = client.chat.completions.create(
-        model=config.llm_model,
+        **completion_options(config),
         messages=[
             {
                 "role": "user",

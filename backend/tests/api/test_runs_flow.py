@@ -40,6 +40,25 @@ async def test_create_run_requires_key():  # review:P2-T4-AC3
     assert r.status_code == 401
 
 
+async def test_create_run_accepts_openai_compatible_headers():  # review:P2-T6
+    headers = {
+        "X-LLM-Key": "sk-x",
+        "X-LLM-Model": "deepseek-v4-pro",
+        "X-LLM-Base-URL": "https://api.deepseek.com",
+        "X-LLM-Reasoning-Effort": "high",
+        "X-LLM-Thinking": "enabled",
+    }
+    async with _client() as client:
+        r = await client.post("/api/runs", json=_body(), headers=headers)
+        run_id = r.json()["run_id"]
+        record = client._transport.app.state.store.get(run_id)
+    assert r.status_code == 200
+    assert record.config.llm_model == "deepseek-v4-pro"
+    assert record.config.llm_base_url == "https://api.deepseek.com"
+    assert record.config.llm_reasoning_effort == "high"
+    assert record.config.llm_thinking_enabled is True
+
+
 async def test_sse_stream_order_and_accumulation():  # review:P2-T4-AC4
     async with _client() as client:
         run_id = (await client.post("/api/runs", json=_body(6), headers=HDR)).json()[

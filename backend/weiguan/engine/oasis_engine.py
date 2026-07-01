@@ -57,16 +57,35 @@ class OasisEngine:
     def _model(self, config: RunConfig):
         deps = self._deps()
         os.environ["OPENAI_API_KEY"] = config.llm_key
+        if config.llm_base_url:
+            os.environ["OPENAI_BASE_URL"] = config.llm_base_url
+        if config.llm_reasoning_effort:
+            os.environ["OPENAI_REASONING_EFFORT"] = config.llm_reasoning_effort
+        if config.llm_thinking_enabled:
+            os.environ["OPENAI_THINKING"] = "enabled"
+        model_platform = deps["ModelPlatformType"].OPENAI
+        model_type = deps["ModelType"].GPT_4O_MINI
+        if config.llm_base_url:
+            model_platform = deps["ModelPlatformType"].OPENAI_COMPATIBLE_MODEL
+            model_type = config.llm_model
+        model_config: dict[str, object] = {}
+        if config.llm_reasoning_effort:
+            model_config["reasoning_effort"] = config.llm_reasoning_effort
+        if config.llm_thinking_enabled:
+            model_config["extra_body"] = {"thinking": {"type": "enabled"}}
         try:
             return deps["ModelFactory"].create(
-                model_platform=deps["ModelPlatformType"].OPENAI,
-                model_type=deps["ModelType"].GPT_4O_MINI,
+                model_platform=model_platform,
+                model_type=model_type,
+                model_config_dict=model_config or None,
                 api_key=config.llm_key,
+                url=config.llm_base_url,
             )
         except TypeError:
             return deps["ModelFactory"].create(
-                model_platform=deps["ModelPlatformType"].OPENAI,
-                model_type=deps["ModelType"].GPT_4O_MINI,
+                model_platform=model_platform,
+                model_type=model_type,
+                model_config_dict=model_config or None,
             )
 
     async def _make_env(self, config: RunConfig):

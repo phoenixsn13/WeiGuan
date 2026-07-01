@@ -4,6 +4,7 @@ import pytest
 
 from weiguan.engine.config import Audience, RunConfig
 from weiguan.engine.oasis_engine import OasisEngine
+from tests.llm_config import llm_kwargs
 
 pytestmark = pytest.mark.llm
 PROFILE = os.path.join(
@@ -15,15 +16,11 @@ PROFILE = os.path.join(
 
 
 def _cfg():
-    key = os.environ.get("WEIGUAN_TEST_LLM_KEY")
-    if not key:
-        pytest.skip("set WEIGUAN_TEST_LLM_KEY to run the real-LLM smoke test")
     return RunConfig(
         audience=Audience(custom="tech crowd"),
         content="We cut build time to 3 seconds.",
         steps=6,
-        llm_key=key,
-        llm_model=os.environ.get("WEIGUAN_TEST_LLM_MODEL", "gpt-4o-mini"),
+        **llm_kwargs(),
     )
 
 

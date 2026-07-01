@@ -33,7 +33,7 @@ def _parse_json_object(text: str) -> dict:
 
 # review:P5-T2  复盘洞察（真 LLM）
 def generate_insights(snapshot: RunSnapshot, config: RunConfig) -> Insights:
-    from openai import OpenAI
+    from weiguan.analysis.llm_client import completion_options, make_openai_client
 
     seed = next(
         (post for post in snapshot.posts if post.post_id == snapshot.seed_post_id),
@@ -41,9 +41,9 @@ def generate_insights(snapshot: RunSnapshot, config: RunConfig) -> Insights:
     )
     content = seed.content if seed else config.content
     replies = " / ".join(reply.content for reply in snapshot.replies[:12]) or "（暂无）"
-    client = OpenAI(api_key=config.llm_key)
+    client = make_openai_client(config)
     response = client.chat.completions.create(
-        model=config.llm_model,
+        **completion_options(config),
         messages=[
             {
                 "role": "user",
