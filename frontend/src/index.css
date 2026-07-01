@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --wg-ink: #14140F;
+  --wg-cream: #F7F4EC;
+  --wg-brand: #E8A13A;
+  --wg-accent: #2C4A7C;
+}
+
+body {
+  @apply bg-cream text-ink font-body;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
