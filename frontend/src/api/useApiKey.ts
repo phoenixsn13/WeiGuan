@@ -4,7 +4,7 @@ import { useState } from "react";
 export function useApiKey() {
   const [key, setKeyState] = useState(() => localStorage.getItem("wg_llm_key") ?? "");
   const [model, setModelState] = useState(
-    () => localStorage.getItem("wg_llm_model") ?? "gpt-4o-mini",
+    () => localStorage.getItem("wg_llm_model") ?? "",
   );
   const [baseUrl, setBaseUrlState] = useState(
     () => localStorage.getItem("wg_llm_base_url") ?? "",

@@ -124,6 +124,18 @@ PA-T1/PA-T2/PA-T3 已完成，等待用户代跑 PA-T4 真链路手测。LLM key
 
 ### 用户代跑命令
 
+先在 `backend/.env` 写入 LLM 默认值：
+
+```bash
+WEIGUAN_LLM_KEY=<你的 DeepSeek key>
+WEIGUAN_LLM_BASE_URL=https://api.deepseek.com
+WEIGUAN_LLM_MODEL=deepseek-v4-pro
+WEIGUAN_LLM_REASONING_EFFORT=high
+WEIGUAN_LLM_THINKING=enabled
+```
+
+`backend/.env` 不提交。浏览器 BYOK 设置为空时，后端使用这些默认值；浏览器里填写的字段优先级更高。
+
 终端 1：
 
 ```bash
@@ -143,11 +155,11 @@ npm run dev
 
 | 字段 | 值 |
 |------|----|
-| API Key | 用户本地填写，不回填文档 |
-| Base URL | `https://api.deepseek.com` |
-| Model | `deepseek-v4-pro` |
-| Reasoning | `high` |
-| Thinking | `enabled` |
+| API Key | 可留空，使用 `backend/.env` |
+| Base URL | 可留空，使用 `backend/.env` |
+| Model | 可留空，使用 `backend/.env` |
+| Reasoning | 可留空，使用 `backend/.env` |
+| Thinking | 可留空，使用 `backend/.env` |
 
 ### 截图回填
 

@@ -40,6 +40,45 @@ async def test_create_run_requires_key():  # review:P2-T4-AC3
     assert r.status_code == 401
 
 
+async def test_create_run_uses_env_defaults_when_headers_are_blank():  # review:PA-T5-AC1
+    from weiguan.api.app import create_app
+    from weiguan.api.llm_defaults import LlmDefaults
+
+    app = create_app(
+        FakeEngine(),
+        llm_defaults=LlmDefaults(
+            key="sk-env",
+            model="deepseek-v4-pro",
+            base_url="https://api.deepseek.com",
+            reasoning_effort="high",
+            thinking="enabled",
+        ),
+    )
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://test",
+    ) as client:
+        r = await client.post(
+            "/api/runs",
+            json=_body(),
+            headers={
+                "X-LLM-Key": "",
+                "X-LLM-Model": "",
+                "X-LLM-Base-Url": "",
+                "X-LLM-Reasoning-Effort": "",
+                "X-LLM-Thinking": "",
+            },
+        )
+        run_id = r.json()["run_id"]
+        record = app.state.store.get(run_id)
+    assert r.status_code == 200
+    assert record.config.llm_key == "sk-env"
+    assert record.config.llm_model == "deepseek-v4-pro"
+    assert record.config.llm_base_url == "https://api.deepseek.com"
+    assert record.config.llm_reasoning_effort == "high"
+    assert record.config.llm_thinking_enabled is True
+
+
 async def test_create_run_accepts_openai_compatible_headers():  # review:P2-T6
     headers = {
         "X-LLM-Key": "sk-x",

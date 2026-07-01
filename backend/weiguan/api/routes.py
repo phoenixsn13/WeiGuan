@@ -6,6 +6,7 @@ from fastapi import APIRouter, Header, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ValidationError
 
+from weiguan.api.llm_defaults import LlmDefaults
 from weiguan.analysis.insights import generate_insights
 from weiguan.analysis.retro import compute_metrics, seed_engaged_actor_ids
 from weiguan.canonical import Platform
@@ -40,9 +41,18 @@ def _thinking_enabled(value: str | None) -> bool:
     return (value or "").strip().lower() in {"1", "true", "yes", "enabled", "on"}
 
 
+def _nonblank(value: str | None) -> str | None:
+    stripped = (value or "").strip()
+    return stripped or None
+
+
+def _llm_defaults(request: Request) -> LlmDefaults:
+    return getattr(request.app.state, "llm_defaults", LlmDefaults())
+
+
 def _llm_update(
-    key: str,
-    model: str,
+    key: str | None,
+    model: str | None,
     base_url: str | None,
     reasoning_effort: str | None,
     thinking: str | None,
@@ -56,26 +66,46 @@ def _llm_update(
     }
 
 
+def _resolve_llm_update(
+    request: Request,
+    key: str | None,
+    model: str | None,
+    base_url: str | None,
+    reasoning_effort: str | None,
+    thinking: str | None,
+) -> dict:
+    defaults = _llm_defaults(request)
+    resolved_key = _nonblank(key) or defaults.key
+    if not resolved_key:
+        raise HTTPException(status_code=401, detail="missing X-LLM-Key")
+    return _llm_update(
+        resolved_key,
+        _nonblank(model) or defaults.model or "gpt-4o-mini",
+        _nonblank(base_url) or defaults.base_url,
+        _nonblank(reasoning_effort) or defaults.reasoning_effort,
+        _nonblank(thinking) or defaults.thinking,
+    )
+
+
 # review:P2-T4
 @router.post("/runs")
 async def create_run(
     body: _CreateBody,
     request: Request,
     x_llm_key: str | None = Header(default=None),
-    x_llm_model: str = Header(default="gpt-4o-mini"),
+    x_llm_model: str | None = Header(default=None),
     x_llm_base_url: str | None = Header(default=None),
     x_llm_reasoning_effort: str | None = Header(default=None),
     x_llm_thinking: str | None = Header(default=None),
 ):
-    if not x_llm_key:
-        raise HTTPException(status_code=401, detail="missing X-LLM-Key")
     try:
         cfg = RunConfig(
             audience=body.audience,
             content=body.content,
             steps=body.steps,
             platform=body.platform,
-            **_llm_update(
+            **_resolve_llm_update(
+                request,
                 x_llm_key,
                 x_llm_model,
                 x_llm_base_url,
@@ -167,7 +197,7 @@ async def insights(
     run_id: str,
     request: Request,
     x_llm_key: str | None = Header(default=None),
-    x_llm_model: str = Header(default="gpt-4o-mini"),
+    x_llm_model: str | None = Header(default=None),
     x_llm_base_url: str | None = Header(default=None),
     x_llm_reasoning_effort: str | None = Header(default=None),
     x_llm_thinking: str | None = Header(default=None),
@@ -175,10 +205,9 @@ async def insights(
     record = request.app.state.store.get(run_id)
     if record is None:
         raise HTTPException(status_code=404, detail="run not found")
-    if not x_llm_key:
-        raise HTTPException(status_code=401, detail="missing X-LLM-Key")
     config = record.config.model_copy(
-        update=_llm_update(
+        update=_resolve_llm_update(
+            request,
             x_llm_key,
             x_llm_model,
             x_llm_base_url,

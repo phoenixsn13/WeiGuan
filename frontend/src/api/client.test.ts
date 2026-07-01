@@ -75,6 +75,38 @@ test("createRun sends optional LLM provider headers only when present", async ()
   expect(headersWithoutProvider).not.toHaveProperty("X-LLM-Thinking");
 });
 
+test("createRun omits blank LLM headers so backend env defaults can apply", async () => {  // review:PA-T5-AC2
+  const spy = vi.fn(async () => ({
+    ok: true,
+    json: async () => ({ run_id: "r_1" }),
+  }));
+  vi.stubGlobal("fetch", spy);
+
+  await createRun(
+    {
+      audience: { crowd_id: "tech_devs" },
+      content: "hi",
+      steps: 10,
+      platform: "twitter",
+    },
+    {
+      key: "",
+      model: "",
+      baseUrl: "",
+      reasoningEffort: "",
+      thinking: "",
+    },
+  );
+
+  const [, init] = spy.mock.calls[0] as unknown as [unknown, RequestInit];
+  const headers = init.headers as Record<string, string>;
+  expect(headers).not.toHaveProperty("X-LLM-Key");
+  expect(headers).not.toHaveProperty("X-LLM-Model");
+  expect(headers).not.toHaveProperty("X-LLM-Base-Url");
+  expect(headers).not.toHaveProperty("X-LLM-Reasoning-Effort");
+  expect(headers).not.toHaveProperty("X-LLM-Thinking");
+});
+
 test("createRun throws on error", async () => {  // review:P4-T4-AC3
   vi.stubGlobal(
     "fetch",

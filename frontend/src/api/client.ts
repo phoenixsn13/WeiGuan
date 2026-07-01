@@ -14,18 +14,17 @@ export interface CreateRunBody {
 }
 
 export interface Creds {
-  key: string;
-  model: string;
+  key?: string;
+  model?: string;
   baseUrl?: string;
   reasoningEffort?: string;
   thinking?: string;
 }
 
 function llmHeaders(creds: Creds): Record<string, string> {
-  const headers: Record<string, string> = {
-    "X-LLM-Key": creds.key,
-    "X-LLM-Model": creds.model,
-  };
+  const headers: Record<string, string> = {};
+  if (creds.key) headers["X-LLM-Key"] = creds.key;
+  if (creds.model) headers["X-LLM-Model"] = creds.model;
   if (creds.baseUrl) headers["X-LLM-Base-Url"] = creds.baseUrl;
   if (creds.reasoningEffort) headers["X-LLM-Reasoning-Effort"] = creds.reasoningEffort;
   if (creds.thinking) headers["X-LLM-Thinking"] = creds.thinking;
