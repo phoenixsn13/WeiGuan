@@ -1,6 +1,9 @@
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { useRunStream, type EventSourceFactory } from "../api/runStream";
+import { InterviewDrawer } from "../components/InterviewDrawer";
+import type { Actor } from "../model/canonical";
 import { posterView } from "../pov/poster";
 import { XFeed } from "../skins/x/XFeed";
 
@@ -13,11 +16,12 @@ export default function LiveScreen({
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const { snapshot, step, total, status } = useRunStream(id, streamFactory);
+  const [selected, setSelected] = useState<Actor | null>(null);
   const vm = posterView(snapshot);
 
   return (
     <div className="relative">
-      <XFeed vm={vm} />
+      <XFeed vm={vm} onActorClick={setSelected} />
       <div className="sticky bottom-4 mt-6 flex items-center gap-4 rounded-card bg-ink px-4 py-2 text-sm text-cream shadow-spotlight">
         <span>
           第 <span className="tabular">{step}</span>/
@@ -37,6 +41,7 @@ export default function LiveScreen({
           看结果 →
         </button>
       </div>
+      <InterviewDrawer runId={id} actor={selected} onClose={() => setSelected(null)} />
     </div>
   );
 }
