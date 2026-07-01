@@ -197,3 +197,19 @@ def test_pin_seed_to_rec_writes_seed_for_all_non_seed_users(tmp_path):  # review
     finally:
         conn.close()
     assert rows == [(1, 1), (2, 1)]
+
+
+def test_tiny_profile_is_seed_engagement_oriented():  # review:P2-T8
+    import csv
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parents[1] / "fixtures" / "tiny_twitter_profile.csv"
+    with open(path, encoding="utf-8") as file:
+        rows = list(csv.DictReader(file))
+
+    assert rows[0]["following_agentid_list"] == "[]"
+    assert all(row["following_agentid_list"] == "[0]" for row in rows[1:])
+    assert all(
+        any(term in row["description"].lower() for term in ["build", "ci", "developer"])
+        for row in rows
+    )

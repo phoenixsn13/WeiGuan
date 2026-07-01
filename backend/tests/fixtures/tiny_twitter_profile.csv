@@ -1,4 +1,4 @@
 ,user_id,name,username,following_agentid_list,previous_tweets,user_char,description
-0,38210037,user_0,user0,[],[],Lecturer in Healthcare Marketing and Commercialisation at UCL Global Business School for Health,Lecturer in Healthcare Marketing and Commercialisation at UCL Global Business School for Health
-1,36212060,user_1,user1,[32],[],"✩ 🇬🇾🍉 I dance on tiktok, and cry in bed","✩ 🇬🇾🍉 I dance on tiktok, and cry in bed"
-2,282859010,user_2,user2,[32],[],Cook.Ride.Explore.,Cook.Ride.Explore.
+0,38210037,user_0,user0,[],[],Founder shipping a developer tools startup; posts concrete build performance claims.,Founder of a developer tools startup sharing build and CI performance updates.
+1,36212060,user_1,user1,[0],[],Skeptical senior SRE; asks for cold-start proof before trusting build speed claims.,Senior SRE focused on CI reliability and reproducible developer productivity benchmarks.
+2,282859010,user_2,user2,[0],[],Excited frontend developer; celebrates faster build loops but asks how to try it.,Frontend developer who cares about local build speed and day-to-day developer experience.
