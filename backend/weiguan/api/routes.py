@@ -6,6 +6,7 @@ from fastapi import APIRouter, Header, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ValidationError
 
+from weiguan.analysis.retro import compute_metrics
 from weiguan.canonical import Platform
 from weiguan.engine.config import Audience, RunConfig
 from weiguan.engine.crowds import list_crowds
@@ -120,3 +121,11 @@ async def snapshot(run_id: str, request: Request):
     if record is None:
         raise HTTPException(status_code=404, detail="run not found")
     return record.snapshot.model_dump(mode="json")
+
+
+@router.get("/runs/{run_id}/retro")
+async def retro(run_id: str, request: Request):  # review:P5-T1
+    record = request.app.state.store.get(run_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="run not found")
+    return compute_metrics(record.snapshot).model_dump()
