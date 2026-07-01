@@ -146,9 +146,9 @@ export default function RetroScreen() {
 
   return (
     <div className="grid min-h-[calc(100vh-108px)] overflow-hidden rounded-card border border-line bg-white shadow-spotlight lg:grid-cols-[300px_minmax(0,1fr)_340px]">
-      <aside className="hidden bg-night p-6 text-white lg:block">
+      <aside className="hidden bg-slate-950 p-6 text-white lg:block">
         <div className="mb-8 flex items-center gap-3">
-          <div className="grid h-11 w-11 place-items-center rounded-full bg-brand text-lg font-black text-night">
+          <div className="grid h-11 w-11 place-items-center rounded-full bg-brand text-lg font-black text-slate-950">
             {firstActor?.name?.slice(0, 1) ?? "我"}
           </div>
           <div>

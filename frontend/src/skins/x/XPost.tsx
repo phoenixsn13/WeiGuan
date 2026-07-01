@@ -20,7 +20,7 @@ export function XPost({
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2 text-[15px]">
           <span className="font-semibold">{author.name ?? "我"}</span>
-          <span className="rounded-full bg-brand px-1.5 py-0.5 text-[10px] font-bold text-night">
+          <span className="rounded-full bg-brand px-1.5 py-0.5 text-[10px] font-bold text-slate-950">
             V
           </span>
           <span className="text-slate-400">@{author.user_name ?? author.user_id} · 刚刚</span>

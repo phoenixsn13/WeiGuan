@@ -57,7 +57,7 @@ function LiveRail({
   const selectedHandle = selected?.user_name ?? selected?.user_id;
   const progress = total > 0 ? Math.max(6, Math.round((step / total) * 100)) : 100;
   return (
-    <aside className="hidden min-h-[680px] rounded-card bg-night p-5 text-white shadow-chrome xl:block">
+    <aside className="hidden min-h-[680px] rounded-card bg-slate-950 p-5 text-white shadow-chrome xl:block">
       <div className="mb-8">
         <div className="text-xs font-semibold text-white/40">当前视角</div>
         <div className="mt-2 text-lg font-black">
