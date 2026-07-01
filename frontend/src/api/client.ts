@@ -1,4 +1,6 @@
 // review:P4-T4  消费契约 §2.2
+import type { RunSnapshot } from "../model/canonical";
+
 export interface Crowd {
   id: string;
   name: string;
@@ -112,6 +114,14 @@ export async function fetchRetro(runId: string): Promise<RetroMetrics> {
   const response = await fetch(`/api/runs/${runId}/retro`);
   if (!response.ok) {
     throw new Error("failed to load retro");
+  }
+  return response.json();
+}
+
+export async function fetchRunSnapshot(runId: string): Promise<RunSnapshot> {
+  const response = await fetch(`/api/runs/${runId}/snapshot`);
+  if (!response.ok) {
+    throw new Error("failed to load snapshot");
   }
   return response.json();
 }

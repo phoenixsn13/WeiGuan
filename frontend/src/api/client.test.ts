@@ -3,6 +3,7 @@ import {
   fetchCrowds,
   fetchInsights,
   fetchRetro,
+  fetchRunSnapshot,
   fetchRuns,
   interviewActor,
 } from "./client";
@@ -173,6 +174,27 @@ test("fetchRetro gets metrics", async () => {  // review:P5-T3-AC2
   );
   const metrics = await fetchRetro("r_1");
   expect(metrics.sentiment.positive).toBe(2);
+});
+
+test("fetchRunSnapshot loads saved snapshot without events stream", async () => {  // review:UI-P1-AC6
+  const spy = vi.fn(async () => ({
+    ok: true,
+    json: async () => ({
+      platform: "twitter",
+      seed_post_id: 1,
+      actors: [],
+      posts: [],
+      replies: [],
+      reactions: [],
+      follows: [],
+      reports: [],
+      traces: [],
+    }),
+  }));
+  vi.stubGlobal("fetch", spy);
+  const snapshot = await fetchRunSnapshot("r_1");
+  expect(snapshot.seed_post_id).toBe(1);
+  expect(spy).toHaveBeenCalledWith("/api/runs/r_1/snapshot");
 });
 
 test("fetchInsights posts with key", async () => {  // review:P5-T3-AC3

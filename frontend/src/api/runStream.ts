@@ -20,6 +20,7 @@ const defaultFactory: EventSourceFactory = (url) => new EventSource(url);
 export function useRunStream(
   runId: string,
   factory: EventSourceFactory = defaultFactory,
+  enabled = true,
 ): RunStreamState {
   const [state, setState] = useState<RunStreamState>({
     snapshot: emptySnapshot(),
@@ -29,6 +30,8 @@ export function useRunStream(
   });
 
   useEffect(() => {
+    if (!enabled) return;
+
     const es = factory(`/api/runs/${runId}/events`);
     const on = (name: string, fn: (data: any) => void) => {
       es.addEventListener(name, (event) => {
@@ -66,7 +69,7 @@ export function useRunStream(
     );
 
     return () => es.close();
-  }, [factory, runId]);
+  }, [enabled, factory, runId]);
 
   return state;
 }

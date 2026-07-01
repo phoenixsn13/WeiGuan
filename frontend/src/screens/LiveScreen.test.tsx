@@ -5,9 +5,11 @@ import LiveScreen from "./LiveScreen";
 
 class FakeES {
   static last: FakeES;
+  static created = 0;
   listeners: Record<string, ((event: { data: string }) => void)[]> = {};
 
   constructor() {
+    FakeES.created += 1;
     FakeES.last = this;
   }
 
@@ -24,11 +26,54 @@ class FakeES {
 
 function mount() {
   const factory = () => new FakeES() as unknown as EventSource;
+  FakeES.created = 0;
   render(
     <MemoryRouter initialEntries={["/run/r_1/live"]}>
       <Routes>
         <Route path="/run/:id/live" element={<LiveScreen streamFactory={factory} />} />
         <Route path="/run/:id/retro" element={<div>复盘页</div>} />
+      </Routes>
+    </MemoryRouter>,
+  );
+}
+
+function mountReplay() {
+  const factory = () => new FakeES() as unknown as EventSource;
+  FakeES.created = 0;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        platform: "twitter",
+        seed_post_id: 1,
+        actors: [
+          { user_id: 1, user_name: "you", name: "你", num_followers: 0, num_followings: 0 },
+        ],
+        posts: [
+          {
+            post_id: 1,
+            author_id: 1,
+            kind: "original",
+            content: "历史里的内容",
+            num_likes: 0,
+            num_dislikes: 0,
+            num_shares: 0,
+            num_reports: 0,
+          },
+        ],
+        replies: [],
+        reactions: [],
+        follows: [],
+        reports: [],
+        traces: [],
+      }),
+    })),
+  );
+  render(
+    <MemoryRouter initialEntries={["/run/r_1/live?replay=1"]}>
+      <Routes>
+        <Route path="/run/:id/live" element={<LiveScreen streamFactory={factory} />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -141,4 +186,12 @@ test("keeps comments inside a scrollable social viewport and switches actor pers
   fireEvent.click(screen.getAllByText("Marco")[0]);
   expect(screen.getByText("正在从 @dev_marco 的视角看")).toBeInTheDocument();
   expect(screen.getByText("回到我看到的")).toBeInTheDocument();
+});
+
+test("replay mode loads saved snapshot without opening event stream", async () => {  // review:UI-P1-AC7
+  mountReplay();
+
+  expect(await screen.findByText("历史里的内容")).toBeInTheDocument();
+  expect(FakeES.created).toBe(0);
+  expect(fetch).toHaveBeenCalledWith("/api/runs/r_1/snapshot");
 });

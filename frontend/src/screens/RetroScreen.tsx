@@ -4,24 +4,95 @@ import { useParams } from "react-router-dom";
 import {
   fetchInsights,
   fetchRetro,
+  fetchRunSnapshot,
   type Insights,
   type RetroMetrics,
 } from "../api/client";
 import { useApiKey } from "../api/useApiKey";
 import { Button } from "../components/Button";
 import { SentimentTag } from "../components/SentimentTag";
+import type { Reply, RunSnapshot } from "../model/canonical";
+
+interface Wave {
+  title: string;
+  description: string;
+  representative: string;
+  discussion: string;
+  mood: string;
+  spread: number;
+}
+
+const WAVE_COPY = [
+  ["第 1 波：第一批人看到", "最早出现的真实回复和直接反应。"],
+  ["第 2 波：讨论继续扩散", "更多人围绕主帖内容补充、追问或表达立场。"],
+  ["第 3 波：观点分化", "不同视角开始交错，讨论密度继续变化。"],
+  ["第 4 波：阶段性收束", "后续回复把主要关注点逐渐收拢。"],
+] as const;
+
+function actorLabel(snapshot: RunSnapshot | null, actorId: number): string {
+  const actor = snapshot?.actors.find((item) => item.user_id === actorId);
+  return actor?.user_name ? `@${actor.user_name}` : `用户 ${actorId}`;
+}
+
+function seedPost(snapshot: RunSnapshot | null) {
+  return snapshot?.posts.find((post) => post.post_id === snapshot.seed_post_id) ?? null;
+}
+
+function seedReplies(snapshot: RunSnapshot | null): Reply[] {
+  if (!snapshot?.seed_post_id) return [];
+  return snapshot.replies.filter((reply) => reply.post_id === snapshot.seed_post_id);
+}
+
+function replyBucket(replies: Reply[], index: number, count: number): Reply[] {
+  if (replies.length === 0) return [];
+  const size = Math.ceil(replies.length / count);
+  return replies.slice(index * size, index * size + size);
+}
+
+function moodLabel(metrics: RetroMetrics, index: number): string {
+  const { positive, negative, neutral } = metrics.sentiment;
+  if (negative > positive && index >= 1) return "质疑较多";
+  if (positive > negative && index !== 2) return "正向占优";
+  if (neutral >= positive && neutral >= negative) return "观望为主";
+  return "观点分化";
+}
+
+function buildWaves(metrics: RetroMetrics, snapshot: RunSnapshot | null): Wave[] {
+  const replies = seedReplies(snapshot);
+  const seed = seedPost(snapshot);
+  const fallbackContent = seed?.content ?? "暂无保存评论";
+  return WAVE_COPY.map(([title, description], index) => {
+    const bucket = replyBucket(replies, index, WAVE_COPY.length);
+    const reply = bucket[0];
+    return {
+      title,
+      description,
+      representative: reply?.content ?? (index === 0 ? fallbackContent : "这一波暂无新增评论"),
+      discussion: reply ? actorLabel(snapshot, reply.author_id) : "等待更多讨论",
+      mood: moodLabel(metrics, index),
+      spread:
+        metrics.spread_by_step[index] ??
+        metrics.spread_by_step[metrics.spread_by_step.length - 1] ??
+        replies.length,
+    };
+  });
+}
 
 // review:P5-T5  复盘上帝视角（壳，允许品牌色）
 export default function RetroScreen() {
   const { id = "" } = useParams();
   const { key, model, baseUrl, reasoningEffort, thinking } = useApiKey();
   const [metrics, setMetrics] = useState<RetroMetrics | null>(null);
+  const [snapshot, setSnapshot] = useState<RunSnapshot | null>(null);
   const [insights, setInsights] = useState<Insights | null>(null);
 
   useEffect(() => {
     fetchRetro(id)
       .then(setMetrics)
       .catch(() => setMetrics(null));
+    fetchRunSnapshot(id)
+      .then(setSnapshot)
+      .catch(() => setSnapshot(null));
   }, [id]);
 
   if (!metrics) {
@@ -38,12 +109,7 @@ export default function RetroScreen() {
     ["中立", "neutral", metrics.sentiment.neutral],
     ["负向", "negative", metrics.sentiment.negative],
   ];
-  const waves = [
-    ["第 1 波：第一批人看到", "新鲜感和直接反应出现。"],
-    ["第 2 波：质疑点出现", "评论开始围绕可信度、条件和细节追问。"],
-    ["第 3 波：立场分化", "支持与怀疑同时发酵，讨论密度上升。"],
-    ["第 4 波：结论", "主要风险点和可修改方向逐渐收束。"],
-  ];
+  const waves = buildWaves(metrics, snapshot);
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -53,7 +119,7 @@ export default function RetroScreen() {
           <p className="mt-1 text-sm text-ink/60">讨论如何发酵、分化和收束</p>
         </div>
         <a
-          href={`/run/${id}/live`}
+          href={`/run/${id}/live?replay=1`}
           className="rounded-card border border-ink/10 bg-white px-4 py-2 text-sm hover:border-accent hover:text-accent"
         >
           回到评论区
@@ -73,37 +139,31 @@ export default function RetroScreen() {
           </div>
 
           <div className="relative grid gap-4 border-l-2 border-brand/30 pl-5">
-            {waves.map(([title, description], index) => (
-              <article key={title} className="relative rounded-card border border-ink/10 p-4">
+            {waves.map((wave) => (
+              <article key={wave.title} className="relative rounded-card border border-ink/10 p-4">
                 <span className="absolute -left-[31px] top-5 h-4 w-4 rounded-full border-2 border-brand bg-white" />
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <h3 className="font-semibold">{title}</h3>
-                    <p className="mt-1 text-sm text-ink/60">{description}</p>
+                    <h3 className="font-semibold">{wave.title}</h3>
+                    <p className="mt-1 text-sm text-ink/60">{wave.description}</p>
                   </div>
                   <div className="text-right text-xs text-ink/50">
                     传播{" "}
-                    <span className="tabular">
-                      {metrics.spread_by_step[index] ??
-                        metrics.spread_by_step[metrics.spread_by_step.length - 1] ??
-                        0}
-                    </span>
+                    <span className="tabular">{wave.spread}</span>
                   </div>
                 </div>
                 <div className="mt-3 grid gap-2 sm:grid-cols-3">
                   <div className="rounded-card bg-cream p-3 text-sm">
                     <div className="text-ink/50">代表评论</div>
-                    <div className="mt-1">缓存没清吧？</div>
+                    <div className="mt-1">{wave.representative}</div>
                   </div>
                   <div className="rounded-card bg-cream p-3 text-sm">
-                    <div className="text-ink/50">讨论点</div>
-                    <div className="mt-1">复现条件</div>
+                    <div className="text-ink/50">发言者</div>
+                    <div className="mt-1">{wave.discussion}</div>
                   </div>
                   <div className="rounded-card bg-cream p-3 text-sm">
                     <div className="text-ink/50">情绪</div>
-                    <div className="mt-1">
-                      {index === 1 ? "质疑上升" : index === 2 ? "立场分化" : "整体偏积极"}
-                    </div>
+                    <div className="mt-1">{wave.mood}</div>
                   </div>
                 </div>
               </article>

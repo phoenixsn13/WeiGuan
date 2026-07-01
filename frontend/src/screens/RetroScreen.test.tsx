@@ -22,21 +22,109 @@ function mount() {
 test("renders sentiment from retro metrics", async () => {  // review:P5-T5-AC1
   vi.stubGlobal(
     "fetch",
-    vi.fn(async () => ({
-      ok: true,
-      json: async () => ({
-        sentiment: { positive: 5, negative: 2, neutral: 3 },
-        spread_by_step: [1, 3, 2],
-        totals: { reposts: 1, reports: 1 },
-      }),
-    })),
+    vi.fn(async (url: string) => {
+      if (url.endsWith("/snapshot")) {
+        return {
+          ok: true,
+          json: async () => ({
+            platform: "twitter",
+            seed_post_id: 1,
+            actors: [],
+            posts: [],
+            replies: [],
+            reactions: [],
+            follows: [],
+            reports: [],
+            traces: [],
+          }),
+        };
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          sentiment: { positive: 5, negative: 2, neutral: 3 },
+          spread_by_step: [1, 3, 2],
+          totals: { reposts: 1, reports: 1 },
+        }),
+      };
+    }),
   );
   mount();
-  expect(await screen.findByText(/正向/)).toBeInTheDocument();
+  expect(await screen.findByText(/^正向$/)).toBeInTheDocument();
   expect(screen.getByText(/50%/)).toBeInTheDocument();
   expect(screen.getByText("围观回放")).toBeInTheDocument();
   expect(screen.getByText("发酵时间线")).toBeInTheDocument();
   expect(screen.getByText(/第 1 波/)).toBeInTheDocument();
+  expect(screen.getByText("回到评论区")).toHaveAttribute(
+    "href",
+    "/run/r_1/live?replay=1",
+  );
+});
+
+test("replay timeline uses saved snapshot replies instead of canned copy", async () => {  // review:UI-P1-AC8
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.endsWith("/snapshot")) {
+        return {
+          ok: true,
+          json: async () => ({
+            platform: "twitter",
+            seed_post_id: 1,
+            actors: [
+              {
+                user_id: 2,
+                user_name: "dev_marco",
+                name: "Marco",
+                num_followers: 12,
+                num_followings: 3,
+              },
+            ],
+            posts: [
+              {
+                post_id: 1,
+                author_id: 1,
+                kind: "original",
+                content: "真实历史主帖",
+                num_likes: 0,
+                num_dislikes: 0,
+                num_shares: 0,
+                num_reports: 0,
+              },
+            ],
+            replies: [
+              {
+                comment_id: 7,
+                post_id: 1,
+                author_id: 2,
+                content: "真实历史评论：CI 环境要说明",
+                num_likes: 3,
+                num_dislikes: 0,
+              },
+            ],
+            reactions: [],
+            follows: [],
+            reports: [],
+            traces: [],
+          }),
+        };
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          sentiment: { positive: 1, negative: 0, neutral: 0 },
+          spread_by_step: [1],
+          totals: { replies: 1 },
+        }),
+      };
+    }),
+  );
+
+  mount();
+
+  expect(await screen.findByText("真实历史评论：CI 环境要说明")).toBeInTheDocument();
+  expect(screen.getByText("@dev_marco")).toBeInTheDocument();
+  expect(screen.queryByText("缓存没清吧？")).not.toBeInTheDocument();
 });
 
 test("generate insights shows verdict and suggestions", async () => {  // review:P5-T5-AC2
@@ -53,13 +141,27 @@ test("generate insights shows verdict and suggestions", async () => {  // review
     .mockResolvedValueOnce({
       ok: true,
       json: async () => ({
+        platform: "twitter",
+        seed_post_id: 1,
+        actors: [],
+        posts: [],
+        replies: [],
+        reactions: [],
+        follows: [],
+        reports: [],
+        traces: [],
+      }),
+    })
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
         verdict: "偏正向但有暗线",
         suggestions: ["加冷启动实测", "盯硬核用户"],
       }),
     });
   vi.stubGlobal("fetch", fetchMock);
   mount();
-  await screen.findByText(/正向/);
+  await screen.findByText(/^正向$/);
   fireEvent.click(screen.getByText(/生成建议/));
   expect(await screen.findByText("偏正向但有暗线")).toBeInTheDocument();
   expect(screen.getByText("加冷启动实测")).toBeInTheDocument();

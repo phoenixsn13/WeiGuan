@@ -1,9 +1,11 @@
-import { useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
+import { fetchRunSnapshot } from "../api/client";
 import { useRunStream, type EventSourceFactory } from "../api/runStream";
 import { InterviewDrawer } from "../components/InterviewDrawer";
-import type { Actor } from "../model/canonical";
+import { emptySnapshot } from "../model/accumulate";
+import type { Actor, RunSnapshot } from "../model/canonical";
 import { posterView } from "../pov/poster";
 import { XFeed } from "../skins/x/XFeed";
 
@@ -15,10 +17,24 @@ export default function LiveScreen({
 }) {
   const { id = "" } = useParams();
   const navigate = useNavigate();
-  const { snapshot, step, total, status } = useRunStream(id, streamFactory);
+  const [searchParams] = useSearchParams();
+  const replay = searchParams.get("replay") === "1";
+  const stream = useRunStream(id, streamFactory, !replay);
+  const [replaySnapshot, setReplaySnapshot] = useState<RunSnapshot | null>(null);
   const [selected, setSelected] = useState<Actor | null>(null);
+  const snapshot = replay ? replaySnapshot ?? emptySnapshot() : stream.snapshot;
+  const step = replay ? 0 : stream.step;
+  const total = replay ? 0 : stream.total;
+  const status = replay ? "done" : stream.status;
   const vm = posterView(snapshot);
   const selectedHandle = selected?.user_name ?? selected?.user_id;
+
+  useEffect(() => {
+    if (!replay) return;
+    fetchRunSnapshot(id)
+      .then(setReplaySnapshot)
+      .catch(() => setReplaySnapshot(null));
+  }, [id, replay]);
 
   return (
     <div className="relative mx-auto max-w-6xl">
@@ -30,7 +46,11 @@ export default function LiveScreen({
               : "我看到的"}
           </div>
           <div className="text-xs text-cream/60">
-            {status === "done" ? "围观已完成" : "评论和通知会逐步刷出来"}
+            {replay
+              ? "历史回放，只读取已保存的评论区"
+              : status === "done"
+                ? "围观已完成"
+                : "评论和通知会逐步刷出来"}
           </div>
         </div>
         <div className="flex items-center gap-3 text-sm">
@@ -48,10 +68,12 @@ export default function LiveScreen({
           >
             历史记录
           </button>
-          <span>
-            第 <span className="tabular">{step}</span>/
-            <span className="tabular">{total}</span> 步
-          </span>
+          {!replay && (
+            <span>
+              第 <span className="tabular">{step}</span>/
+              <span className="tabular">{total}</span> 步
+            </span>
+          )}
         </div>
       </div>
 
@@ -69,7 +91,7 @@ export default function LiveScreen({
           ].join(" ")}
         />
         <span className="mr-auto">
-          {status === "done" ? "围观完成" : "推演进行中"}
+          {replay ? "历史回放" : status === "done" ? "围观完成" : "推演进行中"}
         </span>
         <button className="min-h-11 rounded-card px-3 text-ink/60 hover:bg-ink/5">
           上一步

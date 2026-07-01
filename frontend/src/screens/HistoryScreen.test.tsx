@@ -1,16 +1,21 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 
 import HistoryScreen from "./HistoryScreen";
 
 afterEach(() => vi.restoreAllMocks());
+
+function LocationProbe() {
+  const location = useLocation();
+  return <div>{`评论区${location.search}`}</div>;
+}
 
 function mount() {
   render(
     <MemoryRouter initialEntries={["/history"]}>
       <Routes>
         <Route path="/history" element={<HistoryScreen />} />
-        <Route path="/run/:id/live" element={<div>评论区</div>} />
+        <Route path="/run/:id/live" element={<LocationProbe />} />
         <Route path="/run/:id/retro" element={<div>回放页</div>} />
       </Routes>
     </MemoryRouter>,
@@ -40,7 +45,7 @@ test("renders historical runs and opens live view", async () => {  // review:UI-
   expect(await screen.findByText("历史记录")).toBeInTheDocument();
   expect(screen.getByText("构建砍到3秒")).toBeInTheDocument();
   fireEvent.click(screen.getByText("看评论区"));
-  expect(screen.getByText("评论区")).toBeInTheDocument();
+  expect(screen.getByText("评论区?replay=1")).toBeInTheDocument();
 });
 
 test("opens replay from historical run", async () => {  // review:UI-P1-AC4

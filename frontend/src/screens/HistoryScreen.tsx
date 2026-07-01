@@ -73,7 +73,7 @@ export default function HistoryScreen() {
               <div className="flex shrink-0 gap-2">
                 <button
                   className="min-h-11 rounded-card border border-ink/10 px-3 text-sm hover:border-accent hover:text-accent"
-                  onClick={() => navigate(`/run/${run.run_id}/live`)}
+                  onClick={() => navigate(`/run/${run.run_id}/live?replay=1`)}
                 >
                   看评论区
                 </button>
