@@ -96,12 +96,16 @@ cd frontend && npx tsc -b                                                       
       /home/sunrise/.virtualenvs/my-oasis-backend/bin/python -c "import openai, camel; print('deps ok')"
       deps ok
       ```
-- [ ] **R2 真跑 LLM**：已支持 OpenAI protocol compatible 参数；等待用户本机用 key 执行 `backend/scripts/run_llm_smoke.sh` 后回传结果。默认 DeepSeek 参数：`WEIGUAN_TEST_LLM_BASE_URL=https://api.deepseek.com`、`WEIGUAN_TEST_LLM_MODEL=deepseek-v4-pro`、`WEIGUAN_TEST_LLM_REASONING_EFFORT=high`、`WEIGUAN_TEST_LLM_THINKING=enabled`。`pytest -m llm` 结果：`__ passed`。若改了实现，列出改动文件与原因：`____`
+- [x] **R2 真跑 LLM**：已支持 OpenAI protocol compatible 参数；用户本机用 DeepSeek key 执行 `backend/scripts/run_llm_smoke.sh` 通过。默认 DeepSeek 参数：`WEIGUAN_TEST_LLM_BASE_URL=https://api.deepseek.com`、`WEIGUAN_TEST_LLM_MODEL=deepseek-v4-pro`、`WEIGUAN_TEST_LLM_REASONING_EFFORT=high`、`WEIGUAN_TEST_LLM_THINKING=enabled`。`pytest -m llm` 结果：`4 passed`。改动文件与原因：`RunConfig/API/OASIS/OpenAI SDK helper/tests 支持 base_url/model/thinking 参数，适配 DeepSeek OpenAI protocol compatible API。`
       粘贴命令输出：
       ```
-      （待真实 key 真跑后粘贴 pytest -m llm -v 的尾部输出）
+      tests/analysis/test_insights_llm.py::test_insights_returns_verdict_and_suggestions PASSED
+      tests/engine/test_custom_profile_llm.py::test_generates_valid_profile_csv PASSED
+      tests/engine/test_oasis_engine_llm.py::test_real_run_produces_llm_content PASSED
+      tests/engine/test_oasis_engine_llm.py::test_real_interview_returns_nonempty PASSED
+      4 passed, 40 deselected, 10 warnings in 1370.45s (0:22:50)
       ```
 - [x] **R3 act 警告**：修复后 `no act warning`；`npx vitest run` 为 `14 passed / 39 passed`。
-- [ ] **全量回归**：backend not-llm `40 passed` / llm `待用户 key 真跑` / frontend `39 passed` / tsc `exit 0`
+- [x] **全量回归**：backend not-llm `40 passed` / llm `4 passed` / frontend `39 passed` / tsc `exit 0`
 
 > 全部打勾并粘好 R2 输出后，交回设计/审核者做二次核验（`grep -rn "review:" ` 对照各计划审核索引表 + 复跑上述命令）。
