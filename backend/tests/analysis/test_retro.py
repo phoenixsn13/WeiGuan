@@ -1,4 +1,8 @@
-from weiguan.analysis.retro import compute_metrics
+from weiguan.analysis.retro import (
+    compute_metrics,
+    seed_engaged_actor_ids,
+    seed_interaction_count,
+)
 from weiguan.canonical import (
     Post,
     Reaction,
@@ -66,3 +70,9 @@ def test_totals_and_spread():  # review:P5-T1-AC2
     assert metrics.totals["reposts"] == 1 and metrics.totals["quotes"] == 1
     assert metrics.totals["replies"] == 2 and metrics.totals["reports"] == 1
     assert metrics.spread_by_step == [1, 2]
+
+
+def test_seed_interaction_helpers_use_seed_scope():  # review:P2-T8
+    snap = _snap()
+    assert seed_interaction_count(snap) == 7
+    assert seed_engaged_actor_ids(snap) == {2, 3, 4, 5, 6}

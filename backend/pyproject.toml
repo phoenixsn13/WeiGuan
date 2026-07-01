@@ -18,4 +18,7 @@ engine = ["camel-oasis"]
 testpaths = ["tests"]
 pythonpath = ["."]
 asyncio_mode = "auto"
-markers = ["llm: 需要真实 LLM key 的端到端测试"]
+markers = [
+  "llm: 需要真实 LLM key 的端到端测试",
+  "llm_effect: 需要真实 LLM key 的效果验收测试",
+]

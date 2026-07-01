@@ -1,0 +1,21 @@
+,user_id,name,username,following_agentid_list,previous_tweets,user_char,description
+0,200000,user_0,user0,[],[],Founder shipping a dev-tools startup; obsessed with build performance.,Founder of a developer tools startup posting benchmark claims and shipping notes.
+1,200001,user_1,user1,[0],[],Skeptical senior SRE; distrusts benchmark claims until cold-start numbers are shown.,Senior SRE who asks for reproducible measurements and production evidence.
+2,200002,user_2,user2,[0],[],Optimistic junior developer; gets excited by faster feedback loops.,Junior frontend developer who celebrates tooling wins and asks practical setup questions.
+3,200003,user_3,user3,[0],[],Pragmatic engineering manager; cares about team throughput and migration risk.,Engineering manager weighing build speed gains against rollout cost.
+4,200004,user_4,user4,[0],[],Performance engineer; reads claims through profiling and cache behavior.,Performance specialist who separates warm-cache demos from real bottlenecks.
+5,200005,user_5,user5,[0],[],DevRel writer; turns technical claims into accessible examples.,Developer advocate looking for clear before-and-after evidence.
+6,200006,user_6,user6,[0],[],Burned-out full stack dev; likes anything that saves waiting time.,Full stack developer frustrated by slow CI and local rebuilds.
+7,200007,user_7,user7,[0],[],Cautious platform lead; worries about flaky build systems.,Platform lead who asks about determinism, rollback, and dependency churn.
+8,200008,user_8,user8,[0],[],Open-source maintainer; values simple tools over hype.,Maintainer skeptical of proprietary magic and interested in transparent internals.
+9,200009,user_9,user9,[0],[],Startup CTO; will adopt if it saves runway this quarter.,CTO focused on developer productivity and cloud cost.
+10,200010,user_10,user10,[0],[],QA automation engineer; asks whether tests really got faster.,QA engineer who distinguishes compile time from end-to-end verification time.
+11,200011,user_11,user11,[0],[],Security engineer; asks what shortcuts were taken.,Security reviewer concerned that speedups may skip scans or checks.
+12,200012,user_12,user12,[0],[],Data engineer; compares build pipelines to batch jobs.,Data platform engineer who values incremental computation.
+13,200013,user_13,user13,[0],[],Indie hacker; loves dramatic productivity wins.,Solo builder who wants tools that feel instant.
+14,200014,user_14,user14,[0],[],Compiler nerd; wants details on graph invalidation.,Compiler enthusiast who asks about dependency graphs and cache keys.
+15,200015,user_15,user15,[0],[],Cloud cost watcher; asks if speed came from bigger machines.,FinOps-minded engineer who challenges hidden infrastructure spend.
+16,200016,user_16,user16,[0],[],Technical writer; looks for exact claims and caveats.,Docs specialist who asks for setup instructions and limitations.
+17,200017,user_17,user17,[0],[],Backend veteran; suspects benchmark theater.,Backend developer who has seen misleading demos and wants real workloads.
+18,200018,user_18,user18,[0],[],Product engineer; cares whether faster builds improve UX shipping.,Product-minded engineer connecting build speed to iteration quality.
+19,200019,user_19,user19,[0],[],Neutral observer; asks concise clarifying questions.,Engineer who neither cheers nor doubts until details are provided.

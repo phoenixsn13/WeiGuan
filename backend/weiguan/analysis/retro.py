@@ -68,3 +68,34 @@ def compute_metrics(snapshot: RunSnapshot) -> RetroMetrics:
             "reports": reports,
         },
     )
+
+
+# review:P2-T8
+def seed_interaction_count(snapshot: RunSnapshot) -> int:
+    totals = compute_metrics(snapshot).totals
+    return (
+        totals["replies"]
+        + totals["likes"]
+        + totals["dislikes"]
+        + totals["reposts"]
+        + totals["quotes"]
+        + totals["reports"]
+    )
+
+
+# review:P2-T8
+def seed_engaged_actor_ids(snapshot: RunSnapshot) -> set[int]:
+    seed = snapshot.seed_post_id
+    actors = {reply.author_id for reply in snapshot.replies if reply.post_id == seed}
+    actors.update(
+        reaction.actor_id
+        for reaction in snapshot.reactions
+        if reaction.target_type == TargetType.POST and reaction.target_id == seed
+    )
+    actors.update(
+        post.author_id
+        for post in snapshot.posts
+        if post.original_post_id == seed and post.kind in {"repost", "quote"}
+    )
+    actors.update(report.actor_id for report in snapshot.reports if report.post_id == seed)
+    return actors
