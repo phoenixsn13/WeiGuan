@@ -7,16 +7,19 @@ import { InterviewDrawer } from "../components/InterviewDrawer";
 import { emptySnapshot } from "../model/accumulate";
 import type { Actor, RunSnapshot } from "../model/canonical";
 import { posterView } from "../pov/poster";
-import { XFeed } from "../skins/x/XFeed";
+import { actorRows, hotRows, repostRows, timelineRows } from "../pov/social";
+import { XFeed, type XFeedMode } from "../skins/x/XFeed";
 
 function RailButton({
   active,
   icon,
   label,
+  onClick,
 }: {
   active?: boolean;
   icon: ReactNode;
   label: string;
+  onClick: () => void;
 }) {
   return (
     <button
@@ -26,6 +29,7 @@ function RailButton({
           ? "bg-white/10 text-white shadow-[inset_3px_0_0_#F5B12F]"
           : "text-white/70 hover:bg-white/10 hover:text-white",
       ].join(" ")}
+      onClick={onClick}
     >
       <span className="grid h-5 w-5 place-items-center">{icon}</span>
       {label}
@@ -47,12 +51,16 @@ function LiveRail({
   total,
   replyCount,
   replay,
+  mode,
+  onModeChange,
 }: {
   selected: Actor | null;
   step: number;
   total: number;
   replyCount: number;
   replay: boolean;
+  mode: XFeedMode;
+  onModeChange: (mode: XFeedMode) => void;
 }) {
   const selectedHandle = selected?.user_name ?? selected?.user_id;
   const progress = total > 0 ? Math.max(6, Math.round((step / total) * 100)) : 100;
@@ -69,11 +77,11 @@ function LiveRail({
       </div>
 
       <nav className="grid gap-2">
-        <RailButton active icon={<MiniIcon path="M3 10.5 12 3l9 7.5M5 10v10h14V10" />} label="我的视角" />
-        <RailButton icon={<MiniIcon path="M4 5h16M4 12h16M4 19h16" />} label="时间线" />
-        <RailButton icon={<MiniIcon path="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm13 10v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />} label="人物" />
-        <RailButton icon={<MiniIcon path="m13 2-2 7h7l-9 13 2-8H4l9-12Z" />} label="热门" />
-        <RailButton icon={<MiniIcon path="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0" />} label="通知" />
+        <RailButton active={mode === "comments"} onClick={() => onModeChange("comments")} icon={<MiniIcon path="M3 10.5 12 3l9 7.5M5 10v10h14V10" />} label="我的视角" />
+        <RailButton active={mode === "timeline"} onClick={() => onModeChange("timeline")} icon={<MiniIcon path="M4 5h16M4 12h16M4 19h16" />} label="时间线" />
+        <RailButton active={mode === "people"} onClick={() => onModeChange("people")} icon={<MiniIcon path="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm13 10v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />} label="人物" />
+        <RailButton active={mode === "hot"} onClick={() => onModeChange("hot")} icon={<MiniIcon path="m13 2-2 7h7l-9 13 2-8H4l9-12Z" />} label="热门" />
+        <RailButton active={mode === "notifications"} onClick={() => onModeChange("notifications")} icon={<MiniIcon path="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0" />} label="通知" />
       </nav>
 
       <div className="mt-auto pt-8">
@@ -111,11 +119,16 @@ export default function LiveScreen({
   const stream = useRunStream(id, streamFactory, !replay);
   const [replaySnapshot, setReplaySnapshot] = useState<RunSnapshot | null>(null);
   const [selected, setSelected] = useState<Actor | null>(null);
+  const [mode, setMode] = useState<XFeedMode>("comments");
   const snapshot = replay ? replaySnapshot ?? emptySnapshot() : stream.snapshot;
   const step = replay ? 0 : stream.step;
   const total = replay ? 0 : stream.total;
   const status = replay ? "done" : stream.status;
   const vm = posterView(snapshot);
+  const reposts = repostRows(snapshot);
+  const actors = actorRows(snapshot);
+  const hot = hotRows(snapshot);
+  const timeline = timelineRows(snapshot);
   const selectedHandle = selected?.user_name ?? selected?.user_id;
 
   useEffect(() => {
@@ -127,7 +140,15 @@ export default function LiveScreen({
 
   return (
     <div className="relative grid gap-4 xl:grid-cols-[260px_minmax(0,1fr)]">
-      <LiveRail selected={selected} step={step} total={total} replyCount={vm.thread.length} replay={replay} />
+      <LiveRail
+        selected={selected}
+        step={step}
+        total={total}
+        replyCount={vm.thread.length}
+        replay={replay}
+        mode={mode}
+        onModeChange={setMode}
+      />
       <div className="min-w-0">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-card border border-line bg-white px-4 py-3 shadow-spotlight">
           <div>
@@ -178,6 +199,13 @@ export default function LiveScreen({
           vm={vm}
           onActorClick={setSelected}
           selectedActorId={selected?.user_id ?? null}
+          mode={mode}
+          onModeChange={setMode}
+          onBack={() => setMode("comments")}
+          reposts={reposts}
+          actors={actors}
+          hot={hot}
+          timeline={timeline}
         />
 
         <div className="sticky bottom-4 z-10 mx-auto mt-4 flex max-w-4xl items-center gap-3 rounded-card border border-line bg-white/95 px-4 py-3 text-sm text-ink shadow-chrome backdrop-blur">
@@ -190,19 +218,19 @@ export default function LiveScreen({
         <span className="mr-auto">
           {replay ? "历史回放" : status === "done" ? "围观完成" : "围观进行中"}
         </span>
-        <button className="hidden min-h-11 rounded-card px-3 text-ink/60 hover:bg-ink/5 sm:block">
+        <button className="hidden min-h-11 cursor-not-allowed rounded-card px-3 text-ink/30 sm:block" disabled title="逐步回放需要后端保存帧数据">
           回到开始
         </button>
-        <button className="hidden min-h-11 rounded-card px-3 text-ink/60 hover:bg-ink/5 sm:block">
+        <button className="hidden min-h-11 cursor-not-allowed rounded-card px-3 text-ink/30 sm:block" disabled title="逐步回放需要后端保存帧数据">
           上一步
         </button>
-        <button className="grid min-h-12 min-w-12 place-items-center rounded-full bg-accent text-lg font-bold text-white shadow-spotlight hover:brightness-105">
+        <button className="grid min-h-12 min-w-12 cursor-not-allowed place-items-center rounded-full bg-slate-300 text-lg font-bold text-white" disabled title="暂停/继续需要流控接口">
           暂停
         </button>
-        <button className="hidden min-h-11 rounded-card px-3 text-ink/60 hover:bg-ink/5 sm:block">
+        <button className="hidden min-h-11 cursor-not-allowed rounded-card px-3 text-ink/30 sm:block" disabled title="逐步回放需要后端保存帧数据">
           下一步
         </button>
-        <button className="hidden min-h-11 rounded-card px-3 text-ink/60 hover:bg-ink/5 sm:block">
+        <button className="hidden min-h-11 cursor-not-allowed rounded-card px-3 text-ink/30 sm:block" disabled title="逐步回放需要后端保存帧数据">
           到结尾
         </button>
         <button

@@ -67,3 +67,42 @@ test("empty feed shows waiting hint", () => {  // review:P3-T3-AC4
   render(<XFeed vm={{ me: null, seedPost: null, thread: [], notifications: [] }} />);
   expect(screen.getByText(/等待第一条/)).toBeInTheDocument();
 });
+
+test("feed tabs render wired repost rows", () => {  // review:UI-P2-AC6
+  const onModeChange = vi.fn();
+  render(
+    <XFeed
+      vm={vm}
+      mode="reposts"
+      onModeChange={onModeChange}
+      reposts={[
+        {
+          post: {
+            post_id: 9,
+            author_id: 2,
+            kind: "quote",
+            original_post_id: 1,
+            content: "转走",
+            quote_content: "我也想看复现步骤",
+            num_likes: 0,
+            num_dislikes: 0,
+            num_shares: 0,
+            num_reports: 0,
+          },
+          author: {
+            user_id: 2,
+            user_name: "marco",
+            name: "Marco",
+            num_followers: 5,
+            num_followings: 3,
+          },
+          label: "引用",
+          text: "我也想看复现步骤",
+        },
+      ]}
+    />,
+  );
+  expect(screen.getByText("我也想看复现步骤")).toBeInTheDocument();
+  fireEvent.click(screen.getByText(/评论/));
+  expect(onModeChange).toHaveBeenCalledWith("comments");
+});

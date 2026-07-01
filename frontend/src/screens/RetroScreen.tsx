@@ -11,7 +11,9 @@ import {
 import { useApiKey } from "../api/useApiKey";
 import { Button } from "../components/Button";
 import { SentimentTag } from "../components/SentimentTag";
+import { emptySnapshot } from "../model/accumulate";
 import type { Reply, RunSnapshot } from "../model/canonical";
+import { keyEvents, timelineRows, trendRows } from "../pov/social";
 
 interface Wave {
   title: string;
@@ -21,6 +23,9 @@ interface Wave {
   mood: string;
   spread: number;
 }
+
+type RetroSection = "waves" | "timeline" | "events" | "trends";
+type SentimentFilter = "全部" | "正向" | "中立" | "负向";
 
 const WAVE_COPY = [
   ["第 1 波：第一批人看到", "最早出现的真实回复和直接反应。"],
@@ -78,6 +83,25 @@ function buildWaves(metrics: RetroMetrics, snapshot: RunSnapshot | null): Wave[]
   });
 }
 
+function filterWaves(waves: Wave[], filter: SentimentFilter): Wave[] {
+  if (filter === "全部") return waves;
+  const matcher: Record<Exclude<SentimentFilter, "全部">, (wave: Wave) => boolean> = {
+    正向: (wave) => wave.mood.includes("正向"),
+    中立: (wave) => wave.mood.includes("观望") || wave.mood.includes("分化"),
+    负向: (wave) => wave.mood.includes("质疑"),
+  };
+  return waves.filter(matcher[filter]);
+}
+
+function sectionTitle(section: RetroSection): string {
+  return {
+    waves: "发酵时间线",
+    timeline: "时间轴视图",
+    events: "关键事件",
+    trends: "数据趋势",
+  }[section];
+}
+
 function discussionTags(snapshot: RunSnapshot | null): string[] {
   const text = seedReplies(snapshot)
     .map((reply) => reply.content)
@@ -112,6 +136,8 @@ export default function RetroScreen() {
   const [metrics, setMetrics] = useState<RetroMetrics | null>(null);
   const [snapshot, setSnapshot] = useState<RunSnapshot | null>(null);
   const [insights, setInsights] = useState<Insights | null>(null);
+  const [section, setSection] = useState<RetroSection>("waves");
+  const [sentimentFilter, setSentimentFilter] = useState<SentimentFilter>("全部");
 
   useEffect(() => {
     fetchRetro(id)
@@ -137,6 +163,11 @@ export default function RetroScreen() {
     ["负向", "negative", metrics.sentiment.negative],
   ];
   const waves = buildWaves(metrics, snapshot);
+  const filteredWaves = filterWaves(waves, sentimentFilter);
+  const displaySnapshot = snapshot ?? emptySnapshot();
+  const timeline = timelineRows(displaySnapshot);
+  const events = keyEvents(displaySnapshot);
+  const trends = trendRows(displaySnapshot);
   const seed = seedPost(snapshot);
   const firstActor = snapshot?.actors.find((actor) => actor.user_id === seed?.author_id);
   const tags = discussionTags(snapshot);
@@ -185,16 +216,22 @@ export default function RetroScreen() {
         </div>
 
         <nav className="mt-5 grid gap-2">
-          {["发酵时间线", "时间轴视图", "关键事件", "数据趋势"].map((item, index) => (
-            <div
-              key={item}
+          {[
+            ["waves", "发酵时间线"],
+            ["timeline", "时间轴视图"],
+            ["events", "关键事件"],
+            ["trends", "数据趋势"],
+          ].map(([key, item]) => (
+            <button
+              key={key}
               className={[
-                "rounded-card px-3 py-3 text-sm font-semibold",
-                index === 0 ? "bg-brand/20 text-brand shadow-[inset_3px_0_0_#F5B12F]" : "text-white/60",
+                "rounded-card px-3 py-3 text-left text-sm font-semibold transition",
+                section === key ? "bg-brand/20 text-brand shadow-[inset_3px_0_0_#F5B12F]" : "text-white/60 hover:bg-white/10 hover:text-white",
               ].join(" ")}
+              onClick={() => setSection(key as RetroSection)}
             >
               {item}
-            </div>
+            </button>
           ))}
         </nav>
 
@@ -227,16 +264,17 @@ export default function RetroScreen() {
         <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-3xl font-black tracking-normal">围观回放</h1>
-            <p className="mt-1 text-lg font-semibold text-slate-700">发酵时间线</p>
+            <p className="mt-1 text-lg font-semibold text-slate-700">{sectionTitle(section)}</p>
           </div>
           <div className="flex rounded-card border border-line bg-white p-1 text-sm font-semibold text-slate-500">
-            {["全部", "正向", "中立", "负向"].map((item, index) => (
+            {(["全部", "正向", "中立", "负向"] as SentimentFilter[]).map((item) => (
               <button
                 key={item}
                 className={[
                   "min-h-9 rounded px-4",
-                  index === 0 ? "bg-slate-100 text-slate-950 shadow-sm" : "hover:text-accent",
+                  sentimentFilter === item ? "bg-slate-100 text-slate-950 shadow-sm" : "hover:text-accent",
                 ].join(" ")}
+                onClick={() => setSentimentFilter(item)}
               >
                 {item}
               </button>
@@ -244,9 +282,15 @@ export default function RetroScreen() {
           </div>
         </div>
 
-        <div className="relative grid gap-4 border-l-4 border-slate-200 pl-6">
-            {waves.map((wave) => (
-            <article key={wave.title} className="relative rounded-card border border-line bg-white p-5 shadow-sm">
+        {section === "waves" && (
+          <div className="relative grid gap-4 border-l-4 border-slate-200 pl-6">
+            {filteredWaves.length === 0 && (
+              <div className="rounded-card border border-dashed border-line bg-white p-8 text-center text-sm text-slate-400">
+                没有符合条件的阶段。
+              </div>
+            )}
+            {filteredWaves.map((wave) => (
+              <article key={wave.title} className="relative rounded-card border border-line bg-white p-5 shadow-sm">
               <span className="absolute -left-[38px] top-7 h-5 w-5 rounded-full border-4 border-brand bg-white" />
               <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_230px]">
                 <div>
@@ -293,7 +337,48 @@ export default function RetroScreen() {
               </div>
             </article>
             ))}
-        </div>
+          </div>
+        )}
+
+        {section === "timeline" && (
+          <div className="grid gap-3">
+            {timeline.map((row) => (
+              <article key={row.id} className="rounded-card border border-line bg-white p-5 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="rounded bg-brand/20 px-2 py-1 text-xs font-bold text-brand">{row.kind}</span>
+                  <span className="text-xs text-slate-400">{row.at || "刚刚"}</span>
+                </div>
+                <h2 className="mt-3 text-lg font-black">{row.title}</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-600">{row.detail}</p>
+              </article>
+            ))}
+            {timeline.length === 0 && <EmptyRetro label="还没有可回放的时间轴。" />}
+          </div>
+        )}
+
+        {section === "events" && (
+          <div className="grid gap-3 md:grid-cols-2">
+            {events.map((event) => (
+              <article key={event.id} className="rounded-card border border-line bg-white p-5 shadow-sm">
+                <div className="text-xs font-bold text-accent">{event.kind} · {event.score}</div>
+                <h2 className="mt-3 text-lg font-black">{event.title}</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-600">{event.detail}</p>
+              </article>
+            ))}
+          </div>
+        )}
+
+        {section === "trends" && (
+          <div className="grid gap-3 md:grid-cols-2">
+            {trends.map((trend) => (
+              <article key={trend.label} className="rounded-card border border-line bg-white p-5 shadow-sm">
+                <div className="text-sm font-semibold text-slate-500">{trend.label}</div>
+                <div className="mt-2 tabular text-4xl font-black text-slate-950">{trend.value}</div>
+                <p className="mt-2 text-sm leading-6 text-slate-600">{trend.note}</p>
+              </article>
+            ))}
+          </div>
+        )}
       </section>
 
       <aside className="grid content-start gap-4 border-l border-line bg-white p-5">
@@ -372,6 +457,14 @@ export default function RetroScreen() {
           </div>
         )}
       </aside>
+    </div>
+  );
+}
+
+function EmptyRetro({ label }: { label: string }) {
+  return (
+    <div className="rounded-card border border-dashed border-line bg-white p-8 text-center text-sm text-slate-400">
+      {label}
     </div>
   );
 }

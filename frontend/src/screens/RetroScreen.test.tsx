@@ -125,6 +125,8 @@ test("replay timeline uses saved snapshot replies instead of canned copy", async
   expect(await screen.findByText("真实历史评论：CI 环境要说明")).toBeInTheDocument();
   expect(screen.getByText("@dev_marco")).toBeInTheDocument();
   expect(screen.queryByText("缓存没清吧？")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "时间轴视图" }));
+  expect(screen.getByText("发布正文")).toBeInTheDocument();
 });
 
 test("generate insights shows verdict and suggestions", async () => {  // review:P5-T5-AC2
