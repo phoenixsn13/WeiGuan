@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 
 from fastapi import APIRouter, Header, HTTPException, Request
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ValidationError
-from sse_starlette.sse import EventSourceResponse
 
 from weiguan.canonical import Platform
 from weiguan.engine.config import Audience, RunConfig
@@ -17,6 +17,15 @@ class _CreateBody(BaseModel):
     content: str
     steps: int
     platform: Platform = Platform.TWITTER
+
+
+class _InterviewBody(BaseModel):
+    actor_id: int
+    question: str
+
+
+def _sse(event: str, data: object) -> str:
+    return f"event: {event}\ndata: {json.dumps(data)}\n\n"
 
 
 # review:P2-T4
@@ -53,41 +62,55 @@ async def stream_events(run_id: str, request: Request):
         raise HTTPException(status_code=404, detail="run not found")
 
     async def gen():
-        yield {
-            "event": "run_started",
-            "data": json.dumps(
-                {
-                    "run_id": run_id,
-                    "steps": record.config.steps,
-                    "platform": record.config.platform.value,
-                    "seed_post_id": record.snapshot.seed_post_id,
-                }
-            ),
-        }
+        yield _sse(
+            "run_started",
+            {
+                "run_id": run_id,
+                "steps": record.config.steps,
+                "platform": record.config.platform.value,
+                "seed_post_id": record.snapshot.seed_post_id,
+            },
+        )
         try:
             async for delta in engine.run(record.config):
-                yield {
-                    "event": "step_started",
-                    "data": json.dumps(
-                        {"step": delta.step, "total": record.config.steps}
-                    ),
-                }
+                yield _sse(
+                    "step_started",
+                    {"step": delta.step, "total": record.config.steps},
+                )
                 record.accumulate(delta.snapshot)
-                yield {
-                    "event": "delta",
-                    "data": json.dumps(
-                        {
-                            "step": delta.step,
-                            "snapshot": delta.snapshot.model_dump(mode="json"),
-                        }
-                    ),
-                }
-                yield {
-                    "event": "step_done",
-                    "data": json.dumps({"step": delta.step}),
-                }
-            yield {"event": "run_done", "data": json.dumps({"run_id": run_id})}
+                yield _sse(
+                    "delta",
+                    {
+                        "step": delta.step,
+                        "snapshot": delta.snapshot.model_dump(mode="json"),
+                    },
+                )
+                yield _sse("step_done", {"step": delta.step})
+            yield _sse("run_done", {"run_id": run_id})
         except Exception as exc:  # noqa: BLE001
-            yield {"event": "error", "data": json.dumps({"message": str(exc)})}
+            yield _sse("error", {"message": str(exc)})
 
-    return EventSourceResponse(gen())
+    return StreamingResponse(gen(), media_type="text/event-stream")
+
+
+# review:P2-T5
+@router.post("/runs/{run_id}/interview")
+async def interview(run_id: str, body: _InterviewBody, request: Request):
+    record = request.app.state.store.get(run_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="run not found")
+    answer = await request.app.state.engine.interview(
+        record.config,
+        record.snapshot,
+        body.actor_id,
+        body.question,
+    )
+    return {"actor_id": body.actor_id, "question": body.question, "answer": answer}
+
+
+@router.get("/runs/{run_id}/snapshot")
+async def snapshot(run_id: str, request: Request):
+    record = request.app.state.store.get(run_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="run not found")
+    return record.snapshot.model_dump(mode="json")
