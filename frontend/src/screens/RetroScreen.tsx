@@ -14,7 +14,7 @@ import { SentimentTag } from "../components/SentimentTag";
 // review:P5-T5  复盘上帝视角（壳，允许品牌色）
 export default function RetroScreen() {
   const { id = "" } = useParams();
-  const { key, model } = useApiKey();
+  const { key, model, baseUrl, reasoningEffort, thinking } = useApiKey();
   const [metrics, setMetrics] = useState<RetroMetrics | null>(null);
   const [insights, setInsights] = useState<Insights | null>(null);
 
@@ -60,7 +60,7 @@ export default function RetroScreen() {
       <div className="mt-4">
         <Button
           onClick={() =>
-            fetchInsights(id, { key, model })
+            fetchInsights(id, { key, model, baseUrl, reasoningEffort, thinking })
               .then(setInsights)
               .catch(() => {})
           }

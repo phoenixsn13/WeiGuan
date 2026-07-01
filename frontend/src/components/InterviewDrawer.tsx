@@ -14,7 +14,7 @@ export function InterviewDrawer({
   actor: Actor | null;
   onClose: () => void;
 }) {
-  const { key, model } = useApiKey();
+  const { key, model, baseUrl, reasoningEffort, thinking } = useApiKey();
   const [question, setQuestion] = useState("");
   const [turns, setTurns] = useState<{ question: string; answer: string }[]>([]);
   const [loading, setLoading] = useState(false);
@@ -29,6 +29,9 @@ export function InterviewDrawer({
       const { answer } = await interviewActor(runId, actor.user_id, current, {
         key,
         model,
+        baseUrl,
+        reasoningEffort,
+        thinking,
       });
       setTurns((items) => [...items, { question: current, answer }]);
       setQuestion("");

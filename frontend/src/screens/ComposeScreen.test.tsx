@@ -58,3 +58,37 @@ test("shows error when create fails", async () => {  // review:P4-T6-AC2
   fireEvent.click(screen.getByText(/开始围观/));
   expect(await screen.findByText(/missing X-LLM-Key/)).toBeInTheDocument();
 });
+
+test("saves provider settings locally and sends them when starting", async () => {  // review:PA-T3-AC1
+  const spy = vi.fn(async () => ({
+    ok: true,
+    json: async () => ({ run_id: "r_9" }),
+  }));
+  vi.stubGlobal("fetch", spy);
+  localStorage.clear();
+  mount();
+
+  fireEvent.change(screen.getByLabelText("API Key"), { target: { value: "sk-local" } });
+  fireEvent.change(screen.getByLabelText("Base URL"), {
+    target: { value: "https://api.deepseek.com" },
+  });
+  fireEvent.change(screen.getByLabelText("Model"), {
+    target: { value: "deepseek-v4-pro" },
+  });
+  fireEvent.change(screen.getByLabelText("Reasoning"), { target: { value: "high" } });
+  fireEvent.change(screen.getByLabelText("Thinking"), { target: { value: "enabled" } });
+  fireEvent.change(screen.getByPlaceholderText(/有什么新鲜事/), {
+    target: { value: "构建砍到3秒" },
+  });
+  fireEvent.click(screen.getByText(/开始围观/));
+
+  await waitFor(() => expect(screen.getByText("进行时页")).toBeInTheDocument());
+  expect(localStorage.getItem("wg_llm_base_url")).toBe("https://api.deepseek.com");
+  expect(localStorage.getItem("wg_llm_reasoning")).toBe("high");
+  expect(localStorage.getItem("wg_llm_thinking")).toBe("enabled");
+  const [, init] = spy.mock.calls[0] as unknown as [unknown, RequestInit];
+  const headers = init.headers as Record<string, string>;
+  expect(headers["X-LLM-Base-Url"]).toBe("https://api.deepseek.com");
+  expect(headers["X-LLM-Reasoning-Effort"]).toBe("high");
+  expect(headers["X-LLM-Thinking"]).toBe("enabled");
+});

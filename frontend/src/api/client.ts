@@ -16,6 +16,20 @@ export interface CreateRunBody {
 export interface Creds {
   key: string;
   model: string;
+  baseUrl?: string;
+  reasoningEffort?: string;
+  thinking?: string;
+}
+
+function llmHeaders(creds: Creds): Record<string, string> {
+  const headers: Record<string, string> = {
+    "X-LLM-Key": creds.key,
+    "X-LLM-Model": creds.model,
+  };
+  if (creds.baseUrl) headers["X-LLM-Base-Url"] = creds.baseUrl;
+  if (creds.reasoningEffort) headers["X-LLM-Reasoning-Effort"] = creds.reasoningEffort;
+  if (creds.thinking) headers["X-LLM-Thinking"] = creds.thinking;
+  return headers;
 }
 
 export async function fetchCrowds(): Promise<Crowd[]> {
@@ -34,8 +48,7 @@ export async function createRun(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-LLM-Key": creds.key,
-      "X-LLM-Model": creds.model,
+      ...llmHeaders(creds),
     },
     body: JSON.stringify(body),
   });
@@ -68,8 +81,7 @@ export async function interviewActor(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-LLM-Key": creds.key,
-      "X-LLM-Model": creds.model,
+      ...llmHeaders(creds),
     },
     body: JSON.stringify({ actor_id: actorId, question }),
   });
@@ -92,8 +104,7 @@ export async function fetchInsights(runId: string, creds: Creds): Promise<Insigh
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-LLM-Key": creds.key,
-      "X-LLM-Model": creds.model,
+      ...llmHeaders(creds),
     },
     body: "{}",
   });

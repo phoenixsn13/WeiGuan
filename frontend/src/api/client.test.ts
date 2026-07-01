@@ -40,6 +40,41 @@ test("createRun posts with BYOK headers", async () => {  // review:P4-T4-AC2
   expect((init.headers as Record<string, string>)["X-LLM-Key"]).toBe("sk-x");
 });
 
+test("createRun sends optional LLM provider headers only when present", async () => {  // review:PA-T3-AC1
+  const spy = vi.fn(async () => ({
+    ok: true,
+    json: async () => ({ run_id: "r_1" }),
+  }));
+  vi.stubGlobal("fetch", spy);
+  const body = {
+    audience: { crowd_id: "tech_devs" },
+    content: "hi",
+    steps: 10,
+    platform: "twitter" as const,
+  };
+
+  await createRun(body, {
+    key: "sk-x",
+    model: "deepseek-v4-pro",
+    baseUrl: "https://api.deepseek.com",
+    reasoningEffort: "high",
+    thinking: "enabled",
+  });
+  await createRun(body, { key: "sk-x", model: "deepseek-v4-pro" });
+
+  const [, initWithProvider] = spy.mock.calls[0] as unknown as [unknown, RequestInit];
+  const headersWithProvider = initWithProvider.headers as Record<string, string>;
+  expect(headersWithProvider["X-LLM-Base-Url"]).toBe("https://api.deepseek.com");
+  expect(headersWithProvider["X-LLM-Reasoning-Effort"]).toBe("high");
+  expect(headersWithProvider["X-LLM-Thinking"]).toBe("enabled");
+
+  const [, initWithoutProvider] = spy.mock.calls[1] as unknown as [unknown, RequestInit];
+  const headersWithoutProvider = initWithoutProvider.headers as Record<string, string>;
+  expect(headersWithoutProvider).not.toHaveProperty("X-LLM-Base-Url");
+  expect(headersWithoutProvider).not.toHaveProperty("X-LLM-Reasoning-Effort");
+  expect(headersWithoutProvider).not.toHaveProperty("X-LLM-Thinking");
+});
+
 test("createRun throws on error", async () => {  // review:P4-T4-AC3
   vi.stubGlobal(
     "fetch",
