@@ -2,7 +2,20 @@ from __future__ import annotations
 
 import sqlite3
 
-from weiguan.canonical import Actor, Platform, Post, PostKind, Reply, RunSnapshot
+from weiguan.canonical import (
+    Actor,
+    Follow,
+    Platform,
+    Post,
+    PostKind,
+    Reaction,
+    ReactionKind,
+    Reply,
+    Report,
+    RunSnapshot,
+    TargetType,
+    TraceEvent,
+)
 
 
 def _rows(conn: sqlite3.Connection, sql: str) -> list[sqlite3.Row]:
@@ -72,12 +85,88 @@ def load_run_snapshot(
             )
             for r in _rows(conn, "SELECT * FROM comment ORDER BY comment_id")
         ]
+        # review:P1-T4
+        reactions: list[Reaction] = []
+        for r in _rows(conn, 'SELECT * FROM "like" ORDER BY like_id'):
+            reactions.append(
+                Reaction(
+                    kind=ReactionKind.LIKE,
+                    actor_id=r["user_id"],
+                    target_type=TargetType.POST,
+                    target_id=r["post_id"],
+                    created_at=_text_or_none(r["created_at"]),
+                )
+            )
+        for r in _rows(conn, "SELECT * FROM dislike ORDER BY dislike_id"):
+            reactions.append(
+                Reaction(
+                    kind=ReactionKind.DISLIKE,
+                    actor_id=r["user_id"],
+                    target_type=TargetType.POST,
+                    target_id=r["post_id"],
+                    created_at=_text_or_none(r["created_at"]),
+                )
+            )
+        for r in _rows(conn, "SELECT * FROM comment_like ORDER BY comment_like_id"):
+            reactions.append(
+                Reaction(
+                    kind=ReactionKind.COMMENT_LIKE,
+                    actor_id=r["user_id"],
+                    target_type=TargetType.COMMENT,
+                    target_id=r["comment_id"],
+                    created_at=_text_or_none(r["created_at"]),
+                )
+            )
+        for r in _rows(
+            conn, "SELECT * FROM comment_dislike ORDER BY comment_dislike_id"
+        ):
+            reactions.append(
+                Reaction(
+                    kind=ReactionKind.COMMENT_DISLIKE,
+                    actor_id=r["user_id"],
+                    target_type=TargetType.COMMENT,
+                    target_id=r["comment_id"],
+                    created_at=_text_or_none(r["created_at"]),
+                )
+            )
+
+        follows = [
+            Follow(
+                follower_id=r["follower_id"],
+                followee_id=r["followee_id"],
+                created_at=_text_or_none(r["created_at"]),
+            )
+            for r in _rows(conn, "SELECT * FROM follow ORDER BY follow_id")
+        ]
+        reports = [
+            Report(
+                actor_id=r["user_id"],
+                post_id=r["post_id"],
+                reason=r["report_reason"],
+                created_at=_text_or_none(r["created_at"]),
+            )
+            for r in _rows(conn, "SELECT * FROM report ORDER BY report_id")
+        ]
+        traces = [
+            TraceEvent(
+                actor_id=r["user_id"],
+                created_at=_text_or_none(r["created_at"]),
+                action=r["action"],
+                info=r["info"],
+            )
+            for r in _rows(conn, "SELECT * FROM trace ORDER BY created_at, action")
+        ]
+
         return RunSnapshot(
             platform=platform,
             seed_post_id=seed_post_id,
             actors=actors,
             posts=posts,
             replies=replies,
+            reactions=reactions,
+            follows=follows,
+            reports=reports,
+            traces=traces,
         )
     finally:
         conn.close()
