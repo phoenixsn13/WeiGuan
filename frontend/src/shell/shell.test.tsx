@@ -5,6 +5,11 @@ import { AppShell } from "./AppShell";
 import { AppRoutes } from "./routes";
 
 function at(path: string) {
+  class FakeES {
+    addEventListener() {}
+    close() {}
+  }
+  vi.stubGlobal("EventSource", FakeES);
   return render(
     <MemoryRouter initialEntries={[path]}>
       <AppShell>
@@ -24,7 +29,7 @@ test("root route renders gallery placeholder", () => {  // review:PF0-T4-AC2
   expect(screen.getByText(/选一个圈子/)).toBeInTheDocument();
 });
 
-test("live route renders live placeholder", () => {  // review:PF0-T4-AC3
+test("live route renders live screen", () => {  // review:PF0-T4-AC3
   at("/run/r_1/live");
-  expect(screen.getByText(/进行时/)).toBeInTheDocument();
+  expect(screen.getByText(/等待第一条/)).toBeInTheDocument();
 });
