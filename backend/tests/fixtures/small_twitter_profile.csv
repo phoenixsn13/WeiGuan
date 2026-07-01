@@ -6,7 +6,7 @@
 4,200004,user_4,user4,[0],[],Performance engineer; reads claims through profiling and cache behavior.,Performance specialist who separates warm-cache demos from real bottlenecks.
 5,200005,user_5,user5,[0],[],DevRel writer; turns technical claims into accessible examples.,Developer advocate looking for clear before-and-after evidence.
 6,200006,user_6,user6,[0],[],Burned-out full stack dev; likes anything that saves waiting time.,Full stack developer frustrated by slow CI and local rebuilds.
-7,200007,user_7,user7,[0],[],Cautious platform lead; worries about flaky build systems.,Platform lead who asks about determinism, rollback, and dependency churn.
+7,200007,user_7,user7,[0],[],Cautious platform lead; worries about flaky build systems.,"Platform lead who asks about determinism, rollback, and dependency churn."
 8,200008,user_8,user8,[0],[],Open-source maintainer; values simple tools over hype.,Maintainer skeptical of proprietary magic and interested in transparent internals.
 9,200009,user_9,user9,[0],[],Startup CTO; will adopt if it saves runway this quarter.,CTO focused on developer productivity and cloud cost.
 10,200010,user_10,user10,[0],[],QA automation engineer; asks whether tests really got faster.,QA engineer who distinguishes compile time from end-to-end verification time.

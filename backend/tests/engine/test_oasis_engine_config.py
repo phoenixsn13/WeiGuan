@@ -213,3 +213,26 @@ def test_tiny_profile_is_seed_engagement_oriented():  # review:P2-T8
         any(term in row["description"].lower() for term in ["build", "ci", "developer"])
         for row in rows
     )
+
+
+def test_llm_profile_fixtures_are_pandas_readable():  # review:P2-T8
+    import pandas as pd
+    from pathlib import Path
+
+    fixture_dir = Path(__file__).resolve().parents[1] / "fixtures"
+    for name, expected_rows in [
+        ("tiny_twitter_profile.csv", 3),
+        ("small_twitter_profile.csv", 20),
+    ]:
+        frame = pd.read_csv(fixture_dir / name)
+        assert len(frame) == expected_rows
+        assert list(frame.columns) == [
+            "Unnamed: 0",
+            "user_id",
+            "name",
+            "username",
+            "following_agentid_list",
+            "previous_tweets",
+            "user_char",
+            "description",
+        ]
