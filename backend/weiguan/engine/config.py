@@ -43,6 +43,12 @@ class RunConfig(BaseModel):
     llm_error_threshold: int = 1
     llm_max_retries: int = 0
     llm_max_tokens: int = 512
+    llm_cost_budget_rmb: float = 5.0
+    oasis_max_rec_post_len: int = 10
+    oasis_refresh_rec_post_count: int = 5
+    oasis_following_post_count: int = 3
+    oasis_llm_semaphore: int = 4
+    attention_comment_budget: int = 12
 
     @model_validator(mode="after")
     def _steps_preset(self):
@@ -58,4 +64,16 @@ class RunConfig(BaseModel):
             raise ValueError("llm_max_retries must be >= 0")
         if self.llm_max_tokens < 1:
             raise ValueError("llm_max_tokens must be >= 1")
+        if self.llm_cost_budget_rmb <= 0:
+            raise ValueError("llm_cost_budget_rmb must be > 0")
+        if self.oasis_max_rec_post_len < 1:
+            raise ValueError("oasis_max_rec_post_len must be >= 1")
+        if self.oasis_refresh_rec_post_count < 1:
+            raise ValueError("oasis_refresh_rec_post_count must be >= 1")
+        if self.oasis_following_post_count < 0:
+            raise ValueError("oasis_following_post_count must be >= 0")
+        if self.oasis_llm_semaphore < 1:
+            raise ValueError("oasis_llm_semaphore must be >= 1")
+        if self.attention_comment_budget < 1:
+            raise ValueError("attention_comment_budget must be >= 1")
         return self

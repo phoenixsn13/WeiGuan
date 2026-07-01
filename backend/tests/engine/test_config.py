@@ -48,3 +48,13 @@ def test_openai_compatible_llm_options():  # review:P2-T6
     assert c.llm_base_url == "https://api.deepseek.com"
     assert c.llm_reasoning_effort == "high"
     assert c.llm_thinking_enabled is True
+
+
+def test_cost_safety_defaults_bound_oasis_context():  # review:PA-T7-AC2
+    c = _cfg()
+    assert c.llm_cost_budget_rmb == 5.0
+    assert c.oasis_max_rec_post_len == 10
+    assert c.oasis_refresh_rec_post_count == 5
+    assert c.oasis_following_post_count == 3
+    assert c.oasis_llm_semaphore == 4
+    assert c.attention_comment_budget == 12

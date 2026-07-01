@@ -61,6 +61,12 @@ def _llm_update(
     error_threshold: int | None = None,
     max_retries: int | None = None,
     max_tokens: int | None = None,
+    cost_budget_rmb: float | None = None,
+    oasis_max_rec_post_len: int | None = None,
+    oasis_refresh_rec_post_count: int | None = None,
+    oasis_following_post_count: int | None = None,
+    oasis_llm_semaphore: int | None = None,
+    attention_comment_budget: int | None = None,
 ) -> dict:
     update = {
         "llm_key": key,
@@ -79,6 +85,18 @@ def _llm_update(
         update["llm_max_retries"] = max_retries
     if max_tokens is not None:
         update["llm_max_tokens"] = max_tokens
+    if cost_budget_rmb is not None:
+        update["llm_cost_budget_rmb"] = cost_budget_rmb
+    if oasis_max_rec_post_len is not None:
+        update["oasis_max_rec_post_len"] = oasis_max_rec_post_len
+    if oasis_refresh_rec_post_count is not None:
+        update["oasis_refresh_rec_post_count"] = oasis_refresh_rec_post_count
+    if oasis_following_post_count is not None:
+        update["oasis_following_post_count"] = oasis_following_post_count
+    if oasis_llm_semaphore is not None:
+        update["oasis_llm_semaphore"] = oasis_llm_semaphore
+    if attention_comment_budget is not None:
+        update["attention_comment_budget"] = attention_comment_budget
     return update
 
 
@@ -105,6 +123,12 @@ def _resolve_llm_update(
         defaults.error_threshold,
         defaults.max_retries,
         defaults.max_tokens,
+        defaults.cost_budget_rmb,
+        defaults.oasis_max_rec_post_len,
+        defaults.oasis_refresh_rec_post_count,
+        defaults.oasis_following_post_count,
+        defaults.oasis_llm_semaphore,
+        defaults.attention_comment_budget,
     )
 
 

@@ -63,7 +63,7 @@ def _cfg() -> RunConfig:
     )
 
 
-async def test_make_env_uses_random_platform_for_seed_visibility(monkeypatch, tmp_path):  # review:P2-T7
+async def test_make_env_uses_budgeted_random_platform_for_seed_visibility(monkeypatch, tmp_path):  # review:PA-T7-AC1
     captured = {}
 
     class ActionType:
@@ -112,9 +112,66 @@ async def test_make_env_uses_random_platform_for_seed_visibility(monkeypatch, tm
     platform = captured["platform"]
     assert platform is not FakeOasis.DefaultPlatformType.TWITTER
     assert platform.recsys_type == "random"
-    assert platform.max_rec_post_len == 500
-    assert platform.refresh_rec_post_count == 500
-    assert platform.following_post_count == 5
+    assert platform.max_rec_post_len == 10
+    assert platform.refresh_rec_post_count == 5
+    assert platform.following_post_count == 3
+    assert captured["semaphore"] == 4
+
+
+async def test_attention_context_replaces_full_oasis_prompt(monkeypatch, tmp_path):  # review:PA-T7-AC3
+    class FakeAction:
+        async def refresh(self):
+            return {
+                "success": True,
+                "posts": [
+                    {
+                        "post_id": 1,
+                        "user_id": 0,
+                        "content": "seed",
+                        "comments": [
+                            {
+                                "comment_id": idx,
+                                "post_id": 1,
+                                "user_id": idx,
+                                "content": f"source? comment {idx}",
+                                "created_at": idx,
+                                "num_likes": idx,
+                                "num_dislikes": 0,
+                            }
+                            for idx in range(1, 40)
+                        ],
+                    }
+                ],
+            }
+
+    class FakeEnvForAgent:
+        action = FakeAction()
+
+    class FakeAgent:
+        def __init__(self, actor_id):
+            self.social_agent_id = actor_id
+            self.env = FakeEnvForAgent()
+
+    agent = FakeAgent(7)
+
+    class FakeGraph:
+        def get_agents(self):
+            return [(0, FakeAgent(0)), (7, agent)]
+
+    class FakeEnv:
+        agent_graph = FakeGraph()
+
+    engine = OasisEngine(profile_path="profile.csv", db_dir=str(tmp_path))
+    cfg = _cfg()
+    cfg.attention_comment_budget = 5
+
+    engine._install_attention_context(FakeEnv(), cfg)
+
+    prompt = await agent.env.to_text_prompt()
+
+    assert "discussion_panel" in prompt
+    assert prompt.count("comment_id") == 5
+    assert "comment 39" in prompt
 
 
 async def test_run_raises_when_seed_visibility_check_fails(monkeypatch, tmp_path):  # review:P2-T7-AC1

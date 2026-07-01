@@ -24,6 +24,12 @@ def test_load_env_file_reads_weiguan_llm_defaults(tmp_path, monkeypatch):  # rev
                 "WEIGUAN_LLM_ERROR_THRESHOLD=1",
                 "WEIGUAN_LLM_MAX_RETRIES=0",
                 "WEIGUAN_LLM_MAX_TOKENS=256",
+                "WEIGUAN_LLM_COST_BUDGET_RMB=5",
+                "WEIGUAN_OASIS_MAX_REC_POST_LEN=10",
+                "WEIGUAN_OASIS_REFRESH_REC_POST_COUNT=5",
+                "WEIGUAN_OASIS_FOLLOWING_POST_COUNT=3",
+                "WEIGUAN_OASIS_LLM_SEMAPHORE=4",
+                "WEIGUAN_ATTENTION_COMMENT_BUDGET=12",
             ]
         ),
         encoding="utf-8",
@@ -42,3 +48,9 @@ def test_load_env_file_reads_weiguan_llm_defaults(tmp_path, monkeypatch):  # rev
     assert defaults.error_threshold == 1
     assert defaults.max_retries == 0
     assert defaults.max_tokens == 256
+    assert defaults.cost_budget_rmb == 5.0
+    assert defaults.oasis_max_rec_post_len == 10
+    assert defaults.oasis_refresh_rec_post_count == 5
+    assert defaults.oasis_following_post_count == 3
+    assert defaults.oasis_llm_semaphore == 4
+    assert defaults.attention_comment_budget == 12

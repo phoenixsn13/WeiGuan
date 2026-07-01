@@ -17,6 +17,12 @@ class LlmDefaults:
     error_threshold: int | None = None
     max_retries: int | None = None
     max_tokens: int | None = None
+    cost_budget_rmb: float | None = None
+    oasis_max_rec_post_len: int | None = None
+    oasis_refresh_rec_post_count: int | None = None
+    oasis_following_post_count: int | None = None
+    oasis_llm_semaphore: int | None = None
+    attention_comment_budget: int | None = None
 
 
 def _clean(value: str | None) -> str | None:
@@ -29,6 +35,11 @@ def _clean(value: str | None) -> str | None:
 def _int_env(name: str) -> int | None:
     value = _clean(os.environ.get(name))
     return int(value) if value is not None else None
+
+
+def _float_env(name: str) -> float | None:
+    value = _clean(os.environ.get(name))
+    return float(value) if value is not None else None
 
 
 def load_env_file(path: str | Path) -> None:
@@ -58,4 +69,10 @@ def defaults_from_env() -> LlmDefaults:
         error_threshold=_int_env("WEIGUAN_LLM_ERROR_THRESHOLD"),
         max_retries=_int_env("WEIGUAN_LLM_MAX_RETRIES"),
         max_tokens=_int_env("WEIGUAN_LLM_MAX_TOKENS"),
+        cost_budget_rmb=_float_env("WEIGUAN_LLM_COST_BUDGET_RMB"),
+        oasis_max_rec_post_len=_int_env("WEIGUAN_OASIS_MAX_REC_POST_LEN"),
+        oasis_refresh_rec_post_count=_int_env("WEIGUAN_OASIS_REFRESH_REC_POST_COUNT"),
+        oasis_following_post_count=_int_env("WEIGUAN_OASIS_FOLLOWING_POST_COUNT"),
+        oasis_llm_semaphore=_int_env("WEIGUAN_OASIS_LLM_SEMAPHORE"),
+        attention_comment_budget=_int_env("WEIGUAN_ATTENTION_COMMENT_BUDGET"),
     )

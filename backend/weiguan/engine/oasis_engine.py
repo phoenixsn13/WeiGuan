@@ -7,6 +7,10 @@ from pathlib import Path
 from typing import AsyncIterator
 
 from weiguan.adapter.oasis_adapter import load_run_snapshot
+from weiguan.analysis.attention_context import (
+    AttentionContextConfig,
+    build_attention_context,
+)
 from weiguan.canonical import Platform, RunSnapshot
 from weiguan.engine.base import RunDelta
 from weiguan.engine.config import RunConfig
@@ -120,14 +124,15 @@ class OasisEngine:
             db_path=db_path,
             channel=deps["Channel"](),
             recsys_type="random",
-            max_rec_post_len=500,
-            refresh_rec_post_count=500,
-            following_post_count=5,
+            max_rec_post_len=config.oasis_max_rec_post_len,
+            refresh_rec_post_count=config.oasis_refresh_rec_post_count,
+            following_post_count=config.oasis_following_post_count,
         )
         env = oasis.make(
             agent_graph=graph,
             platform=platform,
             database_path=db_path,
+            semaphore=config.oasis_llm_semaphore,
         )
         return env, db_path
 
@@ -176,6 +181,43 @@ class OasisEngine:
         ]
         return ids[: config.llm_max_agents]
 
+    def _install_attention_context(self, env, config: RunConfig) -> None:
+        if not hasattr(env.agent_graph, "get_agents"):
+            return
+        context_config = AttentionContextConfig(
+            comment_budget=config.attention_comment_budget,
+        )
+
+        for agent_id, agent in env.agent_graph.get_agents():
+            if agent_id == 0:
+                continue
+            if not hasattr(agent, "env") or not hasattr(agent.env, "action"):
+                continue
+            action = agent.env.action
+
+            async def to_text_prompt(
+                include_posts: bool = True,
+                include_followers: bool = True,
+                include_follows: bool = True,
+                *,
+                _action=action,
+                _agent_id=agent_id,
+            ) -> str:
+                posts_result = await _action.refresh() if include_posts else {}
+                posts = (
+                    posts_result.get("posts", [])
+                    if isinstance(posts_result, dict) and posts_result.get("success")
+                    else []
+                )
+                context = build_attention_context(
+                    posts,
+                    actor_id=_agent_id,
+                    config=context_config,
+                )
+                return context.to_json()
+
+            agent.env.to_text_prompt = to_text_prompt
+
     async def _safe_llm_step(self, env, deps, config: RunConfig) -> None:
         agents = env.agent_graph.get_agents(agent_ids=self._llm_agent_ids(env, config))
         actions = {agent: deps["LLMAction"]() for _, agent in agents}
@@ -189,6 +231,7 @@ class OasisEngine:
         env, db_path = await self._make_env(config)
         try:
             await env.reset()
+            self._install_attention_context(env, config)
             action_type = deps["ActionType"]
             await env.step(
                 {
