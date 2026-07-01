@@ -50,10 +50,10 @@ test("renders sentiment from retro metrics", async () => {  // review:P5-T5-AC1
     }),
   );
   mount();
-  expect(await screen.findByText(/^正向$/)).toBeInTheDocument();
+  expect((await screen.findAllByText(/^正向$/)).length).toBeGreaterThan(0);
   expect(screen.getByText(/50%/)).toBeInTheDocument();
   expect(screen.getByText("围观回放")).toBeInTheDocument();
-  expect(screen.getByText("发酵时间线")).toBeInTheDocument();
+  expect(screen.getAllByText("发酵时间线").length).toBeGreaterThan(0);
   expect(screen.getByText(/第 1 波/)).toBeInTheDocument();
   expect(screen.getByText("回到评论区")).toHaveAttribute(
     "href",
@@ -161,7 +161,7 @@ test("generate insights shows verdict and suggestions", async () => {  // review
     });
   vi.stubGlobal("fetch", fetchMock);
   mount();
-  await screen.findByText(/^正向$/);
+  await screen.findAllByText(/^正向$/);
   fireEvent.click(screen.getByText(/生成建议/));
   expect(await screen.findByText("偏正向但有暗线")).toBeInTheDocument();
   expect(screen.getByText("加冷启动实测")).toBeInTheDocument();

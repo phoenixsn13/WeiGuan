@@ -120,7 +120,7 @@ test("streams seed post then reply, shows step counter", () => {  // review:P3-T
     }),
   );
   expect(screen.getByText("构建砍到3秒")).toBeInTheDocument();
-  expect(screen.getByText(/1/)).toBeInTheDocument();
+  expect(screen.getByText("1/6")).toBeInTheDocument();
 });
 
 test("see-results disabled until done, then navigates", () => {  // review:P3-T5-AC2

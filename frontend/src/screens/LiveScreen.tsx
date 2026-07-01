@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { fetchRunSnapshot } from "../api/client";
@@ -8,6 +8,95 @@ import { emptySnapshot } from "../model/accumulate";
 import type { Actor, RunSnapshot } from "../model/canonical";
 import { posterView } from "../pov/poster";
 import { XFeed } from "../skins/x/XFeed";
+
+function RailButton({
+  active,
+  icon,
+  label,
+}: {
+  active?: boolean;
+  icon: ReactNode;
+  label: string;
+}) {
+  return (
+    <button
+      className={[
+        "flex min-h-12 w-full items-center gap-3 rounded-card px-3 text-left text-sm font-semibold transition",
+        active
+          ? "bg-white/10 text-white shadow-[inset_3px_0_0_#F5B12F]"
+          : "text-white/70 hover:bg-white/10 hover:text-white",
+      ].join(" ")}
+    >
+      <span className="grid h-5 w-5 place-items-center">{icon}</span>
+      {label}
+    </button>
+  );
+}
+
+function MiniIcon({ path }: { path: string }) {
+  return (
+    <svg aria-hidden="true" className="h-5 w-5" fill="none" viewBox="0 0 24 24">
+      <path d={path} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
+    </svg>
+  );
+}
+
+function LiveRail({
+  selected,
+  step,
+  total,
+  replyCount,
+  replay,
+}: {
+  selected: Actor | null;
+  step: number;
+  total: number;
+  replyCount: number;
+  replay: boolean;
+}) {
+  const selectedHandle = selected?.user_name ?? selected?.user_id;
+  const progress = total > 0 ? Math.max(6, Math.round((step / total) * 100)) : 100;
+  return (
+    <aside className="hidden min-h-[680px] rounded-card bg-night p-5 text-white shadow-chrome xl:block">
+      <div className="mb-8">
+        <div className="text-xs font-semibold text-white/40">当前视角</div>
+        <div className="mt-2 text-lg font-black">
+          {selected ? `@${selectedHandle}` : "我看到的"}
+        </div>
+        <div className="mt-1 text-sm leading-6 text-white/60">
+          {selected ? "从这个人当时可能看到的内容理解他的反应。" : "像打开自己的微博正文一样看评论发酵。"}
+        </div>
+      </div>
+
+      <nav className="grid gap-2">
+        <RailButton active icon={<MiniIcon path="M3 10.5 12 3l9 7.5M5 10v10h14V10" />} label="我的视角" />
+        <RailButton icon={<MiniIcon path="M4 5h16M4 12h16M4 19h16" />} label="时间线" />
+        <RailButton icon={<MiniIcon path="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm13 10v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />} label="人物" />
+        <RailButton icon={<MiniIcon path="m13 2-2 7h7l-9 13 2-8H4l9-12Z" />} label="热门" />
+        <RailButton icon={<MiniIcon path="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0" />} label="通知" />
+      </nav>
+
+      <div className="mt-auto pt-8">
+        <div className="rounded-card border border-white/10 bg-white/[0.06] p-4">
+          <div className="text-sm font-bold">当前围观</div>
+          <div className="mt-3 space-y-3 text-sm text-white/70">
+            <div className="flex justify-between">
+              <span>轮次进度</span>
+              <span className="tabular">{replay ? "回放" : `${step}/${total}`}</span>
+            </div>
+            <div className="h-2 rounded-full bg-white/10">
+              <div className="h-2 rounded-full bg-brand" style={{ width: `${progress}%` }} />
+            </div>
+            <div className="flex justify-between">
+              <span>实时互动</span>
+              <span className="tabular">{replyCount} 条新评论</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  );
+}
 
 // review:P3-T5  进行时装配（第一人称 X 皮肤 + 悬浮控制条）
 export default function LiveScreen({
@@ -37,53 +126,61 @@ export default function LiveScreen({
   }, [id, replay]);
 
   return (
-    <div className="relative mx-auto max-w-6xl">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-card bg-ink px-4 py-3 text-cream shadow-spotlight">
-        <div>
-          <div className="text-sm font-semibold">
-            {selected
-              ? `正在从 @${selectedHandle} 的视角看`
-              : "我看到的"}
+    <div className="relative grid gap-4 xl:grid-cols-[260px_minmax(0,1fr)]">
+      <LiveRail selected={selected} step={step} total={total} replyCount={vm.thread.length} replay={replay} />
+      <div className="min-w-0">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-card border border-line bg-white px-4 py-3 shadow-spotlight">
+          <div>
+            <div className="text-lg font-black">
+              {selected ? `正在从 @${selectedHandle} 的视角看` : "我看到的"}
+            </div>
+            <div className="mt-0.5 text-sm text-slate-500">
+              {replay
+                ? "历史回放，只读取已保存的评论区"
+                : status === "done"
+                  ? "围观已完成"
+                  : "评论和通知会逐步刷出来"}
+            </div>
           </div>
-          <div className="text-xs text-cream/60">
-            {replay
-              ? "历史回放，只读取已保存的评论区"
-              : status === "done"
-                ? "围观已完成"
-                : "评论和通知会逐步刷出来"}
-          </div>
-        </div>
-        <div className="flex items-center gap-3 text-sm">
-          {selected && (
+          <div className="flex items-center gap-3 text-sm">
+            {selected && (
+              <button
+                className="min-h-11 rounded-card border border-line bg-white px-3 font-semibold hover:border-accent hover:text-accent"
+                onClick={() => setSelected(null)}
+              >
+                回到我看到的
+              </button>
+            )}
             <button
-              className="min-h-11 rounded-card border border-cream/20 px-3 hover:border-brand"
-              onClick={() => setSelected(null)}
+              className="min-h-11 rounded-card border border-line bg-white px-3 font-semibold hover:border-accent hover:text-accent"
+              onClick={() => navigate("/history")}
             >
-              回到我看到的
+              历史记录
             </button>
-          )}
-          <button
-            className="min-h-11 rounded-card border border-cream/20 px-3 hover:border-brand"
-            onClick={() => navigate("/history")}
-          >
-            历史记录
-          </button>
-          {!replay && (
-            <span>
-              第 <span className="tabular">{step}</span>/
-              <span className="tabular">{total}</span> 步
-            </span>
-          )}
+            {!replay && (
+              <div className="hidden items-center gap-2 rounded-full bg-slate-100 px-3 py-2 sm:flex">
+                <span>
+                  第 <span className="tabular">{step}</span>/
+                  <span className="tabular">{total}</span> 步
+                </span>
+                <span className="h-2 w-20 rounded-full bg-slate-200">
+                  <span
+                    className="block h-2 rounded-full bg-brand"
+                    style={{ width: `${total ? Math.round((step / total) * 100) : 8}%` }}
+                  />
+                </span>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
 
-      <XFeed
-        vm={vm}
-        onActorClick={setSelected}
-        selectedActorId={selected?.user_id ?? null}
-      />
+        <XFeed
+          vm={vm}
+          onActorClick={setSelected}
+          selectedActorId={selected?.user_id ?? null}
+        />
 
-      <div className="sticky bottom-4 z-10 mx-auto mt-4 flex max-w-4xl items-center gap-3 rounded-card border border-ink/10 bg-white/95 px-4 py-3 text-sm text-ink shadow-spotlight backdrop-blur">
+        <div className="sticky bottom-4 z-10 mx-auto mt-4 flex max-w-4xl items-center gap-3 rounded-card border border-line bg-white/95 px-4 py-3 text-sm text-ink shadow-chrome backdrop-blur">
         <span
           className={[
             "h-2.5 w-2.5 rounded-full",
@@ -91,16 +188,22 @@ export default function LiveScreen({
           ].join(" ")}
         />
         <span className="mr-auto">
-          {replay ? "历史回放" : status === "done" ? "围观完成" : "推演进行中"}
+          {replay ? "历史回放" : status === "done" ? "围观完成" : "围观进行中"}
         </span>
-        <button className="min-h-11 rounded-card px-3 text-ink/60 hover:bg-ink/5">
+        <button className="hidden min-h-11 rounded-card px-3 text-ink/60 hover:bg-ink/5 sm:block">
+          回到开始
+        </button>
+        <button className="hidden min-h-11 rounded-card px-3 text-ink/60 hover:bg-ink/5 sm:block">
           上一步
         </button>
-        <button className="min-h-11 rounded-card bg-accent px-4 text-white hover:brightness-105">
+        <button className="grid min-h-12 min-w-12 place-items-center rounded-full bg-accent text-lg font-bold text-white shadow-spotlight hover:brightness-105">
           暂停
         </button>
-        <button className="min-h-11 rounded-card px-3 text-ink/60 hover:bg-ink/5">
+        <button className="hidden min-h-11 rounded-card px-3 text-ink/60 hover:bg-ink/5 sm:block">
           下一步
+        </button>
+        <button className="hidden min-h-11 rounded-card px-3 text-ink/60 hover:bg-ink/5 sm:block">
+          到结尾
         </button>
         <button
           className="min-h-11 rounded-card bg-ink px-4 text-cream disabled:cursor-not-allowed disabled:opacity-40"
@@ -109,6 +212,7 @@ export default function LiveScreen({
         >
           看结果
         </button>
+        </div>
       </div>
       <InterviewDrawer runId={id} actor={selected} onClose={() => setSelected(null)} />
     </div>

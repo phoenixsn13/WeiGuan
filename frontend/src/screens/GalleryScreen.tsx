@@ -18,8 +18,13 @@ export default function GalleryScreen() {
   }, []);
 
   return (
-    <div>
-      <h1 className="mb-4 font-display text-2xl">选一个圈子</h1>
+    <div className="mx-auto max-w-6xl">
+      <div className="mb-5 rounded-card border border-line bg-white p-6 shadow-spotlight">
+        <h1 className="text-3xl font-black tracking-normal">选一个圈子</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+          先选择谁会看到这条内容，再像发微博一样写正文。
+        </p>
+      </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {crowds.map((crowd) => (
           <button
@@ -37,12 +42,12 @@ export default function GalleryScreen() {
           </button>
         ))}
       </div>
-      <div className="mt-6">
+      <div className="mt-6 rounded-card border border-line bg-white p-5 shadow-sm">
         <textarea
           value={custom}
           onChange={(event) => setCustom(event.target.value)}
           placeholder="一句话描述你的受众（如：一二线城市、重性价比的年轻妈妈）"
-          className="w-full rounded-card border border-ink/15 p-3 text-sm"
+          className="w-full rounded-card border border-line p-3 text-sm focus:border-accent focus:outline-none"
           rows={2}
         />
         <div className="mt-2">

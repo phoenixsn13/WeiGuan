@@ -16,29 +16,39 @@ export function XReply({
   return (
     <div
       className={[
-        "flex animate-[fadein_.3s_ease] gap-3 border-t py-3 pr-2",
-        selected ? "border-brand/40 bg-brand/10" : "border-slate-100 bg-white",
+        "flex animate-[fadein_.3s_ease] gap-3 border-t px-5 py-4 pr-4 transition",
+        selected
+          ? "border-brand bg-[#fff8e9] shadow-[inset_3px_0_0_#F5B12F]"
+          : "border-line bg-white hover:bg-slate-50/70",
       ].join(" ")}
     >
       <XAvatar actor={author} onClick={onAuthorClick} />
       <div className="min-w-0 flex-1">
-        <div className="text-[13px]">
+        <div className="flex flex-wrap items-center gap-1.5 text-[13px]">
           <button
-            className="min-h-8 rounded px-1 text-left font-medium hover:text-accent"
+            className="min-h-8 rounded text-left font-semibold hover:text-accent"
             onClick={() => onAuthorClick?.(author)}
           >
-            {author.name}
+            {author.name ?? author.user_name}
           </button>{" "}
-          <span className="text-slate-400">@{author.user_name}</span>
+          <span className="text-slate-400">@{author.user_name ?? author.user_id}</span>
+          <span className="text-slate-300">·</span>
+          <span className="text-slate-400">刚刚</span>
           {selected && (
-            <span className="ml-2 rounded-full bg-brand/20 px-2 py-0.5 text-xs text-ink">
-              他的反应
+            <span className="ml-1 rounded-full bg-brand/25 px-2 py-0.5 text-xs font-semibold text-night">
+              他的评论
             </span>
           )}
         </div>
-        <div className="whitespace-pre-wrap break-words text-[15px]">{reply.content}</div>
-        <div className="mt-1 text-[13px] text-slate-400">
-          点赞 <span className="tabular">{reply.num_likes}</span>
+        <div className="mt-1 whitespace-pre-wrap break-words text-[15px] leading-6 text-slate-900">
+          {reply.content}
+        </div>
+        <div className="mt-3 flex gap-7 text-[13px] text-slate-400">
+          <span>回复</span>
+          <span>转发</span>
+          <span>
+            点赞 <span className="tabular">{reply.num_likes}</span>
+          </span>
         </div>
       </div>
     </div>

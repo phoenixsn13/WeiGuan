@@ -3,14 +3,32 @@
 @tailwind utilities;
 
 :root {
-  --wg-ink: #14140F;
-  --wg-cream: #F7F4EC;
-  --wg-brand: #E8A13A;
-  --wg-accent: #2C4A7C;
+  --wg-ink: #0b1220;
+  --wg-cream: #f5f7fb;
+  --wg-brand: #f5b12f;
+  --wg-accent: #0f6fff;
 }
 
 body {
-  @apply bg-cream text-ink font-body;
+  @apply bg-cream text-ink font-body antialiased;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 .tabular {
