@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import secrets
+from datetime import datetime, timezone
 
 from pydantic import BaseModel, Field
 
@@ -12,6 +13,10 @@ class RunRecord(BaseModel):
     run_id: str
     config: RunConfig
     snapshot: RunSnapshot = Field(default_factory=RunSnapshot)
+    status: str = "created"
+    created_at: str = Field(
+        default_factory=lambda: datetime.now(timezone.utc).isoformat()
+    )
 
     # review:P2-T4
     def accumulate(self, delta: RunSnapshot) -> None:
@@ -41,3 +46,10 @@ class RunStore:
 
     def get(self, run_id: str) -> RunRecord | None:
         return self._runs.get(run_id)
+
+    def list(self) -> list[RunRecord]:
+        return sorted(
+            self._runs.values(),
+            key=lambda record: record.created_at,
+            reverse=True,
+        )

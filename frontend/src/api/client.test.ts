@@ -3,6 +3,7 @@ import {
   fetchCrowds,
   fetchInsights,
   fetchRetro,
+  fetchRuns,
   interviewActor,
 } from "./client";
 
@@ -18,6 +19,28 @@ test("fetchCrowds hits /api/crowds", async () => {  // review:P4-T4-AC1
   );
   const crowds = await fetchCrowds();
   expect(crowds[0].id).toBe("tech_devs");
+});
+
+test("fetchRuns gets historical run summaries", async () => {  // review:UI-P1-AC2
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => ({
+      ok: true,
+      json: async () => [
+        {
+          run_id: "r_1",
+          content: "构建砍到3秒",
+          steps: 6,
+          platform: "twitter",
+          status: "done",
+          totals: { replies: 3, reposts: 1 },
+        },
+      ],
+    })),
+  );
+  const runs = await fetchRuns();
+  expect(runs[0].run_id).toBe("r_1");
+  expect(runs[0].totals.replies).toBe(3);
 });
 
 test("createRun posts with BYOK headers", async () => {  // review:P4-T4-AC2

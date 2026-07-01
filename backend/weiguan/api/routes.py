@@ -164,6 +164,25 @@ async def create_run(
     return {"run_id": run_id}
 
 
+@router.get("/runs")
+async def list_runs(request: Request):  # review:UI-P1
+    items = []
+    for record in request.app.state.store.list():
+        metrics = compute_metrics(record.snapshot)
+        items.append(
+            {
+                "run_id": record.run_id,
+                "content": record.config.content,
+                "steps": record.config.steps,
+                "platform": record.config.platform.value,
+                "status": record.status,
+                "created_at": record.created_at,
+                "totals": metrics.totals,
+            }
+        )
+    return items
+
+
 @router.get("/runs/{run_id}/events")
 async def stream_events(run_id: str, request: Request):
     store = request.app.state.store
@@ -183,6 +202,7 @@ async def stream_events(run_id: str, request: Request):
             },
         )
         try:
+            record.status = "running"
             async for delta in engine.run(record.config):
                 yield _sse(
                     "step_started",
@@ -197,8 +217,10 @@ async def stream_events(run_id: str, request: Request):
                     },
                 )
                 yield _sse("step_done", {"step": delta.step})
+            record.status = "done"
             yield _sse("run_done", {"run_id": run_id})
         except Exception as exc:  # noqa: BLE001
+            record.status = "error"
             yield _sse("error", {"message": str(exc)})
 
     return StreamingResponse(gen(), media_type="text/event-stream")

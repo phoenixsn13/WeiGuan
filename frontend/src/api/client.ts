@@ -21,6 +21,16 @@ export interface Creds {
   thinking?: string;
 }
 
+export interface RunSummary {
+  run_id: string;
+  content: string;
+  steps: number;
+  platform: "twitter" | "reddit";
+  status: "created" | "running" | "done" | "error" | string;
+  created_at?: string;
+  totals: Record<string, number>;
+}
+
 function llmHeaders(creds: Creds): Record<string, string> {
   const headers: Record<string, string> = {};
   if (creds.key) headers["X-LLM-Key"] = creds.key;
@@ -35,6 +45,14 @@ export async function fetchCrowds(): Promise<Crowd[]> {
   const response = await fetch("/api/crowds");
   if (!response.ok) {
     throw new Error("failed to load crowds");
+  }
+  return response.json();
+}
+
+export async function fetchRuns(): Promise<RunSummary[]> {
+  const response = await fetch("/api/runs");
+  if (!response.ok) {
+    throw new Error("failed to load runs");
   }
   return response.json();
 }

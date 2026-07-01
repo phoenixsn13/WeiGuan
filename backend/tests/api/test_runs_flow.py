@@ -120,3 +120,20 @@ async def test_sse_stream_order_and_accumulation():  # review:P2-T4-AC4
     assert events[0] == "run_started"
     assert events.count("step_started") == 6
     assert events[-1] == "run_done"
+
+
+async def test_list_runs_returns_history_summaries():  # review:UI-P1-AC1
+    async with _client() as client:
+        run_id = (await client.post("/api/runs", json=_body(6), headers=HDR)).json()[
+            "run_id"
+        ]
+        await client.get(f"/api/runs/{run_id}/events")
+        response = await client.get("/api/runs")
+
+    assert response.status_code == 200
+    items = response.json()
+    assert items[0]["run_id"] == run_id
+    assert items[0]["content"] == "构建砍到3秒"
+    assert items[0]["steps"] == 6
+    assert items[0]["status"] == "done"
+    assert items[0]["totals"]["replies"] >= 1

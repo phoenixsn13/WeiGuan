@@ -3,6 +3,7 @@ import { Route, Routes } from "react-router-dom";
 
 import ComposeScreen from "../screens/ComposeScreen";
 import GalleryScreen from "../screens/GalleryScreen";
+import HistoryScreen from "../screens/HistoryScreen";
 import LiveScreen from "../screens/LiveScreen";
 import RetroScreen from "../screens/RetroScreen";
 
@@ -10,6 +11,7 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<GalleryScreen />} />
+      <Route path="/history" element={<HistoryScreen />} />
       <Route path="/compose" element={<ComposeScreen />} />
       <Route path="/run/:id/live" element={<LiveScreen />} />
       <Route path="/run/:id/retro" element={<RetroScreen />} />

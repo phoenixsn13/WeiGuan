@@ -88,3 +88,57 @@ test("see-results disabled until done, then navigates", () => {  // review:P3-T5
   fireEvent.click(screen.getByText(/看结果/));
   expect(screen.getByText("复盘页")).toBeInTheDocument();
 });
+
+test("keeps comments inside a scrollable social viewport and switches actor perspective", () => {  // review:UI-P1-AC5
+  mount();
+  const es = FakeES.last;
+  act(() => es.emit("run_started", { steps: 6 }));
+  act(() =>
+    es.emit("delta", {
+      step: 2,
+      snapshot: {
+        platform: "twitter",
+        seed_post_id: 1,
+        actors: [
+          { user_id: 1, user_name: "you", name: "你", num_followers: 0, num_followings: 0 },
+          {
+            user_id: 2,
+            user_name: "dev_marco",
+            name: "Marco",
+            num_followers: 12,
+            num_followings: 3,
+          },
+        ],
+        posts: [
+          {
+            post_id: 1,
+            author_id: 1,
+            kind: "original",
+            content: "构建砍到3秒",
+            num_likes: 8,
+            num_dislikes: 0,
+            num_shares: 1,
+            num_reports: 0,
+          },
+        ],
+        replies: Array.from({ length: 18 }, (_, index) => ({
+          comment_id: index + 1,
+          post_id: 1,
+          author_id: 2,
+          content: `缓存没清吧 ${index + 1}`,
+          num_likes: index,
+          num_dislikes: 0,
+        })),
+        reactions: [],
+        follows: [],
+        reports: [],
+        traces: [],
+      },
+    }),
+  );
+
+  expect(screen.getByLabelText("评论区滚动窗口")).toHaveClass("overflow-y-auto");
+  fireEvent.click(screen.getAllByText("Marco")[0]);
+  expect(screen.getByText("正在从 @dev_marco 的视角看")).toBeInTheDocument();
+  expect(screen.getByText("回到我看到的")).toBeInTheDocument();
+});

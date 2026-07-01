@@ -34,6 +34,9 @@ test("renders sentiment from retro metrics", async () => {  // review:P5-T5-AC1
   mount();
   expect(await screen.findByText(/正向/)).toBeInTheDocument();
   expect(screen.getByText(/50%/)).toBeInTheDocument();
+  expect(screen.getByText("围观回放")).toBeInTheDocument();
+  expect(screen.getByText("发酵时间线")).toBeInTheDocument();
+  expect(screen.getByText(/第 1 波/)).toBeInTheDocument();
 });
 
 test("generate insights shows verdict and suggestions", async () => {  // review:P5-T5-AC2

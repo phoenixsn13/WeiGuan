@@ -9,15 +9,15 @@ export function XActionBar({
   likes: number;
 }) {
   return (
-    <div className="mt-2 flex gap-10 text-[13px] text-slate-500">
+    <div className="mt-3 flex gap-8 text-[13px] text-slate-500">
       <span>
-        💬 <span className="tabular">{replies}</span>
+        评论 <span className="tabular">{replies}</span>
       </span>
       <span>
-        🔁 <span className="tabular">{reposts}</span>
+        转发 <span className="tabular">{reposts}</span>
       </span>
       <span>
-        ♥ <span className="tabular transition-all">{likes}</span>
+        点赞 <span className="tabular transition-all">{likes}</span>
       </span>
     </div>
   );
