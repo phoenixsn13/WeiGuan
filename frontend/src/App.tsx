@@ -1,3 +1,14 @@
+import { BrowserRouter } from "react-router-dom";
+
+import { AppShell } from "./shell/AppShell";
+import { AppRoutes } from "./shell/routes";
+
 export default function App() {
-  return <div className="font-display text-2xl">围观</div>;
+  return (
+    <BrowserRouter>
+      <AppShell>
+        <AppRoutes />
+      </AppShell>
+    </BrowserRouter>
+  );
 }
