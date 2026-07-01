@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="480" viewBox="0 0 1000 480">
+<rect width="100%" height="100%" fill="white"/>
+<text x="80" y="26" font-family="Arial" font-size="20" fill="#111">OASIS Context Cost: old full-history vs attention-budgeted</text>
+<line x1="80" y1="40" x2="80" y2="410" stroke="#94a3b8"/>
+<line x1="80" y1="410" x2="970" y2="410" stroke="#94a3b8"/>
+<line x1="80" y1="410.0" x2="970" y2="410.0" stroke="#e2e8f0"/>
+<text x="8" y="414.0" font-family="Arial" font-size="12" fill="#475569">0</text>
+<line x1="80" y1="336.0" x2="970" y2="336.0" stroke="#e2e8f0"/>
+<text x="8" y="340.0" font-family="Arial" font-size="12" fill="#475569">2,061,830</text>
+<line x1="80" y1="262.0" x2="970" y2="262.0" stroke="#e2e8f0"/>
+<text x="8" y="266.0" font-family="Arial" font-size="12" fill="#475569">4,123,660</text>
+<line x1="80" y1="188.0" x2="970" y2="188.0" stroke="#e2e8f0"/>
+<text x="8" y="192.0" font-family="Arial" font-size="12" fill="#475569">6,185,491</text>
+<line x1="80" y1="114.0" x2="970" y2="114.0" stroke="#e2e8f0"/>
+<text x="8" y="118.0" font-family="Arial" font-size="12" fill="#475569">8,247,321</text>
+<line x1="80" y1="40.0" x2="970" y2="40.0" stroke="#e2e8f0"/>
+<text x="8" y="44.0" font-family="Arial" font-size="12" fill="#475569">10,309,152</text>
+<polyline points="80.0,405.82 178.89,309.45 277.78,236.03 376.67,405.82 475.56,405.84 574.44,276.65 673.33,47.84 772.22,40.0 871.11,40.0 970.0,405.82" fill="none" stroke="#ef4444" stroke-width="3"/>
+<polyline points="80.0,405.72 178.89,405.2 277.78,404.57 376.67,405.72 475.56,405.74 574.44,405.05 673.33,404.94 772.22,404.66 871.11,404.66 970.0,405.72" fill="none" stroke="#2563eb" stroke-width="3"/>
+<rect x="720" y="54" width="240" height="72" fill="white" stroke="#cbd5e1"/>
+<line x1="740" y1="78" x2="790" y2="78" stroke="#ef4444" stroke-width="3"/>
+<text x="800" y="82" font-family="Arial" font-size="14" fill="#111">old full context</text>
+<line x1="740" y1="108" x2="790" y2="108" stroke="#2563eb" stroke-width="3"/>
+<text x="800" y="112" font-family="Arial" font-size="14" fill="#111">attention budget</text>
+<text x="460.0" y="462" font-family="Arial" font-size="14" fill="#475569">refresh step index</text>
+</svg>

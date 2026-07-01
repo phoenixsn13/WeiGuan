@@ -1,0 +1,217 @@
+{
+  "config": {
+    "comment_budget": 12,
+    "direct_k": 3,
+    "recent_k": 4,
+    "salient_k": 3,
+    "per_stance_k": 1,
+    "comment_chars": 160,
+    "fixed_prompt_tokens": 2000,
+    "token_char_ratio": 0.45,
+    "usd_cny": 7.25,
+    "input_cache_hit_usd_per_million": 0.003625,
+    "input_cache_miss_usd_per_million": 0.435,
+    "output_usd_per_million": 0.87
+  },
+  "actual_usage": {
+    "input_cache_hit_tokens": 14159232,
+    "input_cache_miss_tokens": 31824521,
+    "output_tokens": 313562
+  },
+  "reports": [
+    {
+      "db_path": "/tmp/weiguan-e2e/runs/1d847f72d572460c9682439c2369e3a9/run.db",
+      "total_requests": 168,
+      "steps": [
+        {
+          "step": 1,
+          "requests": 56,
+          "old_tokens": 116368,
+          "attention_tokens": 119280,
+          "old_avg_tokens": 2078,
+          "attention_avg_tokens": 2130,
+          "max_visible_comments": 0
+        },
+        {
+          "step": 2,
+          "requests": 56,
+          "old_tokens": 2801680,
+          "attention_tokens": 133624,
+          "old_avg_tokens": 50030,
+          "attention_avg_tokens": 2386,
+          "max_visible_comments": 5
+        },
+        {
+          "step": 3,
+          "requests": 56,
+          "old_tokens": 4847248,
+          "attention_tokens": 151313,
+          "old_avg_tokens": 86558,
+          "attention_avg_tokens": 2702,
+          "max_visible_comments": 6
+        }
+      ],
+      "old": {
+        "total_tokens": 7765296,
+        "input_tokens": 7765296,
+        "output_tokens": 0,
+        "estimated_rmb_all_miss": 24.4898,
+        "max_visible_comments": 6
+      },
+      "attention": {
+        "total_tokens": 404217,
+        "input_tokens": 404217,
+        "output_tokens": 0,
+        "estimated_rmb_all_miss": 1.2748,
+        "max_visible_comments": 6
+      },
+      "actual_usage": {
+        "input_cache_hit_tokens": 14159232,
+        "input_cache_miss_tokens": 31824521,
+        "output_tokens": 313562
+      },
+      "old_vs_actual_error_pct": -83.23
+    },
+    {
+      "db_path": "/tmp/weiguan-e2e/runs/cf01392bb08645d58a2d9dfa4d80972d/run.db",
+      "total_requests": 56,
+      "steps": [
+        {
+          "step": 1,
+          "requests": 56,
+          "old_tokens": 116368,
+          "attention_tokens": 119280,
+          "old_avg_tokens": 2078,
+          "attention_avg_tokens": 2130,
+          "max_visible_comments": 0
+        }
+      ],
+      "old": {
+        "total_tokens": 116368,
+        "input_tokens": 116368,
+        "output_tokens": 0,
+        "estimated_rmb_all_miss": 0.367,
+        "max_visible_comments": 0
+      },
+      "attention": {
+        "total_tokens": 119280,
+        "input_tokens": 119280,
+        "output_tokens": 0,
+        "estimated_rmb_all_miss": 0.3762,
+        "max_visible_comments": 0
+      },
+      "actual_usage": {
+        "input_cache_hit_tokens": 14159232,
+        "input_cache_miss_tokens": 31824521,
+        "output_tokens": 313562
+      },
+      "old_vs_actual_error_pct": -99.75
+    },
+    {
+      "db_path": "/tmp/weiguan-e2e/runs/f67df8c372334dbca20644c2ab3dc5ef/run.db",
+      "total_requests": 280,
+      "steps": [
+        {
+          "step": 1,
+          "requests": 56,
+          "old_tokens": 115808,
+          "attention_tokens": 118710,
+          "old_avg_tokens": 2068,
+          "attention_avg_tokens": 2120,
+          "max_visible_comments": 0
+        },
+        {
+          "step": 2,
+          "requests": 56,
+          "old_tokens": 3715600,
+          "attention_tokens": 137993,
+          "old_avg_tokens": 66350,
+          "attention_avg_tokens": 2464,
+          "max_visible_comments": 7
+        },
+        {
+          "step": 3,
+          "requests": 56,
+          "old_tokens": 10090584,
+          "attention_tokens": 141092,
+          "old_avg_tokens": 180189,
+          "attention_avg_tokens": 2520,
+          "max_visible_comments": 5
+        },
+        {
+          "step": 4,
+          "requests": 56,
+          "old_tokens": 10309152,
+          "attention_tokens": 148866,
+          "old_avg_tokens": 184092,
+          "attention_avg_tokens": 2658,
+          "max_visible_comments": 7
+        },
+        {
+          "step": 5,
+          "requests": 56,
+          "old_tokens": 10309152,
+          "attention_tokens": 148866,
+          "old_avg_tokens": 184092,
+          "attention_avg_tokens": 2658,
+          "max_visible_comments": 7
+        }
+      ],
+      "old": {
+        "total_tokens": 34540296,
+        "input_tokens": 34540296,
+        "output_tokens": 0,
+        "estimated_rmb_all_miss": 108.9315,
+        "max_visible_comments": 7
+      },
+      "attention": {
+        "total_tokens": 695527,
+        "input_tokens": 695527,
+        "output_tokens": 0,
+        "estimated_rmb_all_miss": 2.1935,
+        "max_visible_comments": 7
+      },
+      "actual_usage": {
+        "input_cache_hit_tokens": 14159232,
+        "input_cache_miss_tokens": 31824521,
+        "output_tokens": 313562
+      },
+      "old_vs_actual_error_pct": -25.39
+    },
+    {
+      "db_path": "/tmp/weiguan-e2e/runs/f8f7e73771de48f7a4e8f47401372db0/run.db",
+      "total_requests": 56,
+      "steps": [
+        {
+          "step": 1,
+          "requests": 56,
+          "old_tokens": 116368,
+          "attention_tokens": 119280,
+          "old_avg_tokens": 2078,
+          "attention_avg_tokens": 2130,
+          "max_visible_comments": 0
+        }
+      ],
+      "old": {
+        "total_tokens": 116368,
+        "input_tokens": 116368,
+        "output_tokens": 0,
+        "estimated_rmb_all_miss": 0.367,
+        "max_visible_comments": 0
+      },
+      "attention": {
+        "total_tokens": 119280,
+        "input_tokens": 119280,
+        "output_tokens": 0,
+        "estimated_rmb_all_miss": 0.3762,
+        "max_visible_comments": 0
+      },
+      "actual_usage": {
+        "input_cache_hit_tokens": 14159232,
+        "input_cache_miss_tokens": 31824521,
+        "output_tokens": 313562
+      },
+      "old_vs_actual_error_pct": -99.75
+    }
+  ]
+}
