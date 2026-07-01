@@ -42,14 +42,18 @@ class OasisEngine:
             ManualAction,
             generate_twitter_agent_graph,
         )
+        from oasis.social_platform.channel import Channel
+        from oasis.social_platform.platform import Platform
 
         return {
             "ActionType": ActionType,
+            "Channel": Channel,
             "LLMAction": LLMAction,
             "ManualAction": ManualAction,
             "ModelFactory": ModelFactory,
             "ModelPlatformType": ModelPlatformType,
             "ModelType": ModelType,
+            "Platform": Platform,
             "generate_twitter_agent_graph": generate_twitter_agent_graph,
             "oasis": oasis,
         }
@@ -110,43 +114,69 @@ class OasisEngine:
             os.remove(db_path)
         os.environ["OASIS_DB_PATH"] = os.path.abspath(db_path)
         oasis = deps["oasis"]
+        # review:P2-T7  Avoid DefaultPlatformType.TWITTER's twhin-bert recsys.
+        platform = deps["Platform"](
+            db_path=db_path,
+            channel=deps["Channel"](),
+            recsys_type="random",
+            max_rec_post_len=500,
+            refresh_rec_post_count=500,
+            following_post_count=5,
+        )
         env = oasis.make(
             agent_graph=graph,
-            platform=oasis.DefaultPlatformType.TWITTER,
+            platform=platform,
             database_path=db_path,
         )
         return env, db_path
 
+    def _assert_seed_visible(self, db_path: str, seed_post_id: int = 1) -> None:
+        conn = sqlite3.connect(db_path)
+        try:
+            rows = conn.execute(
+                "SELECT COUNT(*) FROM rec WHERE post_id=?",
+                (seed_post_id,),
+            ).fetchone()
+        except sqlite3.Error as exc:
+            raise RuntimeError("recommendation table unavailable") from exc
+        finally:
+            conn.close()
+        if not rows or rows[0] <= 0:
+            raise RuntimeError("seed post is not visible in recommendations")
+
     async def run(self, config: RunConfig) -> AsyncIterator[RunDelta]:
         deps = self._deps()
         env, db_path = await self._make_env(config)
-        await env.reset()
-        action_type = deps["ActionType"]
-        await env.step(
-            {
-                env.agent_graph.get_agent(0): deps["ManualAction"](
-                    action_type=action_type.CREATE_POST,
-                    action_args={"content": config.content},
-                )
-            }
-        )
-        prev = RunSnapshot()
-        for step in range(1, config.steps + 1):
-            if step > 1:
-                await env.step(
-                    {agent: deps["LLMAction"]() for _, agent in env.agent_graph.get_agents()}
-                )
-            curr = load_run_snapshot(
-                db_path,
-                platform=Platform.TWITTER,
-                seed_post_id=1,
+        try:
+            await env.reset()
+            action_type = deps["ActionType"]
+            await env.step(
+                {
+                    env.agent_graph.get_agent(0): deps["ManualAction"](
+                        action_type=action_type.CREATE_POST,
+                        action_args={"content": config.content},
+                    )
+                }
             )
-            yield RunDelta(step=step, snapshot=diff_snapshots(prev, curr))
-            prev = curr
-        self.last_snapshot = prev
-        self._db_path = db_path
-        self._env = env
-        await env.close()
+            self._assert_seed_visible(db_path)
+            prev = RunSnapshot()
+            for step in range(1, config.steps + 1):
+                if step > 1:
+                    await env.step(
+                        {agent: deps["LLMAction"]() for _, agent in env.agent_graph.get_agents()}
+                    )
+                curr = load_run_snapshot(
+                    db_path,
+                    platform=Platform.TWITTER,
+                    seed_post_id=1,
+                )
+                yield RunDelta(step=step, snapshot=diff_snapshots(prev, curr))
+                prev = curr
+            self.last_snapshot = prev
+            self._db_path = db_path
+            self._env = env
+        finally:
+            await env.close()
 
     async def interview(
         self,
