@@ -30,7 +30,7 @@ test("createRun posts with BYOK headers", async () => {  // review:P4-T4-AC2
     { key: "sk-x", model: "gpt-4o-mini" },
   );
   expect(res.run_id).toBe("r_1");
-  const [, init] = spy.mock.calls[0];
+  const [, init] = spy.mock.calls[0] as unknown as [unknown, RequestInit];
   expect((init.headers as Record<string, string>)["X-LLM-Key"]).toBe("sk-x");
 });
 
