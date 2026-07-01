@@ -140,9 +140,10 @@ async def test_run_raises_when_seed_visibility_check_fails(monkeypatch, tmp_path
             return None
 
     engine = OasisEngine(profile_path="profile.csv", db_dir=str(tmp_path))
+    db_path = tmp_path / "missing.db"
 
     async def fake_make_env(config):
-        return FakeEnv(), "missing.db"
+        return FakeEnv(), str(db_path)
 
     monkeypatch.setattr(engine, "_make_env", fake_make_env)
     monkeypatch.setattr(
@@ -159,8 +160,40 @@ async def test_run_raises_when_seed_visibility_check_fails(monkeypatch, tmp_path
         "_assert_seed_visible",
         lambda db_path: (_ for _ in ()).throw(RuntimeError("seed not visible")),
     )
+    monkeypatch.setattr(engine, "_pin_seed_to_rec", lambda db_path: None)
 
     import pytest
 
     with pytest.raises(RuntimeError, match="seed not visible"):
         [delta async for delta in engine.run(_cfg())]
+
+
+def test_pin_seed_to_rec_writes_seed_for_all_non_seed_users(tmp_path):  # review:P2-T7
+    import sqlite3
+
+    db_path = tmp_path / "run.db"
+    conn = sqlite3.connect(db_path)
+    try:
+        conn.executescript(
+            """
+            CREATE TABLE user (user_id INTEGER PRIMARY KEY);
+            CREATE TABLE rec (user_id INTEGER, post_id INTEGER, PRIMARY KEY(user_id, post_id));
+            INSERT INTO user (user_id) VALUES (0), (1), (2);
+            """
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    OasisEngine(profile_path="profile.csv", db_dir=str(tmp_path))._pin_seed_to_rec(
+        str(db_path),
+        seed_post_id=1,
+        seed_author_id=0,
+    )
+
+    conn = sqlite3.connect(db_path)
+    try:
+        rows = conn.execute("SELECT user_id, post_id FROM rec ORDER BY user_id").fetchall()
+    finally:
+        conn.close()
+    assert rows == [(1, 1), (2, 1)]

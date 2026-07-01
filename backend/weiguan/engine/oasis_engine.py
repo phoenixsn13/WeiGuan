@@ -143,6 +143,29 @@ class OasisEngine:
         if not rows or rows[0] <= 0:
             raise RuntimeError("seed post is not visible in recommendations")
 
+    def _pin_seed_to_rec(
+        self,
+        db_path: str,
+        seed_post_id: int = 1,
+        seed_author_id: int = 0,
+    ) -> None:
+        conn = sqlite3.connect(db_path)
+        try:
+            user_ids = [
+                row[0]
+                for row in conn.execute(
+                    "SELECT user_id FROM user WHERE user_id != ? ORDER BY user_id",
+                    (seed_author_id,),
+                ).fetchall()
+            ]
+            conn.executemany(
+                "INSERT OR IGNORE INTO rec (user_id, post_id) VALUES (?, ?)",
+                [(user_id, seed_post_id) for user_id in user_ids],
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
     async def run(self, config: RunConfig) -> AsyncIterator[RunDelta]:
         deps = self._deps()
         env, db_path = await self._make_env(config)
@@ -157,6 +180,7 @@ class OasisEngine:
                     )
                 }
             )
+            self._pin_seed_to_rec(db_path)
             self._assert_seed_visible(db_path)
             prev = RunSnapshot()
             for step in range(1, config.steps + 1):

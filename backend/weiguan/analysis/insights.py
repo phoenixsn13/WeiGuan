@@ -28,7 +28,42 @@ def _parse_json_object(text: str) -> dict:
         cleaned = cleaned.removeprefix("```").strip()
     if cleaned.endswith("```"):
         cleaned = cleaned.removesuffix("```").strip()
-    return json.loads(cleaned)
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError:
+        return json.loads(_escape_inner_string_quotes(cleaned))
+
+
+def _escape_inner_string_quotes(text: str) -> str:
+    result: list[str] = []
+    in_string = False
+    escaped = False
+    length = len(text)
+    for index, char in enumerate(text):
+        if escaped:
+            result.append(char)
+            escaped = False
+            continue
+        if char == "\\":
+            result.append(char)
+            escaped = in_string
+            continue
+        if char == '"':
+            if not in_string:
+                in_string = True
+                result.append(char)
+                continue
+            next_index = index + 1
+            while next_index < length and text[next_index].isspace():
+                next_index += 1
+            if next_index >= length or text[next_index] in {",", "}", "]", ":"}:
+                in_string = False
+                result.append(char)
+            else:
+                result.append('\\"')
+            continue
+        result.append(char)
+    return "".join(result)
 
 
 # review:P5-T2  复盘洞察（真 LLM）
