@@ -145,3 +145,81 @@ cd ../frontend && npx vitest run && npx tsc -b
 - [ ] **回归**：not-llm `__ passed` / frontend vitest `__ passed` / tsc `exit 0`。
 
 > 全绿并粘好真跑输出后交回设计/审核者做二次核验（`grep -rn "review:P2-T7\|review:P2-T8\|review:P5-T6"` 对照本文件 + 复跑上述命令 + 抽查一场真 run 的 run.db 确认 seed 有评论/互动）。
+
+---
+
+## 附录 A　种子可见性 —— 具体设计（P2-T7 照此实现）
+
+**根因**：`oasis.make(DefaultPlatformType.TWITTER)` 在 `oasis/oasis/environment/env.py:76-85` 把 `recsys_type` 硬编成 `"twhin-bert"`，必须联网下载 `Twitter/twhin-bert-base`；下载/加载失败→推荐表坏→feed 空。
+
+**改法**：`_make_env` 里**不再传 `DefaultPlatformType.TWITTER`**，改为自建 `Platform` 实例传进 `oasis.make(platform=<Platform 实例>)`（`env.py:103-112` 支持传 `Platform`）。构造参数（**双重保证 seed 可见、且零模型下载**）：
+
+```python
+from oasis.social_platform.platform import Platform
+from oasis.social_platform.channel import Channel
+
+channel = Channel()
+platform = Platform(
+    db_path=db_path,
+    channel=channel,
+    recsys_type="random",          # rec_sys_random：帖子数 ≤ max_rec_post_len 时“每人拿到全部帖子”，无需任何模型
+    max_rec_post_len=500,          # 取够大：run 里总帖数 << 500，保证不裁剪掉 seed
+    refresh_rec_post_count=500,    # refresh() 仅当 rec 列表长度 ≥ 此值才随机下采样；取大→不下采样→seed 必在 feed
+    following_post_count=5,        # 兜底：非 Reddit 的 feed 永远并入“关注对象的帖子”(platform.py:280-304)
+)
+env = oasis.make(agent_graph=graph, platform=platform, database_path=db_path)
+```
+
+- **第一重保证**（random + 大 cap）：`recsys.py:154-157` 与 `platform.py:276` —— 帖子数不超过 cap 时人人拿到全部帖、且 refresh 不下采样，seed 恒在 feed。
+- **第二重保证**（following 并入）：见附录 C，profile 里让每个人群 agent `following_agentid_list=[0]`（关注 seed 作者 agent0）。`platform.py:280-304` 会把关注者的帖子**无条件并进** feed。两重任一成立，seed 就可见。
+- **失败要响**：若你仍保留任何走模型的分支，模型/推荐表构建异常必须**向上抛**、终止 run（当前是被平台 task 静默吞掉）。禁止“加载失败但继续产出独立帖”。
+- **AC `P2-T7-AC1`（无需 LLM）**：构造一个会让推荐构建抛错的场景（如注入坏 recsys），断言 `run()` 抛异常而非静默产出帖子。
+
+> 说明：`max_rec_post_len` 拉大会让每个 agent 的上下文含全部帖子，20 agent×6 步 ≤ ~140 帖，成本可接受；这正是“人人围观同一条”的产品语义。
+
+---
+
+## 附录 B　追问接地 —— 具体设计（P5-T6 照此实现）
+
+**硬要求（三条，缺一不可）**：
+1. **不毁档、不重建人群**：`interview()` 里**删除 `os.remove(run.db)` 这类操作**，绝不 `_make_env` 新签一批空记忆 agent。run 结束后 `run.db` 必须仍可查。
+2. **接地到真实评论**：从传入的 `snapshot` 取该 `actor_id` 对 seed 的**真实评论文本/动作**与人设，拼进追问 prompt。
+3. **受众门控**：`actor_id ∉ seed_engaged_actor_ids(snapshot)` → 路由层直接返回契约 §2.4 的 `404 {"error":"run or actor not found"}`，不落引擎现编。
+
+**推荐实现（v1，简单且稳）—— 直连 LLM 生成，不再起 OASIS env**：
+和 `analysis/insights.py`、`engine/custom_profile.py` 一样用 OpenAI 客户端直调，prompt 形如：
+```
+你是{该 actor 的 user_char/description 人设}。
+你在一个社交平台上看到这条内容：{seed 帖原文}
+你对它的公开反应是：{该 actor 对 seed 的评论原文 / 点赞·转发等动作}
+现在有人追问你：{question}
+请以第一人称、贴合上述人设与你已表达的立场作答，2-4 句。
+```
+—— 天然满足三条要求，不碰 run.db，无并发/长生命周期 env 负担。
+
+**可选升级（保真度更高，非本轮必须）**：run 结束**不 close** env、`self._env` 留活，`interview()` 复用同一 live agent（其记忆已含 seed 与自身动作）调 OASIS `INTERVIEW`。代价是要管理 env 生命周期与清理，v1 不强制。
+
+**AC**：
+- `P5-T6-AC1`（`@pytest.mark.llm`）：run → 对一个**评论过 seed** 的 actor 追问，答非空；且断言追问后 `run.db` 仍存在、`compute_metrics(snapshot)` 仍可算（证明没毁档）。
+- `P5-T6-AC2`（无 LLM）：对未参与 seed 的 `actor_id` 追问 → 路由返回 404。
+
+---
+
+## 附录 C　20-agent 效果 fixture 规格（P2-T8-AC1 用）
+
+新增 `backend/tests/fixtures/small_twitter_profile.csv`，**列名与 `tiny_twitter_profile.csv` 完全一致**：
+```
+,user_id,name,username,following_agentid_list,previous_tweets,user_char,description
+```
+生成规则（codex 造 20 行）：
+- 共 **20 行**，`index` 0–19，`user_id` 取 20 个互不相同的整数，`name=user_{i}`、`username=user{i}`。
+- **`following_agentid_list`**：agent0（seed 作者）留 `[]`；**其余 19 行一律 `[0]`**（关注 seed 作者，激活附录 A 第二重可见性保证）。
+- `previous_tweets` 一律 `[]`。
+- `user_char` / `description`：给**多样但和话题相关**的人设，覆盖正/负/中立倾向，便于产生真实分歧。例如围绕“构建速度/工程效率”话题：
+  - `0`：`Founder shipping a dev-tools startup; obsessed with build performance.`
+  - `1`：`Skeptical senior SRE; has seen too many “too good to be true” benchmarks.`
+  - `2`：`Junior dev, easily excited by shiny new tooling.`
+  - …（其余 17 行照此风格铺开，正/负/中立大致均衡）
+- 该 fixture **只服务 `@pytest.mark.llm_effect`**，非 LLM 回归不加载它。
+
+> 造完后效果测试用它跑 20 agent；门槛见 §二·Q4：`engagement_rate>=0.4`、`seed replies>=3`、只发独立帖从不碰 seed 的 actor ≤ 50%。
