@@ -50,3 +50,14 @@ async def test_interview_returns_answer():  # review:P2-T5-AC3
         )
     assert r.status_code == 200
     assert r.json()["actor_id"] == 2 and r.json()["answer"]
+
+
+async def test_interview_rejects_actor_without_seed_engagement():  # review:P5-T6-AC2
+    async with _client() as client:
+        rid = await _mk(client)
+        r = await client.post(
+            f"/api/runs/{rid}/interview",
+            json={"actor_id": 3, "question": "为什么?"},
+            headers=HDR,
+        )
+    assert r.status_code == 404

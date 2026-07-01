@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import os
 import sqlite3
 import sys
@@ -185,27 +184,60 @@ class OasisEngine:
         actor_id,
         question,
     ) -> str:
-        deps = self._deps()
-        env, db_path = await self._make_env(config)
-        await env.reset()
-        action_type = deps["ActionType"]
-        await env.step(
-            {
-                env.agent_graph.get_agent(actor_id - 1): deps["ManualAction"](
-                    action_type=action_type.INTERVIEW,
-                    action_args={"prompt": question},
-                )
-            }
+        # review:P5-T6  Ground interview in the completed run snapshot.
+        from weiguan.analysis.llm_client import completion_options, make_openai_client
+
+        seed = next(
+            (post for post in snapshot.posts if post.post_id == snapshot.seed_post_id),
+            None,
         )
-        await env.close()
-        conn = sqlite3.connect(db_path)
-        try:
-            rows = conn.execute(
-                "SELECT info FROM trace WHERE action=? ORDER BY created_at DESC",
-                (action_type.INTERVIEW.value,),
-            ).fetchall()
-        finally:
-            conn.close()
-        if not rows:
-            return ""
-        return json.loads(rows[0][0]).get("response", "")
+        actor = next((item for item in snapshot.actors if item.user_id == actor_id), None)
+        public_reaction = self._seed_reaction_context(snapshot, actor_id)
+        persona = " / ".join(
+            part
+            for part in [
+                actor.name if actor else None,
+                f"@{actor.user_name}" if actor and actor.user_name else None,
+                actor.bio if actor else None,
+            ]
+            if part
+        ) or f"actor {actor_id}"
+        prompt = (
+            f"你是{persona}。\n"
+            f"你在一个社交平台上看到这条内容：{seed.content if seed else config.content}\n"
+            f"你对它的公开反应是：{public_reaction}\n"
+            f"现在有人追问你：{question}\n"
+            "请以第一人称、贴合上述人设与你已表达的立场作答，2-4句。"
+        )
+        client = make_openai_client(config)
+        response = client.chat.completions.create(
+            **completion_options(config),
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return (response.choices[0].message.content or "").strip()
+
+    def _seed_reaction_context(self, snapshot: RunSnapshot, actor_id: int) -> str:
+        seed = snapshot.seed_post_id
+        parts = [
+            f"评论：{reply.content}"
+            for reply in snapshot.replies
+            if reply.post_id == seed and reply.author_id == actor_id
+        ]
+        parts.extend(
+            f"{reaction.kind.value} seed post"
+            for reaction in snapshot.reactions
+            if reaction.actor_id == actor_id
+            and reaction.target_type.value == "post"
+            and reaction.target_id == seed
+        )
+        parts.extend(
+            f"{post.kind.value}: {post.quote_content or post.content}".strip()
+            for post in snapshot.posts
+            if post.author_id == actor_id and post.original_post_id == seed
+        )
+        parts.extend(
+            f"report: {report.reason or 'no reason'}"
+            for report in snapshot.reports
+            if report.actor_id == actor_id and report.post_id == seed
+        )
+        return "；".join(parts) if parts else "没有可见反应"

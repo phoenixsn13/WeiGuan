@@ -7,6 +7,7 @@ from weiguan.analysis.retro import (
     seed_engaged_actor_ids,
     seed_interaction_count,
 )
+from weiguan.adapter.oasis_adapter import load_run_snapshot
 from weiguan.engine.config import Audience, RunConfig
 from weiguan.engine.oasis_engine import OasisEngine
 from tests.llm_config import llm_kwargs
@@ -50,13 +51,37 @@ async def test_real_interview_returns_nonempty(tmp_path):  # review:P2-T6-AC2
     eng = OasisEngine(profile_path=PROFILE, db_dir=str(tmp_path))
     cfg = _cfg()
     [d async for d in eng.run(cfg)]
+    actor_id = next(iter(seed_engaged_actor_ids(eng.last_snapshot)))
     ans = await eng.interview(
         cfg,
         eng.last_snapshot,
-        actor_id=1,
+        actor_id=actor_id,
         question="Why do you doubt it?",
     )
     assert isinstance(ans, str) and ans.strip()
+    assert eng._db_path is not None and os.path.exists(eng._db_path)
+    persisted = load_run_snapshot(eng._db_path, seed_post_id=1)
+    assert compute_metrics(persisted).totals["replies"] >= 1
+
+
+@pytest.mark.llm
+async def test_real_interview_is_grounded_in_same_run(tmp_path):  # review:P5-T6-AC1
+    eng = OasisEngine(profile_path=PROFILE, db_dir=str(tmp_path))
+    cfg = _cfg()
+    [d async for d in eng.run(cfg)]
+    actor_id = next(iter(seed_engaged_actor_ids(eng.last_snapshot)))
+    before_db = eng._db_path
+    answer = await eng.interview(
+        cfg,
+        eng.last_snapshot,
+        actor_id=actor_id,
+        question="Why did you react that way?",
+    )
+    assert answer.strip()
+    assert eng._db_path == before_db
+    assert before_db is not None and os.path.exists(before_db)
+    persisted = load_run_snapshot(before_db, seed_post_id=1)
+    assert compute_metrics(persisted).totals["replies"] >= 1
 
 
 @pytest.mark.llm_effect

@@ -7,7 +7,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ValidationError
 
 from weiguan.analysis.insights import generate_insights
-from weiguan.analysis.retro import compute_metrics
+from weiguan.analysis.retro import compute_metrics, seed_engaged_actor_ids
 from weiguan.canonical import Platform
 from weiguan.engine.config import Audience, RunConfig
 from weiguan.engine.crowds import list_crowds
@@ -135,6 +135,8 @@ async def interview(run_id: str, body: _InterviewBody, request: Request):
     record = request.app.state.store.get(run_id)
     if record is None:
         raise HTTPException(status_code=404, detail="run not found")
+    if body.actor_id not in seed_engaged_actor_ids(record.snapshot):
+        raise HTTPException(status_code=404, detail="run or actor not found")
     answer = await request.app.state.engine.interview(
         record.config,
         record.snapshot,
