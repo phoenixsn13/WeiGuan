@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 
 from pydantic import BaseModel
 
@@ -31,7 +32,10 @@ def _parse_json_object(text: str) -> dict:
     try:
         return json.loads(cleaned)
     except json.JSONDecodeError:
-        return json.loads(_escape_inner_string_quotes(cleaned))
+        try:
+            return json.loads(_escape_inner_string_quotes(cleaned))
+        except json.JSONDecodeError:
+            return _extract_insights_schema(cleaned)
 
 
 def _escape_inner_string_quotes(text: str) -> str:
@@ -64,6 +68,48 @@ def _escape_inner_string_quotes(text: str) -> str:
             continue
         result.append(char)
     return "".join(result)
+
+
+def _extract_insights_schema(text: str) -> dict:
+    verdict_match = re.search(r'"verdict"\s*:\s*"(.*?)"\s*,\s*"suggestions"', text, re.S)
+    suggestions_match = re.search(r'"suggestions"\s*:\s*\[(.*)\]\s*}', text, re.S)
+    if not verdict_match or not suggestions_match:
+        raise json.JSONDecodeError("insights schema not found", text, 0)
+    return {
+        "verdict": verdict_match.group(1).strip(),
+        "suggestions": _extract_string_array_items(suggestions_match.group(1)),
+    }
+
+
+def _extract_string_array_items(text: str) -> list[str]:
+    items: list[str] = []
+    current: list[str] = []
+    in_string = False
+    escaped = False
+    length = len(text)
+    for index, char in enumerate(text):
+        if not in_string:
+            if char == '"':
+                in_string = True
+                current = []
+            continue
+        if escaped:
+            current.append(char)
+            escaped = False
+            continue
+        if char == "\\":
+            escaped = True
+            continue
+        if char == '"':
+            next_index = index + 1
+            while next_index < length and text[next_index].isspace():
+                next_index += 1
+            if next_index >= length or text[next_index] in {",", "]"}:
+                items.append("".join(current).strip())
+                in_string = False
+                continue
+        current.append(char)
+    return [item for item in items if item]
 
 
 # review:P5-T2  复盘洞察（真 LLM）
