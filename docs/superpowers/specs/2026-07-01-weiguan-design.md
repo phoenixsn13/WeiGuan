@@ -88,6 +88,24 @@
 5. **追问（招牌功能）** —— 点任意评论人 → **INTERVIEW**（"你为什么这么想？"）→ ta 以人设作答。
 6. **复盘 / 上帝视角** —— 拉远：情绪分布、传播随时间、Top 反应、风险点，并可下钻任一 agent 的推理。这是"实用"回报，附 **1–2 条可操作建议**（"这版容易被误读成 X；把第二句改成 Y 可能更稳"）。
 
+### 3.1 有效围观的判定（验收硬标准）
+
+"能调用 LLM 并产出内容" **不等于** 围观成立。产品核心承诺是**人群围绕你这一条内容产生反应**，因此一次 run 是否有效，按**针对种子帖（seed）的互动**来判，而非总活动量。统一口径复用 `analysis/retro.py::compute_metrics(snapshot).totals`（其计数天然只针对 seed）：
+
+```
+seed_comments     = totals["replies"]
+seed_interactions = replies + likes + dislikes + reposts + quotes + reports   （均针对 seed）
+engaged_actors    = 评论/点赞/踩/转发/举报过 seed 的不同 actor
+engagement_rate   = len(engaged_actors) / (人群规模 - 1)   （不含 seed 作者）
+```
+
+- **不可再降级内核**：`seed_comments >= 1` —— 必须有人对**你这一条**说话；且 seed 互动数须从初始 0 变为 >0。
+- **允许独立发帖，但不得压倒围观**：只发自己的帖、从不碰 seed 的 actor 占比 **≤ 50%**。
+- **降级即失败要响**：默认用轻量/免模型推荐并**保证 seed 对每个 agent 可见**（不依赖需联网下载的重推荐模型）；推荐链路构建失败必须**抛错终止**，不得静默产出"一堆各说各话的独立帖"。
+- **INTERVIEW 必须接地**：只能追问**真的对 seed 有过反应**的 actor；追问基于**同一次 run** 的现场与该 actor 的真实评论/人设，不得重建人群或凭空现编；无参与者时入口置灰、后端对未参与 actor 返 404。
+
+> 冻结的数值门槛（链路级 3-agent 与效果级 20-agent）与具体实现（推荐降级、追问接地、fixture）见 `docs/manual/2026-07-01-weiguan-remediation-2-seed-engagement.md`。
+
 ---
 
 ## 4. v1 范围边界（明确"先不做"）
@@ -272,7 +290,10 @@
 - **Adapter**：golden-file 测试（已知 OASIS DB → 期望规范模型）。
 - **POV 透镜 & 皮肤**：纯函数，用 fixture 规范模型做快照测试，**不需要引擎或 LLM**，快且确定。
 - **轮次/聚合逻辑**：对 fixture 事件流测情绪分布、传播曲线、风险标注的计算正确性。
-- **Engine 封装**：一个极小的端到端真跑（真实 LLM，marker 标记，最小 agent 数与步数），验证注入→流式→INTERVIEW 通路。
+- **Engine 封装**：真实 LLM 端到端真跑（marker 标记），**验收按 §3.1 的 seed 互动口径**，不是"有没有产出内容"——
+  - 链路级（3-agent，`@pytest.mark.llm`）：`seed_comments >= 1` 且 `seed_interactions >= 2`，且后续步含针对 seed 的互动 delta。
+  - 效果级（20-agent，`@pytest.mark.llm_effect`，默认不跑）：`engagement_rate >= 0.4`、`seed replies >= 3`、独立帖 actor ≤ 50%。
+  - INTERVIEW：追问评论过 seed 的 actor 答非空且不毁档；对未参与 actor 返 404。
 
 ---
 
