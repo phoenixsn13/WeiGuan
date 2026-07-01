@@ -130,21 +130,26 @@ cd ../frontend && npx vitest run && npx tsc -b
 
 ---
 
-## 五、回填区（codex 执行后填写）
+## 五、回填区（已由审核者二次核验，2026-07-01）
 
-- [ ] **P2-T7 种子可见/降级**：采用降级方案 ____（关注 seed 作者 / 置顶 seed）；推荐失败抛错单测 `P2-T7-AC1` 通过。改动文件与原因：`____`
-- [ ] **P2-T8 断言升级**：`retro.py` 新增 `seed_engaged_actor_ids`/`seed_interaction_count`；`test_real_run_produces_llm_content` 升级为 seed 断言。链路级真跑输出：
+- [x] **P2-T7 种子可见/降级**：采用**降级方案 = random Platform（`recsys_type="random"`, `max_rec_post_len/refresh_rec_post_count=500`, `following_post_count=5`）+ 每步创建后置顶 seed（`_pin_seed_to_rec`）+ 可见性硬校验（`_assert_seed_visible` 查 `rec` 表，seed 缺失即抛错）**。`oasis_engine.py` 已不再用 `DefaultPlatformType.TWITTER`（`oasis_engine.py:116-129`）。失败抛错单测 `P2-T7-AC1`（`test_run_raises_when_seed_visibility_check_fails`）通过。提交 `e40abc2` / `34613fc`。
+- [x] **P2-T8 断言升级**：`retro.py` 新增 `seed_engaged_actor_ids`/`seed_interaction_count`（`retro.py:73/86`，复用 `compute_metrics` 口径）；`test_real_run_produces_llm_content` 已删 `later>=1`，改为 seed 断言（`replies>=1`、`seed_interaction_count>=2`、后续步含针对 seed 的互动 delta）。提交 `07faafb` / `03753ed`。链路级真跑（用户执行，DeepSeek）：
       ```
-      （粘 pytest -m "llm and not llm_effect" -v 尾部）
+      5 passed, 48 deselected, 10 warnings
+      test_insights_returns_verdict_and_suggestions PASSED
+      test_generates_valid_profile_csv PASSED
+      test_real_run_produces_llm_content PASSED
+      test_real_interview_returns_nonempty PASSED
+      test_real_interview_is_grounded_in_same_run PASSED
       ```
-- [ ] **P2-T8-AC1 效果验收**：20 agent，`engagement_rate=__`、`replies=__`、独立帖 actor 占比 `__%`。输出：
+- [x] **P2-T8-AC1 效果验收**：20 agent，`engagement_rate=1.0`（19/19，不含 seed 作者）、`seed replies=51`、独立帖 actor 占比 `0%`，均超门槛（≥0.4 / ≥3 / ≤50%）。抽查 run.db：posts 16 / comments 63 / likes 77 / reposts 10；seed 口径 replies 51、likes 18、reposts 10；日志无 twhin 加载失败、无 `list index out of range`、无 Traceback。用户执行输出：
       ```
-      （粘 pytest -m llm_effect -v 尾部）
+      1 passed, 54 deselected, 21 warnings in 151.97s
       ```
-- [ ] **P5-T6 追问接地**：interview 复用同一 run.db、不毁档；AC1（有评论人，答非空且档在）/AC2（无参与 actor→404）通过。
-- [ ] **回归**：not-llm `__ passed` / frontend vitest `__ passed` / tsc `exit 0`。
+- [x] **P5-T6 追问接地**：`interview()` 不再调 `_make_env`、不删 run.db、不重建人群；改为基于 `snapshot`（seed 原文 + 该 actor 真实评论/动作 + persona）直连 LLM（`oasis_engine.py:204-267`）。路由层对未参与 seed 的 actor 返 404（`routes.py:138-139`）。AC1（`test_real_interview_is_grounded_in_same_run`，用户真跑 PASSED，断言答非空 + `_db_path` 不变 + run.db 仍可查）/AC2（`test_interview_rejects_actor_without_seed_engagement`，无 LLM，404）通过。提交 `f9c10e7`。
+- [x] **回归**：backend not-llm/not-effect `49 passed, 6 deselected` / frontend vitest `39 tests passed`（14 文件）/ tsc `exit 0`。（附带 `c427d3d` 修复 insights schema 解析健壮性，`Review-Anchor: P5-T2`。）
 
-> 全绿并粘好真跑输出后交回设计/审核者做二次核验（`grep -rn "review:P2-T7\|review:P2-T8\|review:P5-T6"` 对照本文件 + 复跑上述命令 + 抽查一场真 run 的 run.db 确认 seed 有评论/互动）。
+> **审核结论：整改 2 全部闭合。** 二次核验方式：`grep -rn "review:P2-T7|review:P2-T8|review:P5-T6"` 对照本文件锚点（均命中）+ 逐条读实现代码 + 采信用户真跑输出（LLM key 测试不由审核者执行）。真 run.db 抽查证明产品核心体验成立：人群围绕 seed 产生 51 条评论、真实分歧、可追问具体反应者。
 
 ---
 
