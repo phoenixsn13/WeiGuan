@@ -8,8 +8,14 @@ from pydantic import BaseModel, ValidationError
 
 from weiguan.canonical import Platform
 from weiguan.engine.config import Audience, RunConfig
+from weiguan.engine.crowds import list_crowds
 
 router = APIRouter(prefix="/api")
+
+
+@router.get("/crowds")
+async def crowds():  # review:P4-T1
+    return list_crowds()
 
 
 class _CreateBody(BaseModel):
