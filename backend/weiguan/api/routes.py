@@ -6,6 +6,7 @@ from fastapi import APIRouter, Header, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ValidationError
 
+from weiguan.analysis.insights import generate_insights
 from weiguan.analysis.retro import compute_metrics
 from weiguan.canonical import Platform
 from weiguan.engine.config import Audience, RunConfig
@@ -129,3 +130,21 @@ async def retro(run_id: str, request: Request):  # review:P5-T1
     if record is None:
         raise HTTPException(status_code=404, detail="run not found")
     return compute_metrics(record.snapshot).model_dump()
+
+
+@router.post("/runs/{run_id}/insights")
+async def insights(
+    run_id: str,
+    request: Request,
+    x_llm_key: str | None = Header(default=None),
+    x_llm_model: str = Header(default="gpt-4o-mini"),
+):  # review:P5-T2
+    record = request.app.state.store.get(run_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="run not found")
+    if not x_llm_key:
+        raise HTTPException(status_code=401, detail="missing X-LLM-Key")
+    config = record.config.model_copy(
+        update={"llm_key": x_llm_key, "llm_model": x_llm_model}
+    )
+    return generate_insights(record.snapshot, config).model_dump()
