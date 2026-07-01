@@ -48,7 +48,9 @@ def test_oasis_engine_uses_openai_compatible_model_options(monkeypatch, tmp_path
     assert captured["model_config_dict"] == {
         "reasoning_effort": "high",
         "extra_body": {"thinking": {"type": "enabled"}},
+        "max_tokens": 512,
     }
+    assert captured["max_retries"] == 0
 
 
 def _cfg() -> RunConfig:
@@ -166,6 +168,155 @@ async def test_run_raises_when_seed_visibility_check_fails(monkeypatch, tmp_path
 
     with pytest.raises(RuntimeError, match="seed not visible"):
         [delta async for delta in engine.run(_cfg())]
+
+
+async def test_run_limits_llm_agent_batch_and_steps(monkeypatch, tmp_path):  # review:PA-T6-AC1
+    class ActionType:
+        CREATE_POST = "create_post"
+
+    class ManualAction:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+    class LLMAction:
+        pass
+
+    class AgentGraph:
+        def __init__(self):
+            self.requested_agent_ids = []
+
+        def get_agent(self, actor_id):
+            return f"agent-{actor_id}"
+
+        def get_agents(self, agent_ids=None):
+            self.requested_agent_ids.append(list(agent_ids) if agent_ids else None)
+            ids = agent_ids or list(range(6))
+            return [(agent_id, f"agent-{agent_id}") for agent_id in ids]
+
+    class FakeEnv:
+        def __init__(self):
+            self.agent_graph = AgentGraph()
+            self.steps = []
+
+        async def reset(self):
+            return None
+
+        async def step(self, actions):
+            self.steps.append(actions)
+
+        async def close(self):
+            return None
+
+    env = FakeEnv()
+    engine = OasisEngine(profile_path="profile.csv", db_dir=str(tmp_path))
+    config = RunConfig(
+        audience=Audience(crowd_id="tech_devs"),
+        content="hi",
+        steps=15,
+        llm_key="sk-x",
+        llm_model="m",
+        llm_max_agents=2,
+        llm_max_steps=2,
+    )
+
+    async def fake_make_env(config):
+        return env, str(tmp_path / "run.db")
+
+    monkeypatch.setattr(engine, "_make_env", fake_make_env)
+    monkeypatch.setattr(
+        engine,
+        "_deps",
+        lambda: {
+            "ActionType": ActionType,
+            "ManualAction": ManualAction,
+            "LLMAction": LLMAction,
+        },
+    )
+    monkeypatch.setattr(engine, "_pin_seed_to_rec", lambda db_path: None)
+    monkeypatch.setattr(engine, "_assert_seed_visible", lambda db_path: None)
+    monkeypatch.setattr(
+        "weiguan.engine.oasis_engine.load_run_snapshot",
+        lambda *args, **kwargs: __import__("weiguan.canonical").canonical.RunSnapshot(),
+    )
+
+    deltas = [delta async for delta in engine.run(config)]
+
+    assert [delta.step for delta in deltas] == [1, 2, 3]
+    limited_requests = [
+        item for item in env.agent_graph.requested_agent_ids if item is not None
+    ]
+    assert limited_requests == [[1, 2], [1, 2]]
+    assert len(env.steps) == 3
+    assert all(len(actions) == 2 for actions in env.steps[1:])
+
+
+async def test_run_breaks_circuit_when_llm_step_fails(monkeypatch, tmp_path):  # review:PA-T6-AC2
+    class ActionType:
+        CREATE_POST = "create_post"
+
+    class ManualAction:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+    class LLMAction:
+        pass
+
+    class AgentGraph:
+        def get_agent(self, actor_id):
+            return f"agent-{actor_id}"
+
+        def get_agents(self, agent_ids=None):
+            return [(agent_id, f"agent-{agent_id}") for agent_id in (agent_ids or [1])]
+
+    class FakeEnv:
+        agent_graph = AgentGraph()
+
+        async def reset(self):
+            return None
+
+        async def step(self, actions):
+            if any(isinstance(action, LLMAction) for action in actions.values()):
+                raise RuntimeError("provider overloaded")
+
+        async def close(self):
+            return None
+
+    engine = OasisEngine(profile_path="profile.csv", db_dir=str(tmp_path))
+
+    async def fake_make_env(config):
+        return FakeEnv(), str(tmp_path / "run.db")
+
+    monkeypatch.setattr(engine, "_make_env", fake_make_env)
+    monkeypatch.setattr(
+        engine,
+        "_deps",
+        lambda: {
+            "ActionType": ActionType,
+            "ManualAction": ManualAction,
+            "LLMAction": LLMAction,
+        },
+    )
+    monkeypatch.setattr(engine, "_pin_seed_to_rec", lambda db_path: None)
+    monkeypatch.setattr(engine, "_assert_seed_visible", lambda db_path: None)
+    monkeypatch.setattr(
+        "weiguan.engine.oasis_engine.load_run_snapshot",
+        lambda *args, **kwargs: __import__("weiguan.canonical").canonical.RunSnapshot(),
+    )
+
+    import pytest
+
+    config = RunConfig(
+        audience=Audience(crowd_id="tech_devs"),
+        content="hi",
+        steps=6,
+        llm_key="sk-x",
+        llm_model="m",
+        llm_max_agents=1,
+        llm_max_steps=3,
+        llm_error_threshold=1,
+    )
+    with pytest.raises(RuntimeError, match="LLM circuit breaker opened"):
+        [delta async for delta in engine.run(config)]
 
 
 def test_pin_seed_to_rec_writes_seed_for_all_non_seed_users(tmp_path):  # review:P2-T7

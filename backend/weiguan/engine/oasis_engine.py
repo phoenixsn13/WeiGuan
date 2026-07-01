@@ -76,6 +76,7 @@ class OasisEngine:
             model_config["reasoning_effort"] = config.llm_reasoning_effort
         if config.llm_thinking_enabled:
             model_config["extra_body"] = {"thinking": {"type": "enabled"}}
+        model_config["max_tokens"] = config.llm_max_tokens
         try:
             return deps["ModelFactory"].create(
                 model_platform=model_platform,
@@ -83,6 +84,7 @@ class OasisEngine:
                 model_config_dict=model_config or None,
                 api_key=config.llm_key,
                 url=config.llm_base_url,
+                max_retries=config.llm_max_retries,
             )
         except TypeError:
             return deps["ModelFactory"].create(
@@ -166,6 +168,22 @@ class OasisEngine:
         finally:
             conn.close()
 
+    def _llm_agent_ids(self, env, config: RunConfig) -> list[int]:
+        ids = [
+            agent_id
+            for agent_id, _agent in env.agent_graph.get_agents()
+            if agent_id != 0
+        ]
+        return ids[: config.llm_max_agents]
+
+    async def _safe_llm_step(self, env, deps, config: RunConfig) -> None:
+        agents = env.agent_graph.get_agents(agent_ids=self._llm_agent_ids(env, config))
+        actions = {agent: deps["LLMAction"]() for _, agent in agents}
+        try:
+            await env.step(actions)
+        except Exception as exc:
+            raise RuntimeError("LLM circuit breaker opened") from exc
+
     async def run(self, config: RunConfig) -> AsyncIterator[RunDelta]:
         deps = self._deps()
         env, db_path = await self._make_env(config)
@@ -183,11 +201,16 @@ class OasisEngine:
             self._pin_seed_to_rec(db_path)
             self._assert_seed_visible(db_path)
             prev = RunSnapshot()
-            for step in range(1, config.steps + 1):
+            safe_steps = min(config.steps, config.llm_max_steps + 1)
+            llm_errors = 0
+            for step in range(1, safe_steps + 1):
                 if step > 1:
-                    await env.step(
-                        {agent: deps["LLMAction"]() for _, agent in env.agent_graph.get_agents()}
-                    )
+                    try:
+                        await self._safe_llm_step(env, deps, config)
+                    except Exception:
+                        llm_errors += 1
+                        if llm_errors >= config.llm_error_threshold:
+                            raise
                 curr = load_run_snapshot(
                     db_path,
                     platform=Platform.TWITTER,

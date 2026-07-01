@@ -52,6 +52,11 @@ async def test_create_run_uses_env_defaults_when_headers_are_blank():  # review:
             base_url="https://api.deepseek.com",
             reasoning_effort="high",
             thinking="enabled",
+            max_agents=4,
+            max_steps=1,
+            error_threshold=1,
+            max_retries=0,
+            max_tokens=256,
         ),
     )
     async with httpx.AsyncClient(
@@ -77,6 +82,11 @@ async def test_create_run_uses_env_defaults_when_headers_are_blank():  # review:
     assert record.config.llm_base_url == "https://api.deepseek.com"
     assert record.config.llm_reasoning_effort == "high"
     assert record.config.llm_thinking_enabled is True
+    assert record.config.llm_max_agents == 4
+    assert record.config.llm_max_steps == 1
+    assert record.config.llm_error_threshold == 1
+    assert record.config.llm_max_retries == 0
+    assert record.config.llm_max_tokens == 256
 
 
 async def test_create_run_accepts_openai_compatible_headers():  # review:P2-T6

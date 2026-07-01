@@ -38,9 +38,24 @@ class RunConfig(BaseModel):
     llm_base_url: str | None = None
     llm_reasoning_effort: str | None = None
     llm_thinking_enabled: bool = False
+    llm_max_agents: int = 8
+    llm_max_steps: int = 2
+    llm_error_threshold: int = 1
+    llm_max_retries: int = 0
+    llm_max_tokens: int = 512
 
     @model_validator(mode="after")
     def _steps_preset(self):
         if self.steps not in _ALLOWED_STEPS:
             raise ValueError("steps must be one of 6/10/15")
+        if self.llm_max_agents < 1:
+            raise ValueError("llm_max_agents must be >= 1")
+        if self.llm_max_steps < 0:
+            raise ValueError("llm_max_steps must be >= 0")
+        if self.llm_error_threshold < 1:
+            raise ValueError("llm_error_threshold must be >= 1")
+        if self.llm_max_retries < 0:
+            raise ValueError("llm_max_retries must be >= 0")
+        if self.llm_max_tokens < 1:
+            raise ValueError("llm_max_tokens must be >= 1")
         return self

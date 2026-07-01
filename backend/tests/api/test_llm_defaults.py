@@ -19,6 +19,11 @@ def test_load_env_file_reads_weiguan_llm_defaults(tmp_path, monkeypatch):  # rev
                 "WEIGUAN_LLM_BASE_URL=https://api.deepseek.com",
                 "WEIGUAN_LLM_REASONING_EFFORT=high",
                 "WEIGUAN_LLM_THINKING=enabled",
+                "WEIGUAN_LLM_MAX_AGENTS=4",
+                "WEIGUAN_LLM_MAX_STEPS=1",
+                "WEIGUAN_LLM_ERROR_THRESHOLD=1",
+                "WEIGUAN_LLM_MAX_RETRIES=0",
+                "WEIGUAN_LLM_MAX_TOKENS=256",
             ]
         ),
         encoding="utf-8",
@@ -32,3 +37,8 @@ def test_load_env_file_reads_weiguan_llm_defaults(tmp_path, monkeypatch):  # rev
     assert defaults.base_url == "https://api.deepseek.com"
     assert defaults.reasoning_effort == "high"
     assert defaults.thinking == "enabled"
+    assert defaults.max_agents == 4
+    assert defaults.max_steps == 1
+    assert defaults.error_threshold == 1
+    assert defaults.max_retries == 0
+    assert defaults.max_tokens == 256

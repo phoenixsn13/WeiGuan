@@ -12,6 +12,11 @@ class LlmDefaults:
     base_url: str | None = None
     reasoning_effort: str | None = None
     thinking: str | None = None
+    max_agents: int | None = None
+    max_steps: int | None = None
+    error_threshold: int | None = None
+    max_retries: int | None = None
+    max_tokens: int | None = None
 
 
 def _clean(value: str | None) -> str | None:
@@ -19,6 +24,11 @@ def _clean(value: str | None) -> str | None:
         return None
     stripped = value.strip().strip('"').strip("'")
     return stripped or None
+
+
+def _int_env(name: str) -> int | None:
+    value = _clean(os.environ.get(name))
+    return int(value) if value is not None else None
 
 
 def load_env_file(path: str | Path) -> None:
@@ -43,4 +53,9 @@ def defaults_from_env() -> LlmDefaults:
         base_url=_clean(os.environ.get("WEIGUAN_LLM_BASE_URL")),
         reasoning_effort=_clean(os.environ.get("WEIGUAN_LLM_REASONING_EFFORT")),
         thinking=_clean(os.environ.get("WEIGUAN_LLM_THINKING")),
+        max_agents=_int_env("WEIGUAN_LLM_MAX_AGENTS"),
+        max_steps=_int_env("WEIGUAN_LLM_MAX_STEPS"),
+        error_threshold=_int_env("WEIGUAN_LLM_ERROR_THRESHOLD"),
+        max_retries=_int_env("WEIGUAN_LLM_MAX_RETRIES"),
+        max_tokens=_int_env("WEIGUAN_LLM_MAX_TOKENS"),
     )

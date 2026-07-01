@@ -56,14 +56,30 @@ def _llm_update(
     base_url: str | None,
     reasoning_effort: str | None,
     thinking: str | None,
+    max_agents: int | None = None,
+    max_steps: int | None = None,
+    error_threshold: int | None = None,
+    max_retries: int | None = None,
+    max_tokens: int | None = None,
 ) -> dict:
-    return {
+    update = {
         "llm_key": key,
         "llm_model": model,
         "llm_base_url": base_url,
         "llm_reasoning_effort": reasoning_effort,
         "llm_thinking_enabled": _thinking_enabled(thinking),
     }
+    if max_agents is not None:
+        update["llm_max_agents"] = max_agents
+    if max_steps is not None:
+        update["llm_max_steps"] = max_steps
+    if error_threshold is not None:
+        update["llm_error_threshold"] = error_threshold
+    if max_retries is not None:
+        update["llm_max_retries"] = max_retries
+    if max_tokens is not None:
+        update["llm_max_tokens"] = max_tokens
+    return update
 
 
 def _resolve_llm_update(
@@ -84,6 +100,11 @@ def _resolve_llm_update(
         _nonblank(base_url) or defaults.base_url,
         _nonblank(reasoning_effort) or defaults.reasoning_effort,
         _nonblank(thinking) or defaults.thinking,
+        defaults.max_agents,
+        defaults.max_steps,
+        defaults.error_threshold,
+        defaults.max_retries,
+        defaults.max_tokens,
     )
 
 
