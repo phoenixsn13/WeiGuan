@@ -1,0 +1,134 @@
+from __future__ import annotations
+
+from collections import Counter
+
+from weiguan.analysis.attention_context import classify_stance
+
+from .models import (
+    BoundedMemory,
+    Person,
+    PersonView,
+    StanceState,
+    World,
+    WorldEvent,
+    WorldEventKind,
+)
+
+
+def _event_sort_key(event: WorldEvent) -> tuple[int, str, str]:
+    return (event.tick, event.created_at, event.event_id)
+
+
+def _event_text(event: WorldEvent) -> str:
+    for key in ("content", "text", "quote_content", "comment", "reason"):
+        value = event.payload.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return ""
+
+
+def project_stance(events: list[WorldEvent], account_id: str) -> StanceState:  # review:P6-T3
+    counts: Counter[str] = Counter()
+    for event in sorted(events, key=_event_sort_key):
+        if event.actor_account_id != account_id:
+            continue
+        text = _event_text(event)
+        if text:
+            counts[classify_stance(text)] += 1
+
+    if not counts:
+        return StanceState()
+    dominant = sorted(counts.items(), key=lambda item: (-item[1], item[0]))[0][0]
+    return StanceState(stance_counts=dict(counts), dominant=dominant)
+
+
+def project_bounded_memory(
+    events: list[WorldEvent], account_id: str, budget: int
+) -> BoundedMemory:
+    if budget < 1:
+        raise ValueError("budget must be >= 1")
+
+    utterances = [
+        text
+        for event in sorted(events, key=_event_sort_key)
+        if event.actor_account_id == account_id
+        for text in [_event_text(event)]
+        if text
+    ]
+    stance = project_stance(events, account_id)
+    return BoundedMemory(
+        stance_line=f"立场:{stance.dominant}",
+        recent_utterances=utterances[-budget:],
+    )
+
+
+def _target_account_id(event: WorldEvent) -> str | None:
+    value = event.payload.get("target_account_id") or event.payload.get("followee_account_id")
+    return str(value) if value is not None else None
+
+
+def fold_world(
+    world: World, persons: list[Person], events: list[WorldEvent]
+) -> dict[str, PersonView]:
+    del world
+    ordered_events = sorted(events, key=_event_sort_key)
+    account_to_person = {
+        account.account_id: person.person_id
+        for person in persons
+        for account in person.accounts
+    }
+    working_people = {
+        person.person_id: person.model_copy(deep=True)
+        for person in sorted(persons, key=lambda item: item.person_id)
+    }
+    account_lookup = {
+        account.account_id: account
+        for person in working_people.values()
+        for account in person.accounts
+    }
+    run_ids_by_person: dict[str, list[str]] = {person.person_id: [] for person in persons}
+
+    def remember_run(account_id: str | None, run_id: str | None) -> None:
+        if not account_id or not run_id:
+            return
+        person_id = account_to_person.get(account_id)
+        if not person_id:
+            return
+        if run_id not in run_ids_by_person[person_id]:
+            run_ids_by_person[person_id].append(run_id)
+
+    for event in ordered_events:
+        remember_run(event.actor_account_id, event.run_id)
+        actor_account = account_lookup.get(event.actor_account_id or "")
+        if actor_account and event.kind in {
+            WorldEventKind.SEED,
+            WorldEventKind.POST,
+            WorldEventKind.REPLY,
+            WorldEventKind.REACTION,
+        }:
+            actor_account.influence_score += {
+                WorldEventKind.SEED: 2.0,
+                WorldEventKind.POST: 1.5,
+                WorldEventKind.REPLY: 1.0,
+                WorldEventKind.REACTION: 0.25,
+            }[event.kind]
+
+        if event.kind == WorldEventKind.FOLLOW:
+            target_id = _target_account_id(event)
+            target_account = account_lookup.get(target_id or "")
+            if target_account:
+                target_account.num_followers += 1
+                target_account.influence_score += 0.5
+                remember_run(target_id, event.run_id)
+
+    return {
+        person_id: PersonView(
+            person=person,
+            stance=project_stance(ordered_events, account.account_id)
+            if (account := person.accounts[0] if person.accounts else None)
+            else StanceState(),
+            total_influence=sum(account.influence_score for account in person.accounts),
+            run_ids=run_ids_by_person.get(person_id, []),
+        )
+        for person_id, person in working_people.items()
+    }
