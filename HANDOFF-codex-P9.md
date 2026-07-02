@@ -15,6 +15,8 @@
 4. **UI 工作流强制**：Task 4 先 imagegen 出多平台并列 Live + 三皮肤对比原型图+自审，合格后再实现 Task 5/6。
 5. 编排测试全部用 `weiguan/engine/fake.py::FakeEngine` 多实例，无需 LLM key。
 
-顺序 T1→T6：T1 跨平台桥(纯函数) → T2 WorldOrchestrator(共享时钟+每拍调桥) → T3 编排 API → T4 原型图+自审 → T5 平台皮肤抽象+Reddit/微博 → T6 多平台并列 Live。精确文件/签名/断言见计划。
+**先读计划末尾「附录：新增 P9-T7（起手，先于 T1）」**：P7 投影是单账户实现，P9 一人多平台账户必须先做 T7——投影多账户泛化（立场/记忆/`standing_timeline` 跨 person 全部账户聚合）+ 发帖人按平台建号（替换硬编 `account_of[1]`），且单账户退化与 P7 逐字一致（防回归）。
+
+顺序 **T7（起手）→** T1 跨平台桥(纯函数) → T2 WorldOrchestrator(共享时钟+每拍调桥) → T3 编排 API → T4 原型图+自审 → T5 平台皮肤抽象+Reddit/微博 → T6 多平台并列 Live。精确文件/签名/断言见计划。
 
 验收：`cd backend && /home/sunrise/.virtualenvs/my-oasis-backend/bin/python -m pytest -m "not llm and not llm_effect" -q`；`cd frontend && npx vitest run && npx tsc -b`。完成交回审核者按 Review Index 核验。卡点回计划，契约回 spec，不要靠猜。

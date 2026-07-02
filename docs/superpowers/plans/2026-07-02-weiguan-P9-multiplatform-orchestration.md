@@ -162,3 +162,27 @@ export function multiPlatformView(events: WorldEvent[]): { columns: PlatformColu
 - 多平台各自 OASIS 模型独立、桥能让消息互窜、并发写不覆盖。
 - 皮肤共享数据契约、并列视图可辨；原型图落盘+自审+高保真实现。
 - 编排测试用 FakeEngine，无需 LLM key；真多平台 LLM 联跑由用户代跑、采信回传。
+- **多账户泛化到位（见附录 P9-T7）**：多平台身份的立场/记忆/时间线跨全部账户聚合，单账户退化与 P7 一致。
+
+---
+
+## 附录：P7 修正带来的必要调整（2026-07-03）—— 新增 P9-T7（起手，先于 T1）
+
+P7 的投影按**单账户**实现：`fold_world` 的 `PersonView.stance` 取 `person.accounts[0]`；`project_stance`/`project_bounded_memory`/`project_standing_timeline` 以单 `account_id` 为键；run 缝 `run_bridge.py` 硬编 `account_of[1]=poster.accounts[0]`；`IdentitySummary.stance` 亦取首账户。P9 引入"一人多平台账户"，若不泛化，多账户身份的立场/记忆/时间线只反映第一个平台 → 数据错误。**故 P9 起手先做 T7。**
+
+### Task 7（后端，P9 起手，先于 T1–T6）：投影多账户泛化 + 发帖人多平台账户
+
+**Files:** Modify `backend/weiguan/world/projector.py`、`world/run_bridge.py`、`world/store.py`、`world/models.py`（如需 per-platform 明细）；Test 追加 `backend/tests/world/test_projector_multiaccount.py`
+
+**Interfaces:**
+- `PersonView.stance`/`IdentitySummary.stance` 改为**跨该 person 所有账户聚合**（合并各账户 `stance_counts` 后按 `_stance_score` 定 dominant）；`total_influence` 保持各账户求和。
+- `project_stance`/`project_bounded_memory`/`project_standing_timeline` 接受 `account_ids: list[str]`（或按 person 的全部账户）；`standing_timeline` 的 `influence`/`followers` 跨该 person 所有平台账户求和，另可选 `per_platform: dict[Platform, StandingPoint]` 明细。
+- `ensure_world_for_run`/orchestrator：发帖人 person 在参与的**每个平台各有一个 Account**，`poster_account_id` 按平台解析；run 缝 `account_of` 按 (platform, user_id) 建号，**替换硬编 `account_of[1]`**。
+
+- [ ] **Step 1 — 失败测试**：多账户 person（微博+X 各一账户各有评论）→ 聚合立场覆盖两平台；`standing_timeline` influence = 两平台之和；**单账户退化与 P7 结果逐字一致（防回归）**；确定性。
+- [ ] **Step 2 — 确认失败。** **Step 3 — 实现** `# review:P9-T7`。**Step 4 — 通过 + P6/P7 projector 测试全绿。**
+- [ ] **Step 5 — commit** `feat(world): multi-account projection and per-platform poster accounts`（`Review-Anchor: P9-T7`）。
+
+> 一并了结 P6 审核期前瞻标记：`fold_world` stance 只取 accounts[0]、`account_of[1]` 硬编 seed 作者=user_id 1。
+
+**Review Index 追加**：`P9-T7 | 多账户泛化 | 跨账户聚合立场/时间线；单账户退化不回归；发帖人按平台建号`。

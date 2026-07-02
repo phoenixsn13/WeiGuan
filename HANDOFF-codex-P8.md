@@ -17,4 +17,6 @@
 
 顺序 T1→T7：T1 级联 → T2 意见/极化 → T3 影响力中心性 → T4 时间动力学 → T5 聚合`analyze`+`GET /runs/{id}/analysis` → T6 Retro 原型图+自审 → T7 Retro 重构消费 analysis。精确文件/签名/断言见计划。
 
+**务必先读计划末尾「附录：P7 修正带来的必要调整」**：T2 的立场极性必须复用 P7 `projector._stance_score` 的同一映射（抽成共享 `analysis/stance.py::stance_polarity`，projector 与 P8 同引，改 projector 保持 P7 测试绿）；T3 的结构影响力用 `structural_influence`/`centrality` 命名，与身份页跨 run `influence` 区分；跨 run"影响力/立场随时间"直接复用 `PersonView.standing_timeline`。
+
 验收：`cd backend && /home/sunrise/.virtualenvs/my-oasis-backend/bin/python -m pytest -m "not llm and not llm_effect" -q`（无新依赖）；`cd frontend && npx vitest run && npx tsc -b`。完成交回审核者按 Review Index 核验。卡点回计划，契约回 spec，不要靠猜。

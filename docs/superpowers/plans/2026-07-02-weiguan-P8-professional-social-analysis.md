@@ -188,3 +188,13 @@ export function insightCards(a: AnalysisProjection): { title:string; body:string
 - Retro 展示由真实动力学派生，非固定四波/泛泛建议。
 - 原型图落盘 + 自审 + 高保真实现，调性连贯。
 - 无需 LLM key（现有 LLM insights 保留不动）。
+
+---
+
+## 附录：P7 修正带来的必要调整（2026-07-03）
+
+P7 补齐在 `weiguan/world/projector.py` 落了立场极性约定与跨 run 影响力，P8 须对齐，避免同一评论在身份页与 Retro 极性不一致：
+
+- **立场极性统一（并入 T2 约束）**：`projector.py::_stance_score` 已确立极性映射——`classify_stance` 的 `question/skeptic`→负、`meme/analysis/other`→正，`score=正−负`，dominant 为 positive/negative/neutral/other。P8 的 opinion/polarization（T2）**必须复用同一映射，不得另立第二套**。实现时把该极性抽成共享 helper（建议 `weiguan/analysis/stance.py::stance_polarity(label:str)->int`，返回 +1/-1/0），让 `projector._stance_score` 与 P8 T2 同时引用；重构 projector 时保持 P7 测试全绿（防回归）。
+- **两种"影响力"分别命名（T3）**：P8-T3 的中心性是**单次 run 的结构影响力**，P7 的 `influence_score`/`standing_timeline` 是**跨 run 累积影响力**。二者不可混用；P8 字段命名用 `structural_influence`/`centrality`，UI 文案与身份页的"影响力"区分开。
+- **可复用**：Retro 里"影响力/立场随时间"若做跨 run 视角，直接读 P7-T9 的 `PersonView.standing_timeline`，不重复造。
