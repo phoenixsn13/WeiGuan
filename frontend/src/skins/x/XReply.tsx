@@ -1,4 +1,5 @@
 import type { Actor, Reply } from "../../model/canonical";
+import { displayHandle, displayName } from "./identity";
 import { XAvatar } from "./XAvatar";
 
 // review:P3-T3
@@ -13,6 +14,8 @@ export function XReply({
   onAuthorClick?: (actor: Actor) => void;
   selected?: boolean;
 }) {
+  const authorName = displayName(author);
+  const authorHandle = displayHandle(author);
   return (
     <div
       className={[
@@ -29,10 +32,10 @@ export function XReply({
             className="min-h-8 rounded text-left font-semibold hover:text-accent"
             onClick={() => onAuthorClick?.(author)}
           >
-            {author.name ?? author.user_name}
+            {authorName}
           </button>{" "}
-          <span className="text-slate-400">@{author.user_name ?? author.user_id}</span>
-          <span className="text-slate-300">·</span>
+          {authorHandle && <span className="text-slate-400">@{authorHandle}</span>}
+          {authorHandle && <span className="text-slate-300">·</span>}
           <span className="text-slate-400">刚刚</span>
           {selected && (
             <span className="ml-1 rounded-full bg-brand/25 px-2 py-0.5 text-xs font-semibold text-slate-950">

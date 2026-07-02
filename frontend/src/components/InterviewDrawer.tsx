@@ -3,6 +3,7 @@ import { useState } from "react";
 import { interviewActor } from "../api/client";
 import { useApiKey } from "../api/useApiKey";
 import type { Actor } from "../model/canonical";
+import { displayHandle, displayName } from "../skins/x/identity";
 
 // review:P5-T4
 export function InterviewDrawer({
@@ -20,6 +21,8 @@ export function InterviewDrawer({
   const [loading, setLoading] = useState(false);
 
   if (!actor) return null;
+  const actorName = displayName(actor);
+  const actorHandle = displayHandle(actor);
 
   async function ask() {
     if (!question.trim() || loading || !actor) return;
@@ -47,16 +50,16 @@ export function InterviewDrawer({
         onClick={(event) => event.stopPropagation()}
         className="absolute right-0 top-0 h-full w-80 animate-[slidein_.2s_ease] overflow-y-auto bg-white p-4 shadow-spotlight"
       >
-        <div className="font-display text-lg">{actor.name}</div>
+        <div className="font-display text-lg">{actorName}</div>
         <div className="text-xs text-ink/50">
-          @{actor.user_name} · {actor.bio}
+          {[actorHandle ? `@${actorHandle}` : null, actor.bio].filter(Boolean).join(" · ")}
         </div>
         <div className="mt-4 space-y-3">
           {turns.map((turn, index) => (
             <div key={index}>
               <div className="text-sm text-accent">你：{turn.question}</div>
               <div className="text-sm">
-                {actor.name}：{turn.answer}
+                {actorName}：{turn.answer}
               </div>
             </div>
           ))}

@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import type { Actor } from "../../model/canonical";
 import type { PosterViewModel } from "../../pov/poster";
 import type { ActorRow, HotRow, RepostRow, TimelineRow } from "../../pov/social";
+import { displayHandle, displayName } from "./identity";
 import { XPost } from "./XPost";
 import { XReply } from "./XReply";
 
@@ -158,11 +159,14 @@ export function XFeed({
                   onClick={() => onActorClick?.(row.author)}
                 >
                   <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-accent text-sm font-bold text-white">
-                    {(row.author.user_name ?? row.author.name ?? "?").slice(0, 1)}
+                    {displayName(row.author).slice(0, 1)}
                   </div>
                   <div className="min-w-0">
                     <div className="text-sm font-bold text-slate-950">
-                      @{row.author.user_name ?? row.author.user_id} · {row.label}
+                      {displayHandle(row.author)
+                        ? `@${displayHandle(row.author)}`
+                        : displayName(row.author)}{" "}
+                      · {row.label}
                     </div>
                     <div className="mt-1 text-sm leading-6 text-slate-700">{row.text}</div>
                   </div>
@@ -177,7 +181,9 @@ export function XFeed({
                   <NoticeIcon kind={notice.kind} />
                   <div className="min-w-0">
                     <div className="font-semibold text-slate-950">
-                      @{notice.actor.user_name ?? notice.actor.user_id}
+                      {displayHandle(notice.actor)
+                        ? `@${displayHandle(notice.actor)}`
+                        : displayName(notice.actor)}
                     </div>
                     <div className="mt-1 line-clamp-2 text-slate-500">
                       {notice.kind === "like" && "赞了你的微博"}
@@ -199,10 +205,14 @@ export function XFeed({
                   onClick={() => onActorClick?.(row.actor)}
                 >
                   <div className="grid h-11 w-11 place-items-center rounded-full bg-slate-950 text-sm font-bold text-white">
-                    {(row.actor.user_name ?? row.actor.name ?? "?").slice(0, 1)}
+                    {displayName(row.actor).slice(0, 1)}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="font-bold text-slate-950">@{row.actor.user_name ?? row.actor.user_id}</div>
+                    <div className="font-bold text-slate-950">
+                      {displayHandle(row.actor)
+                        ? `@${displayHandle(row.actor)}`
+                        : displayName(row.actor)}
+                    </div>
                     <div className="mt-1 text-sm text-slate-500">{row.summary}</div>
                   </div>
                   <div className="tabular text-sm font-bold text-accent">{row.score}</div>
@@ -221,7 +231,9 @@ export function XFeed({
                       className="mt-2 text-sm font-semibold text-slate-500 hover:text-accent"
                       onClick={() => onActorClick?.(row.author as Actor)}
                     >
-                      @{row.author.user_name ?? row.author.user_id}
+                      {displayHandle(row.author)
+                        ? `@${displayHandle(row.author)}`
+                        : displayName(row.author)}
                     </button>
                   )}
                 </div>
@@ -259,10 +271,13 @@ export function XFeed({
                   {notice.kind === "like" && "你的微博获得了赞"}
                   {notice.kind === "repost" && "这条开始被转发"}
                   {notice.kind === "quote" && "有人引用了你的微博"}
-                  {notice.kind === "follow" && `@${notice.actor.user_name ?? notice.actor.user_id} 关注了你`}
+                  {notice.kind === "follow" &&
+                    `${displayHandle(notice.actor) ? `@${displayHandle(notice.actor)}` : displayName(notice.actor)} 关注了你`}
                 </div>
                 <div className="mt-1 line-clamp-2 text-slate-500">
-                  @{notice.actor.user_name ?? notice.actor.user_id}
+                  {displayHandle(notice.actor)
+                    ? `@${displayHandle(notice.actor)}`
+                    : displayName(notice.actor)}
                   {notice.kind === "like" && " 等人赞了你的微博"}
                   {notice.kind === "repost" && " 转发了你的微博"}
                   {notice.kind === "quote" && " 正在讨论你的微博"}

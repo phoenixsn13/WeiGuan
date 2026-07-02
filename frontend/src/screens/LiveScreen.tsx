@@ -8,6 +8,7 @@ import { emptySnapshot } from "../model/accumulate";
 import type { Actor, RunSnapshot } from "../model/canonical";
 import { posterView } from "../pov/poster";
 import { actorRows, hotRows, repostRows, timelineRows } from "../pov/social";
+import { displayHandle, displayName } from "../skins/x/identity";
 import { XFeed, type XFeedMode } from "../skins/x/XFeed";
 
 function RailButton({
@@ -62,14 +63,18 @@ function LiveRail({
   mode: XFeedMode;
   onModeChange: (mode: XFeedMode) => void;
 }) {
-  const selectedHandle = selected?.user_name ?? selected?.user_id;
+  const selectedLabel = selected
+    ? displayHandle(selected)
+      ? `@${displayHandle(selected)}`
+      : displayName(selected)
+    : "";
   const progress = total > 0 ? Math.max(6, Math.round((step / total) * 100)) : 100;
   return (
     <aside className="hidden min-h-[680px] rounded-card bg-slate-950 p-5 text-white shadow-chrome xl:block">
       <div className="mb-8">
         <div className="text-xs font-semibold text-white/40">当前视角</div>
         <div className="mt-2 text-lg font-black">
-          {selected ? `@${selectedHandle}` : "我看到的"}
+          {selected ? selectedLabel : "我看到的"}
         </div>
         <div className="mt-1 text-sm leading-6 text-white/60">
           {selected ? "从这个人当时可能看到的内容理解他的反应。" : "像打开自己的微博正文一样看评论发酵。"}
@@ -129,7 +134,11 @@ export default function LiveScreen({
   const actors = actorRows(snapshot);
   const hot = hotRows(snapshot);
   const timeline = timelineRows(snapshot);
-  const selectedHandle = selected?.user_name ?? selected?.user_id;
+  const selectedLabel = selected
+    ? displayHandle(selected)
+      ? `@${displayHandle(selected)}`
+      : displayName(selected)
+    : "";
 
   useEffect(() => {
     if (!replay) return;
@@ -153,7 +162,7 @@ export default function LiveScreen({
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-card border border-line bg-white px-4 py-3 shadow-spotlight">
           <div>
             <div className="text-lg font-black">
-              {selected ? `正在从 @${selectedHandle} 的视角看` : "我看到的"}
+              {selected ? `正在从 ${selectedLabel} 的视角看` : "我看到的"}
             </div>
             <div className="mt-0.5 text-sm text-slate-500">
               {replay

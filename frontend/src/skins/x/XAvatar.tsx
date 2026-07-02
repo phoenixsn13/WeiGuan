@@ -1,4 +1,5 @@
 import type { Actor } from "../../model/canonical";
+import { displayHandle, displayName } from "./identity";
 
 // review:P3-T3
 export function XAvatar({
@@ -8,11 +9,12 @@ export function XAvatar({
   actor: Actor;
   onClick?: (actor: Actor) => void;
 }) {
-  const label = (actor.name || actor.user_name || "?").slice(0, 1);
+  const label = displayName(actor).slice(0, 1);
+  const accessibleName = displayHandle(actor) ?? displayName(actor);
   const hue = (actor.user_id * 47) % 360;
   return (
     <button
-      aria-label={`用户 ${actor.user_name ?? actor.user_id}`}
+      aria-label={`用户 ${accessibleName}`}
       onClick={() => onClick?.(actor)}
       className="grid h-11 w-11 shrink-0 place-items-center rounded-full border-2 border-white text-sm font-semibold text-white shadow-sm transition hover:scale-[1.03] focus:outline-none focus:ring-2 focus:ring-accent/40"
       style={{

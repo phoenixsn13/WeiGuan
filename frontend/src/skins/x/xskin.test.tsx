@@ -50,6 +50,67 @@ test("feed renders seed post content and reply", () => {  // review:P3-T3-AC1
   expect(screen.getByText("缓存没清吧")).toBeInTheDocument();
 });
 
+test("feed hides internal ids and dataset prefixes in profile labels", () => {  // review:UI-P9-AC1
+  render(
+    <XFeed
+      vm={{
+        ...vm,
+        me: {
+          user_id: 0,
+          user_name: "0",
+          name: "财00_韭菜观察员",
+          num_followers: 0,
+          num_followings: 0,
+        },
+        thread: [
+          {
+            reply: {
+              comment_id: 2,
+              post_id: 1,
+              author_id: 3,
+              content: "看看财报再说",
+              num_likes: 0,
+              num_dislikes: 0,
+            },
+            author: {
+              user_id: 3,
+              user_name: "3",
+              name: "财03_空仓老刘",
+              num_followers: 0,
+              num_followings: 0,
+            },
+          },
+        ],
+      }}
+    />,
+  );
+
+  expect(screen.getByText("韭菜观察员")).toBeInTheDocument();
+  expect(screen.getByText("空仓老刘")).toBeInTheDocument();
+  expect(screen.queryByText("@0")).not.toBeInTheDocument();
+  expect(screen.queryByText("@3")).not.toBeInTheDocument();
+  expect(screen.queryByText(/财00_/)).not.toBeInTheDocument();
+});
+
+test("feed derives topic tags from content instead of fixed engineering tags", () => {  // review:UI-P9-AC2
+  render(
+    <XFeed
+      vm={{
+        ...vm,
+        seedPost: {
+          ...vm.seedPost!,
+          content: "spacex股价怎么回事啊",
+        },
+      }}
+    />,
+  );
+
+  expect(screen.getByText("#SpaceX")).toBeInTheDocument();
+  expect(screen.getByText("#股价讨论")).toBeInTheDocument();
+  expect(screen.queryByText("#前端构建优化")).not.toBeInTheDocument();
+  expect(screen.queryByText("#性能优化")).not.toBeInTheDocument();
+});
+
 test("action bar counts use tabular numerals", () => {  // review:P3-T3-AC2
   render(<XActionBar replies={12} reposts={5} likes={48} />);
   const like = screen.getByText("48");
