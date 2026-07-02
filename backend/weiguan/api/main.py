@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import tempfile
 import uuid
 from pathlib import Path
 
@@ -11,8 +10,11 @@ from weiguan.engine.custom_profile import generate_custom_profile
 from weiguan.engine.oasis_engine import OasisEngine
 from weiguan.engine.routing import RoutingEngine, make_resolver
 
-WORKDIR = os.environ.get("WEIGUAN_WORKDIR", tempfile.mkdtemp(prefix="weiguan-"))
 load_env_file(Path(__file__).resolve().parents[2] / ".env")
+WORKDIR = os.environ.get(
+    "WEIGUAN_WORKDIR",
+    str(Path(__file__).resolve().parents[2] / ".weiguan"),
+)
 
 
 def _build_engine(profile_path: str) -> OasisEngine:
@@ -28,4 +30,5 @@ app = create_app(
         _build_engine,
     ),
     llm_defaults=defaults_from_env(),
+    store_path=Path(WORKDIR) / "runs.json",
 )

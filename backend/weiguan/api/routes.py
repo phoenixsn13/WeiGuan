@@ -203,12 +203,14 @@ async def stream_events(run_id: str, request: Request):
         )
         try:
             record.status = "running"
+            store.save()
             async for delta in engine.run(record.config):
                 yield _sse(
                     "step_started",
                     {"step": delta.step, "total": record.config.steps},
                 )
                 record.accumulate(delta.snapshot)
+                store.save()
                 yield _sse(
                     "delta",
                     {
@@ -218,9 +220,11 @@ async def stream_events(run_id: str, request: Request):
                 )
                 yield _sse("step_done", {"step": delta.step})
             record.status = "done"
+            store.save()
             yield _sse("run_done", {"run_id": run_id})
         except Exception as exc:  # noqa: BLE001
             record.status = "error"
+            store.save()
             yield _sse("error", {"message": str(exc)})
 
     return StreamingResponse(gen(), media_type="text/event-stream")

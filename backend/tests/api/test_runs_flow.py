@@ -137,3 +137,29 @@ async def test_list_runs_returns_history_summaries():  # review:UI-P1-AC1
     assert items[0]["steps"] == 6
     assert items[0]["status"] == "done"
     assert items[0]["totals"]["replies"] >= 1
+
+
+async def test_run_history_survives_app_restart(tmp_path):  # review:UI-P4-AC1
+    store_path = tmp_path / "runs.json"
+    app1 = create_app(FakeEngine(), store_path=store_path)
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app1),
+        base_url="http://test",
+    ) as client:
+        run_id = (await client.post("/api/runs", json=_body(6), headers=HDR)).json()[
+            "run_id"
+        ]
+        await client.get(f"/api/runs/{run_id}/events")
+
+    app2 = create_app(FakeEngine(), store_path=store_path)
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app2),
+        base_url="http://test",
+    ) as client:
+        runs = (await client.get("/api/runs")).json()
+        snap = (await client.get(f"/api/runs/{run_id}/snapshot")).json()
+
+    assert runs[0]["run_id"] == run_id
+    assert runs[0]["status"] == "done"
+    assert snap["posts"][0]["content"] == "构建砍到3秒"
+    assert len(snap["replies"]) >= 1
