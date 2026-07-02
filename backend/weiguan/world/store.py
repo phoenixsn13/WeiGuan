@@ -6,7 +6,9 @@ from pathlib import Path
 from uuid import uuid4
 
 from .eventlog import EventLog
-from .models import Person, PersonView, World, WorldEvent
+from weiguan.canonical import Platform
+
+from .models import Person, PersonView, PersonaKind, World, WorldEvent, persona_starting_standing
 from .projector import fold_world
 
 
@@ -40,6 +42,45 @@ class WorldStore:
         by_id[person.person_id] = person
         ordered = [by_id[key].model_dump(mode="json") for key in sorted(by_id)]
         self._write_json(self._persons_path(world_id), ordered)
+
+    def create_person(
+        self,
+        world_id: str,
+        *,
+        display_name: str,
+        persona_kind: PersonaKind,
+        platform: Platform,
+        handle: str,
+    ) -> Person:  # review:P7-T1
+        from .models import Account
+
+        followers, influence = persona_starting_standing(persona_kind)
+        person_id = f"p_{uuid4().hex}"
+        person = Person(
+            person_id=person_id,
+            display_name=display_name,
+            persona_kind=persona_kind,
+            accounts=[
+                Account(
+                    account_id=f"acct_{world_id}_{platform.value}_{person_id}",
+                    person_id=person_id,
+                    platform=platform,
+                    handle=handle,
+                    avatar_seed=handle,
+                    num_followers=followers,
+                    influence_score=influence,
+                )
+            ],
+        )
+        self.upsert_person(world_id, person)
+        return person
+
+    def list_persons(self, world_id: str) -> list[PersonView]:
+        world = self.get_world(world_id)
+        if world is None:
+            return []
+        views = fold_world(world, self._read_persons(world_id), self._eventlog(world_id).read())
+        return [views[person_id] for person_id in sorted(views)]
 
     def get_person_view(self, world_id: str, person_id: str) -> PersonView | None:
         world = self.get_world(world_id)
