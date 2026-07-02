@@ -37,6 +37,14 @@ class _CreateWorldBody(BaseModel):
     persistent: bool = False
 
 
+class _CreatePersonBody(BaseModel):
+    world_id: str | None = None
+    display_name: str
+    persona_kind: PersonaKind
+    platform: Platform = Platform.TWITTER
+    handle: str
+
+
 class _InterviewBody(BaseModel):
     actor_id: int
     question: str
@@ -172,12 +180,68 @@ async def get_world(world_id: str, request: Request):
     return world.model_dump(mode="json")
 
 
+@router.get("/worlds/{world_id}/persons")
+async def list_world_persons(world_id: str, request: Request):  # review:P7-T2
+    if request.app.state.world_store.get_world(world_id) is None:
+        raise HTTPException(status_code=404, detail="world not found")
+    return {
+        "persons": [
+            view.model_dump(mode="json")
+            for view in request.app.state.world_store.list_persons(world_id)
+        ]
+    }
+
+
+@router.post("/persons")
+async def create_person(body: _CreatePersonBody, request: Request):
+    world_id = body.world_id
+    if world_id is None:
+        world_id = request.app.state.world_store.create_world(persistent=True).world_id
+    elif request.app.state.world_store.get_world(world_id) is None:
+        raise HTTPException(status_code=404, detail="world not found")
+    person = request.app.state.world_store.create_person(
+        world_id,
+        display_name=body.display_name,
+        persona_kind=body.persona_kind,
+        platform=body.platform,
+        handle=body.handle,
+    )
+    return {"world_id": world_id, "person": person.model_dump(mode="json")}
+
+
 @router.get("/persons/{person_id}")
 async def get_person(person_id: str, world_id: str, request: Request):
     view = request.app.state.world_store.get_person_view(world_id, person_id)
     if view is None:
         raise HTTPException(status_code=404, detail="person not found")
     return view.model_dump(mode="json")
+
+
+@router.get("/runs/preview-cost")
+async def preview_cost(
+    steps: int,
+    llm_max_agents: int = 8,
+    attention_comment_budget: int = 12,
+    person_memory_budget: int = 4,
+):
+    try:
+        config = RunConfig(
+            audience=Audience(crowd_id="preview"),
+            content="preview",
+            steps=steps,
+            llm_key="preview",
+            llm_model="preview",
+            llm_max_agents=llm_max_agents,
+            attention_comment_budget=attention_comment_budget,
+            person_memory_budget=person_memory_budget,
+        )
+    except ValidationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {
+        "estimated_rmb": config.estimate_llm_cost_rmb(),
+        "budgeted_agents": config.budgeted_llm_max_agents,
+        "decision_steps": config.llm_decision_steps,
+    }
 
 
 # review:P2-T4
