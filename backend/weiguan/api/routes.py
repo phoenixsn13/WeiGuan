@@ -9,6 +9,7 @@ from pydantic import BaseModel, ValidationError
 from weiguan.api.llm_defaults import LlmDefaults
 from weiguan.analysis.insights import generate_insights
 from weiguan.analysis.retro import compute_metrics, seed_engaged_actor_ids
+from weiguan.analysis.social_metrics.projection import analyze
 from weiguan.canonical import Platform
 from weiguan.engine.config import Audience, RunConfig
 from weiguan.engine.crowds import list_crowds
@@ -410,6 +411,14 @@ async def retro(run_id: str, request: Request):  # review:P5-T1
     if record is None:
         raise HTTPException(status_code=404, detail="run not found")
     return compute_metrics(record.snapshot).model_dump()
+
+
+@router.get("/runs/{run_id}/analysis")
+async def analysis(run_id: str, request: Request):  # review:P8-T5
+    record = request.app.state.store.get(run_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="run not found")
+    return analyze(record.snapshot).model_dump(mode="json")
 
 
 @router.get("/runs/{run_id}/insights")
