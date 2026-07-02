@@ -34,7 +34,7 @@ class _InterviewBody(BaseModel):
 
 
 def _sse(event: str, data: object) -> str:
-    return f"event: {event}\ndata: {json.dumps(data)}\n\n"
+    return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
 
 
 def _thinking_enabled(value: str | None) -> bool:
@@ -179,6 +179,7 @@ async def create_run(
     except ValidationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     run_id = request.app.state.store.create(cfg)
+    request.app.state.runner.start(run_id)
     return {"run_id": run_id}
 
 
@@ -198,95 +199,61 @@ async def get_run(run_id: str, request: Request):  # review:UI-P12
 @router.get("/runs/{run_id}/events")
 async def stream_events(run_id: str, request: Request):
     store = request.app.state.store
-    engine = request.app.state.engine
     record = store.get(run_id)
     if record is None:
         raise HTTPException(status_code=404, detail="run not found")
 
-    if record.status == "running":
-        async def busy_gen():
-            yield _sse(
-                "run_started",
-                {
-                    "run_id": run_id,
-                    "steps": record.config.effective_steps,
-                    "platform": record.config.platform.value,
-                    "seed_post_id": record.snapshot.seed_post_id,
-                },
-            )
-            yield _sse(
-                "step_started",
-                {
-                    "step": record.current_step,
-                    "total": record.config.effective_steps,
-                },
-            )
-            yield _sse("error", {"message": "run already streaming"})
-
-        return StreamingResponse(busy_gen(), media_type="text/event-stream")
-
-    if record.status == "done":
-        async def replay_gen():
-            yield _sse(
-                "run_started",
-                {
-                    "run_id": run_id,
-                    "steps": record.config.effective_steps,
-                    "platform": record.config.platform.value,
-                    "seed_post_id": record.snapshot.seed_post_id,
-                },
-            )
-            yield _sse(
-                "delta",
-                {
-                    "step": record.current_step or record.config.effective_steps,
-                    "snapshot": record.snapshot.model_dump(mode="json"),
-                },
-            )
-            yield _sse("run_done", {"run_id": run_id})
-
-        return StreamingResponse(replay_gen(), media_type="text/event-stream")
-
-    record.status = "running"
-    record.current_step = 0
-    store.save()
-
     async def gen():
-        effective_steps = record.config.effective_steps
+        queue = request.app.state.runner.subscribe(run_id)
         yield _sse(
             "run_started",
             {
                 "run_id": run_id,
-                "steps": effective_steps,
+                "steps": record.config.effective_steps,
                 "platform": record.config.platform.value,
                 "seed_post_id": record.snapshot.seed_post_id,
             },
         )
         try:
-            async for delta in engine.run(record.config):
+            current = store.get(run_id)
+            if current is None:
+                yield _sse("error", {"message": "run not found"})
+                return
+            if current.snapshot.seed_post_id is not None or current.current_step > 0:
                 yield _sse(
-                    "step_started",
-                    {"step": delta.step, "total": effective_steps},
-                )
-                record.accumulate(delta.snapshot)
-                record.current_step = delta.step
-                store.save()
-                yield _sse(
-                    "delta",
+                    "snapshot",
                     {
-                        "step": delta.step,
-                        "snapshot": delta.snapshot.model_dump(mode="json"),
+                        "step": current.current_step,
+                        "snapshot": current.snapshot.model_dump(mode="json"),
                     },
                 )
-                yield _sse("step_done", {"step": delta.step})
-            record.status = "done"
-            record.current_step = effective_steps
-            store.save()
-            yield _sse("run_done", {"run_id": run_id})
-        except Exception as exc:  # noqa: BLE001
-            record.status = "error"
-            store.save()
-            yield _sse("error", {"message": str(exc)})
+            if current.status == "done":
+                yield _sse("run_done", {"run_id": run_id})
+                return
+            if current.status == "error":
+                yield _sse("error", {"message": current.error or "run failed"})
+                return
+            if not request.app.state.runner.is_active(run_id):
+                return
+
+            while True:
+                event = await queue.get()
+                if event.kind == "snapshot" and event.snapshot is not None:
+                    yield _sse(
+                        "snapshot",
+                        {
+                            "step": event.step,
+                            "snapshot": event.snapshot.model_dump(mode="json"),
+                        },
+                    )
+                elif event.kind == "done":
+                    yield _sse("run_done", {"run_id": run_id})
+                    return
+                elif event.kind == "error":
+                    yield _sse("error", {"message": event.message or "run failed"})
+                    return
+        finally:
+            request.app.state.runner.unsubscribe(run_id, queue)
 
     return StreamingResponse(gen(), media_type="text/event-stream")
 

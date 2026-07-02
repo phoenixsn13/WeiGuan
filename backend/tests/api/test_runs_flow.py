@@ -1,9 +1,10 @@
 import httpx
 
 from weiguan.api.app import create_app
-from weiguan.canonical import RunSnapshot
+from weiguan.canonical import Actor, Post, Reply, RunSnapshot
 from weiguan.engine.fake import FakeEngine
 from weiguan.engine.base import RunDelta
+from weiguan.engine.config import Audience, RunConfig
 
 HDR = {"X-LLM-Key": "sk-x", "X-LLM-Model": "gpt-4o-mini"}
 
@@ -42,7 +43,7 @@ async def test_get_run_returns_initial_summary_before_events():  # review:UI-P12
     assert data["run_id"] == run_id
     assert data["content"] == "构建砍到3秒"
     assert data["steps"] == 500
-    assert data["status"] == "created"
+    assert data["status"] in {"running", "done"}
 
 
 async def test_create_run_rejects_bad_steps():  # review:P2-T4-AC2
@@ -159,8 +160,9 @@ async def test_sse_stream_order_and_accumulation():  # review:P2-T4-AC4
         ln[len("event: ") :] for ln in text.splitlines() if ln.startswith("event: ")
     ]
     assert events[0] == "run_started"
-    assert events.count("step_started") == 6
+    assert "snapshot" in events
     assert events[-1] == "run_done"
+    assert "构建砍到3秒" in text
 
 
 async def test_sse_reports_effective_step_total_when_llm_steps_are_capped():  # review:UI-P8-AC1
@@ -184,11 +186,10 @@ async def test_sse_reports_effective_step_total_when_llm_steps_are_capped():  # 
         text = (await client.get(f"/api/runs/{run_id}/events")).text
 
     assert '"steps": 3' in text
-    assert '"total": 3' in text
-    assert '"total": 15' not in text
+    assert '"steps": 15' not in text
 
 
-async def test_running_run_events_do_not_start_engine_again():  # review:UI-P13-AC1
+async def test_running_run_events_subscribe_without_starting_engine_again():  # review:UI-P13-AC1
     class CountingEngine:
         def __init__(self):
             self.calls = 0
@@ -199,18 +200,35 @@ async def test_running_run_events_do_not_start_engine_again():  # review:UI-P13-
 
     engine = CountingEngine()
     app = create_app(engine)
+    run_id = app.state.store.create(
+        RunConfig(
+            audience=Audience(crowd_id="tech_devs"),
+            content="构建砍到3秒",
+            steps=500,
+            llm_key="sk-x",
+            llm_model="m",
+        )
+    )
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app),
         base_url="http://test",
     ) as client:
-        run_id = (await client.post("/api/runs", json=_body(500), headers=HDR)).json()[
-            "run_id"
-        ]
-        app.state.store.get(run_id).status = "running"
+        record = app.state.store.get(run_id)
+        record.status = "running"
+        record.current_step = 18
+        record.snapshot = RunSnapshot(
+            seed_post_id=1,
+            actors=[Actor(user_id=1, name="观察员")],
+            posts=[Post(post_id=1, author_id=1, content="正在被围观")],
+            replies=[Reply(comment_id=1, post_id=1, author_id=1, content="已有评论")],
+        )
         text = (await client.get(f"/api/runs/{run_id}/events")).text
 
     assert engine.calls == 0
-    assert "run already streaming" in text
+    assert "event: snapshot" in text
+    assert '"step": 18' in text
+    assert "已有评论" in text
+    assert "run already streaming" not in text
 
 
 async def test_list_runs_returns_history_summaries():  # review:UI-P1-AC1

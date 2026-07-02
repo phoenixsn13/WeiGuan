@@ -127,3 +127,40 @@ test("hook ignores stale step events from reconnects", () => {  // review:UI-P13
   expect(result.current.step).toBe(85);
   expect(result.current.snapshot.replies).toHaveLength(0);
 });
+
+test("hook replaces state from running run snapshot subscription", () => {  // review:UI-P13-AC3
+  const factory = () => new FakeES() as unknown as EventSource;
+  const { result } = renderHook(() => useRunStream("r_1", factory));
+  const es = FakeES.last;
+
+  act(() => es.emit("run_started", { run_id: "r_1", steps: 500 }));
+  act(() =>
+    es.emit("snapshot", {
+      step: 18,
+      snapshot: {
+        platform: "twitter",
+        seed_post_id: 1,
+        actors: [],
+        posts: [],
+        replies: [
+          {
+            comment_id: 1,
+            post_id: 1,
+            author_id: 1,
+            content: "已有评论",
+            num_likes: 0,
+            num_dislikes: 0,
+          },
+        ],
+        reactions: [],
+        follows: [],
+        reports: [],
+        traces: [],
+      },
+    }),
+  );
+
+  expect(result.current.step).toBe(18);
+  expect(result.current.snapshot.replies[0].content).toBe("已有评论");
+  expect(result.current.status).toBe("running");
+});

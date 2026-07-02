@@ -17,6 +17,7 @@ class RunRecord(BaseModel):
     snapshot: RunSnapshot = Field(default_factory=RunSnapshot)
     status: str = "created"
     current_step: int = 0
+    error: str | None = None
     created_at: str = Field(
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
     )

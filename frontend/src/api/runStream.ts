@@ -63,6 +63,13 @@ export function useRunStream(
         };
       }),
     );
+    on("snapshot", (data) =>
+      setState((current) => ({
+        ...current,
+        step: Math.max(current.step, data.step),
+        snapshot: data.snapshot,
+      })),
+    );
     on("run_done", () => {
       setState((current) => ({ ...current, status: "done" }));
       es.close();
