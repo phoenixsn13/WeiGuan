@@ -12,6 +12,7 @@ from weiguan.analysis.retro import compute_metrics, seed_engaged_actor_ids
 from weiguan.canonical import Platform
 from weiguan.engine.config import Audience, RunConfig
 from weiguan.engine.crowds import list_crowds
+from weiguan.world.models import PersonaKind
 
 router = APIRouter(prefix="/api")
 
@@ -26,6 +27,14 @@ class _CreateBody(BaseModel):
     content: str
     steps: int
     platform: Platform = Platform.TWITTER
+    world_id: str | None = None
+    poster_persona: PersonaKind = PersonaKind.ORDINARY
+    poster_person_id: str | None = None
+    person_memory_budget: int = 4
+
+
+class _CreateWorldBody(BaseModel):
+    persistent: bool = False
 
 
 class _InterviewBody(BaseModel):
@@ -148,6 +157,29 @@ def _run_summary(record) -> dict:
     }
 
 
+@router.post("/worlds")
+async def create_world(body: _CreateWorldBody, request: Request):  # review:P6-T8
+    return request.app.state.world_store.create_world(
+        persistent=body.persistent
+    ).model_dump(mode="json")
+
+
+@router.get("/worlds/{world_id}")
+async def get_world(world_id: str, request: Request):
+    world = request.app.state.world_store.get_world(world_id)
+    if world is None:
+        raise HTTPException(status_code=404, detail="world not found")
+    return world.model_dump(mode="json")
+
+
+@router.get("/persons/{person_id}")
+async def get_person(person_id: str, world_id: str, request: Request):
+    view = request.app.state.world_store.get_person_view(world_id, person_id)
+    if view is None:
+        raise HTTPException(status_code=404, detail="person not found")
+    return view.model_dump(mode="json")
+
+
 # review:P2-T4
 @router.post("/runs")
 async def create_run(
@@ -166,6 +198,10 @@ async def create_run(
             content=body.content,
             steps=body.steps,
             platform=body.platform,
+            world_id=body.world_id,
+            poster_persona=body.poster_persona,
+            poster_person_id=body.poster_person_id,
+            person_memory_budget=body.person_memory_budget,
             **_resolve_llm_update(
                 request,
                 x_llm_key,
@@ -181,6 +217,14 @@ async def create_run(
     run_id = request.app.state.store.create(cfg)
     request.app.state.runner.start(run_id)
     return {"run_id": run_id}
+
+
+@router.get("/runs/{run_id}/frames")
+async def run_frames(run_id: str, request: Request):
+    if request.app.state.store.get(run_id) is None:
+        raise HTTPException(status_code=404, detail="run not found")
+    frames = request.app.state.world_store.read_frames(run_id)
+    return {"frames": [event.model_dump(mode="json") for event in frames]}
 
 
 @router.get("/runs")
