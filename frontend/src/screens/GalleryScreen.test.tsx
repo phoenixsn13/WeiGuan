@@ -45,3 +45,24 @@ test("custom audience navigates to compose", async () => {  // review:P4-T5-AC3
   fireEvent.click(screen.getByText(/用这个受众/));
   await waitFor(() => expect(screen.getByText("写内容页")).toBeInTheDocument());
 });
+
+test("shows backend connection error instead of a blank crowd list", async () => {  // review:UI-P3-AC1
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => ({
+      ok: false,
+      json: async () => ({}),
+    })),
+  );
+  render(
+    <MemoryRouter initialEntries={["/"]}>
+      <Routes>
+        <Route path="/" element={<GalleryScreen />} />
+      </Routes>
+    </MemoryRouter>,
+  );
+
+  expect(await screen.findByText(/圈子加载失败/)).toBeInTheDocument();
+  expect(screen.getByText(/确认后端服务/)).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /重试/ })).toBeInTheDocument();
+});
