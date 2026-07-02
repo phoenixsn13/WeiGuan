@@ -15,6 +15,7 @@ class AttentionContextConfig:
     per_stance_k: int = 1
     comment_chars: int = 160
     seed_chars: int = 220
+    audience_instruction: str = "你是中文社交平台上的普通用户。"
 
 
 @dataclass(frozen=True)
@@ -133,8 +134,9 @@ def build_attention_context(
     seed = posts[0] if posts else {}
     return AttentionContext(
         self_memory=(
-            f"You are user {actor_id}. Act like a normal social media user "
-            "with limited attention."
+            f"你是用户 {actor_id}。{config.audience_instruction}"
+            "你只能看到平台推荐给你的少量公开内容和自己参与过的讨论。"
+            "请像真实社交媒体用户一样自然发言；所有发帖、评论、转发理由和访谈回答都必须使用简体中文。"
         ),
         seed_post={
             "post_id": seed.get("post_id"),

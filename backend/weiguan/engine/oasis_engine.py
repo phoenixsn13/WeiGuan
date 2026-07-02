@@ -14,6 +14,7 @@ from weiguan.analysis.attention_context import (
 from weiguan.canonical import Platform, RunSnapshot
 from weiguan.engine.base import RunDelta
 from weiguan.engine.config import RunConfig
+from weiguan.engine.crowds import crowd_instruction
 from weiguan.engine.diff import diff_snapshots
 
 
@@ -80,7 +81,7 @@ class OasisEngine:
             model_config["reasoning_effort"] = config.llm_reasoning_effort
         if config.llm_thinking_enabled:
             model_config["extra_body"] = {"thinking": {"type": "enabled"}}
-        elif (config.llm_thinking or "").strip().lower() in {
+        elif (getattr(config, "llm_thinking", None) or "").strip().lower() in {
             "disabled",
             "off",
             "false",
@@ -195,6 +196,11 @@ class OasisEngine:
             return
         context_config = AttentionContextConfig(
             comment_budget=config.attention_comment_budget,
+            audience_instruction=(
+                crowd_instruction(config.audience.crowd_id)
+                if config.audience.crowd_id
+                else f"你属于用户自定义圈子，受众画像：{config.audience.custom}。"
+            ),
         )
 
         for agent_id, agent in env.agent_graph.get_agents():
@@ -306,7 +312,7 @@ class OasisEngine:
             f"你在一个社交平台上看到这条内容：{seed.content if seed else config.content}\n"
             f"你对它的公开反应是：{public_reaction}\n"
             f"现在有人追问你：{question}\n"
-            "请以第一人称、贴合上述人设与你已表达的立场作答，2-4句。"
+            "请以第一人称、贴合上述人设与你已表达的立场作答，2-4句。只使用简体中文。"
         )
         client = make_openai_client(config)
         response = client.chat.completions.create(

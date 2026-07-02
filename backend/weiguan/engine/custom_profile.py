@@ -17,7 +17,8 @@ _HEADER = [
     "description",
 ]
 
-_PROMPT = """你在为一个社交模拟生成 {n} 个虚拟用户。受众画像：{desc}
+_PROMPT = """你在为一个中文社交平台的围观推演生成 {n} 个虚拟用户。受众画像：{desc}
+所有字段必须使用简体中文，username 可用拼音或英文短名。
 只输出 JSON 数组，每个元素形如：
 {{"name":"张三","username":"zhangsan","user_char":"性格与说话风格一句话","description":"身份背景一句话"}}
 不要额外文字。"""

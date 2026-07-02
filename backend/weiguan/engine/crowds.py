@@ -67,3 +67,12 @@ def list_crowds() -> list[dict]:
         {"id": c.id, "name": c.name, "emoji": c.emoji, "blurb": c.blurb}
         for c in CROWDS
     ]
+
+
+def crowd_instruction(crowd_id: str | None) -> str:
+    if not crowd_id:
+        return "你是中文社交平台上的普通用户。"
+    crowd = _BY_ID.get(crowd_id)
+    if crowd is None:
+        return "你是中文社交平台上的普通用户。"
+    return f"你属于「{crowd.name}」这个圈子，整体说话风格：{crowd.blurb}。"

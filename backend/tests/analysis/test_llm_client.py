@@ -68,3 +68,17 @@ def test_completion_options_disable_vllm_template_thinking_when_requested():  # 
         "max_tokens": 128,
         "extra_body": {"chat_template_kwargs": {"enable_thinking": False}},
     }
+
+
+def test_completion_options_tolerates_old_persisted_config_without_thinking_field():  # review:UI-P7-AC1
+    cfg = _cfg(
+        llm_reasoning_effort=None,
+        llm_thinking_enabled=False,
+        llm_model="zbnsec-default",
+        llm_base_url="http://10.70.70.75:65400/v1",
+    )
+    del cfg.__dict__["llm_thinking"]
+
+    opts = completion_options(cfg)
+
+    assert opts == {"model": "zbnsec-default", "max_tokens": 512}

@@ -48,3 +48,17 @@ def test_attention_context_keeps_direct_recent_salient_and_bounded_comments():
     assert context.discussion_panel["omitted_comments"] == 14
     assert any(item["user_id"] == 7 for item in context.visible_comments)
     assert "question" in context.discussion_panel["stance_counts"]
+
+
+def test_attention_context_includes_chinese_language_and_crowd_instruction():  # review:UI-P7-AC2
+    context = build_attention_context(
+        [{"post_id": 1, "user_id": 0, "content": "seed", "comments": []}],
+        actor_id=3,
+        config=AttentionContextConfig(
+            audience_instruction="你属于「财经吐槽」这个圈子，整体说话风格：嘴碎、看空、爱唱反调。",
+        ),
+    )
+
+    assert "财经吐槽" in context.self_memory
+    assert "简体中文" in context.self_memory
+    assert "有限注意力" not in context.self_memory

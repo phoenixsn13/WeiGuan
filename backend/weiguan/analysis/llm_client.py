@@ -23,7 +23,7 @@ def completion_options(config: RunConfig) -> dict[str, Any]:
         options["reasoning_effort"] = config.llm_reasoning_effort
     if config.llm_thinking_enabled:
         options["extra_body"] = {"thinking": {"type": "enabled"}}
-    elif (config.llm_thinking or "").strip().lower() in {
+    elif (getattr(config, "llm_thinking", None) or "").strip().lower() in {
         "disabled",
         "off",
         "false",

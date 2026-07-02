@@ -1,4 +1,4 @@
-from weiguan.analysis.insights import _parse_json_object
+from weiguan.analysis.insights import _PROMPT, _parse_json_object
 
 
 def test_parse_json_object_repairs_unescaped_inner_quotes():  # review:P5-T2
@@ -26,3 +26,14 @@ def test_parse_json_object_falls_back_to_schema_extraction():  # review:P5-T2
     assert data["verdict"].startswith("成果容易")
     assert len(data["suggestions"]) == 2
     assert "rm -rf cache" in data["suggestions"][1]
+
+
+def test_insights_prompt_includes_audience_and_chinese_requirement():  # review:UI-P7-AC3
+    prompt = _PROMPT.format(
+        audience="你属于「科技程序员群」这个圈子，整体说话风格：毒舌、较真、爱抬杠。",
+        content="大模型股买稀宇还是智谱",
+        replies="我更看技术壁垒",
+    )
+
+    assert "科技程序员群" in prompt
+    assert "所有内容必须使用简体中文" in prompt

@@ -218,6 +218,8 @@ async def test_attention_context_replaces_full_oasis_prompt(monkeypatch, tmp_pat
     assert "discussion_panel" in prompt
     assert prompt.count("comment_id") == 5
     assert "comment 39" in prompt
+    assert "科技程序员群" in prompt
+    assert "简体中文" in prompt
 
 
 async def test_run_raises_when_seed_visibility_check_fails(monkeypatch, tmp_path):  # review:P2-T7-AC1
