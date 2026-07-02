@@ -38,9 +38,12 @@ def poster_account_id(world_id: str, platform: Platform, person_id: str) -> str:
 def ensure_world_for_run(store: WorldStore, config: RunConfig) -> tuple[World, Person]:
     """Create or reuse a world and ensure the posting person exists."""
 
+    persistent = bool(config.world_id or config.poster_person_id)
     world = store.get_world(config.world_id) if config.world_id else None
     if world is None:
-        world = store.create_world(persistent=bool(config.world_id))
+        world = store.create_world(persistent=persistent)
+    elif persistent and not world.persistent:
+        world = store.persist_world(world.world_id) or world
 
     person_id = config.poster_person_id or f"p_{uuid4().hex}"
     followers, influence = persona_starting_standing(config.poster_persona)

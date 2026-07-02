@@ -195,6 +195,16 @@ async def list_world_persons(world_id: str, request: Request):  # review:P7-T2
     }
 
 
+@router.get("/identities")
+async def list_identities(request: Request):  # review:P7-T11
+    return {
+        "identities": [
+            identity.model_dump(mode="json")
+            for identity in request.app.state.world_store.list_identities()
+        ]
+    }
+
+
 @router.post("/persons")
 async def create_person(body: _CreatePersonBody, request: Request):
     world_id = body.world_id

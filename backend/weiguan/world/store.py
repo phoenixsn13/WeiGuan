@@ -8,7 +8,15 @@ from uuid import uuid4
 from .eventlog import EventLog
 from weiguan.canonical import Platform
 
-from .models import Person, PersonView, PersonaKind, World, WorldEvent, persona_starting_standing
+from .models import (
+    IdentitySummary,
+    Person,
+    PersonView,
+    PersonaKind,
+    World,
+    WorldEvent,
+    persona_starting_standing,
+)
 from .projector import fold_world
 
 
@@ -34,6 +42,15 @@ class WorldStore:
         if not path.exists():
             return None
         return World.model_validate(self._read_json(path))
+
+    def persist_world(self, world_id: str) -> World | None:
+        world = self.get_world(world_id)
+        if world is None:
+            return None
+        if not world.persistent:
+            world = world.model_copy(update={"persistent": True})
+            self._write_json(self._world_path(world.world_id), world.model_dump(mode="json"))
+        return world
 
     def upsert_person(self, world_id: str, person: Person) -> None:
         self._world_dir(world_id).mkdir(parents=True, exist_ok=True)
@@ -88,6 +105,35 @@ class WorldStore:
             return None
         views = fold_world(world, self._read_persons(world_id), self._eventlog(world_id).read())
         return views.get(person_id)
+
+    def list_identities(self) -> list[IdentitySummary]:  # review:P7-T11
+        identities: list[IdentitySummary] = []
+        for world_dir in sorted(self.root.glob("w_*")):
+            if not world_dir.is_dir():
+                continue
+            world = self.get_world(world_dir.name)
+            if world is None or not world.persistent:
+                continue
+            views = fold_world(
+                world,
+                self._read_persons(world.world_id),
+                self._eventlog(world.world_id).read(),
+            )
+            for view in views.values():
+                identities.append(
+                    IdentitySummary(
+                        world_id=world.world_id,
+                        person_id=view.person.person_id,
+                        display_name=view.person.display_name,
+                        persona_kind=view.person.persona_kind,
+                        total_influence=view.total_influence,
+                        run_count=len(view.run_ids),
+                    )
+                )
+        return sorted(
+            identities,
+            key=lambda item: (-item.total_influence, item.person_id),
+        )
 
     def append_event(self, event: WorldEvent) -> None:
         self._eventlog(event.world_id).append(event)

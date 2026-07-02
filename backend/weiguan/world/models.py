@@ -86,6 +86,15 @@ class PersonView(BaseModel):
     standing_timeline: list[StandingPoint] = Field(default_factory=list)
 
 
+class IdentitySummary(BaseModel):
+    world_id: str
+    person_id: str
+    display_name: str
+    persona_kind: PersonaKind
+    total_influence: float = 0.0
+    run_count: int = 0
+
+
 def persona_starting_standing(kind: PersonaKind) -> tuple[int, float]:
     """(起始粉丝, 起始影响力)。ordinary→低, verified→中, kol→高。"""
     if kind == PersonaKind.ORDINARY:

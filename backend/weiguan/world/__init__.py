@@ -2,6 +2,7 @@ from weiguan.world.eventlog import EventLog
 from weiguan.world.models import (
     Account,
     BoundedMemory,
+    IdentitySummary,
     Person,
     PersonaKind,
     PersonView,
@@ -24,6 +25,7 @@ __all__ = [
     "Account",
     "BoundedMemory",
     "EventLog",
+    "IdentitySummary",
     "Person",
     "PersonaKind",
     "PersonView",

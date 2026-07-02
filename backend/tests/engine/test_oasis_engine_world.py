@@ -74,6 +74,16 @@ def test_ephemeral_world_when_no_world_id(tmp_path):  # review:P6-T6-AC2
     assert store.get_world(world.world_id) == world
 
 
+def test_ensure_world_persistent_when_person_id(tmp_path):  # review:P7-T11-AC3
+    store = WorldStore(str(tmp_path))
+
+    world, person = ensure_world_for_run(store, _cfg(poster_person_id="p_author"))
+
+    assert world.persistent is True
+    assert person.person_id == "p_author"
+    assert store.get_world(world.world_id).persistent is True
+
+
 async def test_reuse_persistent_world_accumulates(tmp_path):  # review:P6-T6-AC3
     world_store = WorldStore(str(tmp_path))
     world = world_store.create_world(persistent=True)
