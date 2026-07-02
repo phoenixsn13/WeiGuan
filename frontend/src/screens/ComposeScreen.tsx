@@ -88,57 +88,57 @@ export default function ComposeScreen() {
         <p className="mt-2 text-sm leading-6 text-slate-500">
           不填前端字段时会使用后端 `.env` 默认值。
         </p>
-        <details className="mt-4 rounded-card border border-line bg-slate-50 p-3 text-sm">
-        <summary className="cursor-pointer font-medium">BYOK 设置</summary>
-        <div className="mt-3 grid gap-3 md:grid-cols-2">
-          {/* review:PA-T3 */}
-          <label className="grid gap-1 text-xs text-ink/60">
-            API Key
-            <input
-              value={key}
-              placeholder="填入你的 LLM API Key"
-              onChange={(event) => setKey(event.target.value)}
-              className="rounded-card border border-line p-2 text-sm text-ink"
-            />
-          </label>
-          <label className="grid gap-1 text-xs text-ink/60">
-            Base URL
-            <input
-              value={baseUrl}
-              placeholder="https://api.deepseek.com"
-              onChange={(event) => setBaseUrl(event.target.value)}
-              className="rounded-card border border-line p-2 text-sm text-ink"
-            />
-          </label>
-          <label className="grid gap-1 text-xs text-ink/60">
-            Model
-            <input
-              value={model}
-              placeholder="deepseek-v4-pro"
-              onChange={(event) => setModel(event.target.value)}
-              className="rounded-card border border-line p-2 text-sm text-ink"
-            />
-          </label>
-          <label className="grid gap-1 text-xs text-ink/60">
-            Reasoning
-            <input
-              value={reasoningEffort}
-              placeholder="high"
-              onChange={(event) => setReasoningEffort(event.target.value)}
-              className="rounded-card border border-line p-2 text-sm text-ink"
-            />
-          </label>
-          <label className="grid gap-1 text-xs text-ink/60">
-            Thinking
-            <input
-              value={thinking}
-              placeholder="enabled"
-              onChange={(event) => setThinking(event.target.value)}
-              className="rounded-card border border-line p-2 text-sm text-ink"
-            />
-          </label>
-        </div>
-      </details>
+        <details className="mt-4 min-w-0 rounded-card border border-line bg-slate-50 p-3 text-sm">
+          <summary className="cursor-pointer font-medium">BYOK 设置</summary>
+          <div className="mt-3 grid min-w-0 gap-3">
+            {/* review:PA-T3 */}
+            <label className="grid min-w-0 gap-1 text-xs text-ink/60">
+              API Key
+              <input
+                value={key}
+                placeholder="填入你的 LLM API Key"
+                onChange={(event) => setKey(event.target.value)}
+                className="min-w-0 rounded-card border border-line p-2 text-sm text-ink"
+              />
+            </label>
+            <label className="grid min-w-0 gap-1 text-xs text-ink/60">
+              Base URL
+              <input
+                value={baseUrl}
+                placeholder="https://api.deepseek.com"
+                onChange={(event) => setBaseUrl(event.target.value)}
+                className="min-w-0 rounded-card border border-line p-2 text-sm text-ink"
+              />
+            </label>
+            <label className="grid min-w-0 gap-1 text-xs text-ink/60">
+              Model
+              <input
+                value={model}
+                placeholder="deepseek-v4-pro"
+                onChange={(event) => setModel(event.target.value)}
+                className="min-w-0 rounded-card border border-line p-2 text-sm text-ink"
+              />
+            </label>
+            <label className="grid min-w-0 gap-1 text-xs text-ink/60">
+              Reasoning
+              <input
+                value={reasoningEffort}
+                placeholder="high"
+                onChange={(event) => setReasoningEffort(event.target.value)}
+                className="min-w-0 rounded-card border border-line p-2 text-sm text-ink"
+              />
+            </label>
+            <label className="grid min-w-0 gap-1 text-xs text-ink/60">
+              Thinking
+              <input
+                value={thinking}
+                placeholder="enabled"
+                onChange={(event) => setThinking(event.target.value)}
+                className="min-w-0 rounded-card border border-line p-2 text-sm text-ink"
+              />
+            </label>
+          </div>
+        </details>
       </aside>
     </div>
   );

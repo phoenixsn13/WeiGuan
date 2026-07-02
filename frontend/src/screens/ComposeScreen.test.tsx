@@ -92,3 +92,18 @@ test("saves provider settings locally and sends them when starting", async () =>
   expect(headers["X-LLM-Reasoning-Effort"]).toBe("high");
   expect(headers["X-LLM-Thinking"]).toBe("enabled");
 });
+
+test("byok settings stay inside the narrow settings rail", () => {  // review:UI-P5-AC1
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ run_id: "r_9" }),
+    })),
+  );
+  mount();
+  const apiKey = screen.getByLabelText("API Key");
+  const grid = apiKey.closest("div");
+  expect(grid?.className).not.toContain("grid-cols-2");
+  expect(apiKey.className).toContain("min-w-0");
+});
