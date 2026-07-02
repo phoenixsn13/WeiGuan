@@ -89,7 +89,7 @@ function LiveRail({
           <div className="text-sm font-bold">当前围观</div>
           <div className="mt-3 space-y-3 text-sm text-white/70">
             <div className="flex justify-between">
-              <span>轮次进度</span>
+              <span>执行进度</span>
               <span className="tabular">{replay ? "回放" : `${step}/${total}`}</span>
             </div>
             <div className="h-2 rounded-full bg-white/10">

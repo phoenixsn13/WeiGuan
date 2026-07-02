@@ -193,11 +193,12 @@ async def stream_events(run_id: str, request: Request):
         raise HTTPException(status_code=404, detail="run not found")
 
     async def gen():
+        effective_steps = record.config.effective_steps
         yield _sse(
             "run_started",
             {
                 "run_id": run_id,
-                "steps": record.config.steps,
+                "steps": effective_steps,
                 "platform": record.config.platform.value,
                 "seed_post_id": record.snapshot.seed_post_id,
             },
@@ -208,7 +209,7 @@ async def stream_events(run_id: str, request: Request):
             async for delta in engine.run(record.config):
                 yield _sse(
                     "step_started",
-                    {"step": delta.step, "total": record.config.steps},
+                    {"step": delta.step, "total": effective_steps},
                 )
                 record.accumulate(delta.snapshot)
                 store.save()

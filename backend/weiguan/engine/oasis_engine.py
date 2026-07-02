@@ -259,7 +259,7 @@ class OasisEngine:
             self._pin_seed_to_rec(db_path)
             self._assert_seed_visible(db_path)
             prev = RunSnapshot()
-            safe_steps = min(config.steps, config.llm_max_steps + 1)
+            safe_steps = config.effective_steps
             llm_errors = 0
             for step in range(1, safe_steps + 1):
                 if step > 1:

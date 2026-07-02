@@ -1,7 +1,9 @@
 import httpx
 
 from weiguan.api.app import create_app
+from weiguan.canonical import RunSnapshot
 from weiguan.engine.fake import FakeEngine
+from weiguan.engine.base import RunDelta
 
 HDR = {"X-LLM-Key": "sk-x", "X-LLM-Model": "gpt-4o-mini"}
 
@@ -120,6 +122,31 @@ async def test_sse_stream_order_and_accumulation():  # review:P2-T4-AC4
     assert events[0] == "run_started"
     assert events.count("step_started") == 6
     assert events[-1] == "run_done"
+
+
+async def test_sse_reports_effective_step_total_when_llm_steps_are_capped():  # review:UI-P8-AC1
+    class LimitedEngine:
+        async def run(self, config):
+            for step in range(1, min(config.steps, config.llm_max_steps + 1) + 1):
+                yield RunDelta(step=step, snapshot=RunSnapshot())
+
+    app = create_app(LimitedEngine())
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://test",
+    ) as client:
+        run_id = (
+            await client.post(
+                "/api/runs",
+                json=_body(15),
+                headers={**HDR, "X-LLM-Max-Steps": "2"},
+            )
+        ).json()["run_id"]
+        text = (await client.get(f"/api/runs/{run_id}/events")).text
+
+    assert '"steps": 3' in text
+    assert '"total": 3' in text
+    assert '"total": 15' not in text
 
 
 async def test_list_runs_returns_history_summaries():  # review:UI-P1-AC1

@@ -51,6 +51,10 @@ class RunConfig(BaseModel):
     oasis_llm_semaphore: int = 4
     attention_comment_budget: int = 12
 
+    @property
+    def effective_steps(self) -> int:
+        return min(self.steps, self.llm_max_steps + 1)
+
     @model_validator(mode="after")
     def _steps_preset(self):
         if self.steps not in _ALLOWED_STEPS:
