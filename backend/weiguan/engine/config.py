@@ -6,6 +6,7 @@ from enum import Enum
 from pydantic import BaseModel, model_validator
 
 from weiguan.canonical import Platform
+from weiguan.world.models import PersonaKind
 
 
 class RoundPreset(int, Enum):
@@ -57,6 +58,10 @@ class RunConfig(BaseModel):
     oasis_following_post_count: int = 3
     oasis_llm_semaphore: int = 4
     attention_comment_budget: int = 12
+    world_id: str | None = None
+    poster_persona: PersonaKind = PersonaKind.ORDINARY
+    poster_person_id: str | None = None
+    person_memory_budget: int = 4
 
     @property
     def effective_steps(self) -> int:
@@ -122,4 +127,6 @@ class RunConfig(BaseModel):
             raise ValueError("oasis_llm_semaphore must be >= 1")
         if self.attention_comment_budget < 1:
             raise ValueError("attention_comment_budget must be >= 1")
+        if self.person_memory_budget < 1:  # review:P6-T5
+            raise ValueError("person_memory_budget must be >= 1")
         return self

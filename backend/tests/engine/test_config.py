@@ -3,6 +3,7 @@ from pydantic import ValidationError
 
 from weiguan.canonical import Platform
 from weiguan.engine.config import Audience, RoundPreset, RunConfig
+from weiguan.world.models import PersonaKind
 
 
 def _cfg(**kw):
@@ -77,3 +78,23 @@ def test_budget_estimate_caps_agents_without_shortening_steps():  # review:PA-T8
     assert normal.budgeted_llm_max_agents == 8
     assert constrained.budgeted_llm_max_agents < 8
     assert constrained.effective_steps == 15
+
+
+def test_world_config_defaults_allow_degenerate_run():  # review:P6-T5-AC1
+    c = _cfg()
+    assert c.world_id is None
+    assert c.poster_person_id is None
+    assert c.poster_persona == PersonaKind.ORDINARY
+    assert c.person_memory_budget == 4
+
+
+def test_world_config_accepts_persona_enum_value():  # review:P6-T5-AC2
+    c = _cfg(poster_persona="kol", poster_person_id="p_author", world_id="w_1")
+    assert c.poster_persona == PersonaKind.KOL
+    assert c.poster_person_id == "p_author"
+    assert c.world_id == "w_1"
+
+
+def test_person_memory_budget_must_be_positive():  # review:P6-T5-AC3
+    with pytest.raises(ValidationError):
+        _cfg(person_memory_budget=0)
