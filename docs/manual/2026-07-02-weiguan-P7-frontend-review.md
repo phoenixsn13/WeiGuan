@@ -4,7 +4,7 @@
 
 ## 评审资产
 
-本轮核验 P7 的发起身份、历史入口、身份入口与顶层导航。项目当前未安装本地或全局 Playwright 包，且本轮不安装新依赖；截图使用系统 Chrome headless 访问本地 Vite 服务生成。
+本轮核验 P7 的发起身份、历史入口、身份入口与顶层导航。截图由全局安装的 Playwright CLI 生成；由于 Playwright 自带 Chromium 未下载，命令使用 `--channel=chrome` 调用系统 Chrome。
 
 | 场景 | 截图 |
 | --- | --- |
@@ -25,20 +25,20 @@
 cd frontend
 npm run dev -- --host 127.0.0.1 --port 5178
 
-google-chrome --headless=new --disable-gpu --no-sandbox --hide-scrollbars \
-  --virtual-time-budget=3000 --window-size=1440,1000 \
-  --screenshot=docs/manual/assets/weiguan-P7-review/compose-desktop.png \
-  'http://127.0.0.1:5178/compose'
+npx playwright screenshot --browser=chromium --channel=chrome \
+  --viewport-size=1440,1000 --wait-for-timeout=1500 \
+  http://127.0.0.1:5178/compose \
+  ../docs/manual/assets/weiguan-P7-review/compose-desktop.png
 
-google-chrome --headless=new --disable-gpu --no-sandbox --hide-scrollbars \
-  --virtual-time-budget=3000 --window-size=1440,1000 \
-  --screenshot=docs/manual/assets/weiguan-P7-review/history-desktop.png \
-  'http://127.0.0.1:5178/history'
+npx playwright screenshot --browser=chromium --channel=chrome \
+  --viewport-size=1440,1000 --wait-for-timeout=1500 \
+  http://127.0.0.1:5178/history \
+  ../docs/manual/assets/weiguan-P7-review/history-desktop.png
 
-google-chrome --headless=new --disable-gpu --no-sandbox --hide-scrollbars \
-  --virtual-time-budget=3000 --window-size=390,844 \
-  --screenshot=docs/manual/assets/weiguan-P7-review/identity-mobile.png \
-  'http://127.0.0.1:5178/identity/me'
+npx playwright screenshot --browser=chromium --channel=chrome \
+  --viewport-size=390,844 --wait-for-timeout=1500 \
+  http://127.0.0.1:5178/identity/me \
+  ../docs/manual/assets/weiguan-P7-review/identity-mobile.png
 ```
 
 ## 自动化验证
