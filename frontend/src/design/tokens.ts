@@ -6,6 +6,15 @@ export const colors = {
   accent: "#2C4A7C",
 } as const;
 
+// review:P7-T4
+export const world = {
+  surface: "#0F172A",
+  line: "#2C4A7C",
+  identity: colors.brand,
+  influenceUp: "#3E9B6E",
+  influenceDown: "#C4553B",
+} as const;
+
 export type Sentiment = "positive" | "negative" | "neutral" | "contested";
 
 export function sentimentColor(kind: Sentiment): string {
