@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import Counter
 
 from weiguan.analysis.attention_context import classify_stance
+from weiguan.analysis.stance import stance_polarity
 
 from .models import (
     BoundedMemory,
@@ -79,9 +80,10 @@ def _stance_score(events: list[WorldEvent], account_id: str) -> tuple[str, int]:
         if not text:
             continue
         stance = classify_stance(text)
-        if stance in {"question", "skeptic"}:
+        polarity = stance_polarity(stance)
+        if polarity < 0:
             negative += 1
-        else:
+        elif polarity > 0:
             positive += 1
 
     score = positive - negative
