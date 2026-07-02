@@ -6,8 +6,10 @@ from weiguan.analysis.attention_context import classify_stance
 
 from .models import (
     BoundedMemory,
+    Account,
     Person,
     PersonView,
+    StandingPoint,
     StanceState,
     World,
     WorldEvent,
@@ -67,10 +69,34 @@ def _target_account_id(event: WorldEvent) -> str | None:
     return str(value) if value is not None else None
 
 
-def fold_world(
-    world: World, persons: list[Person], events: list[WorldEvent]
-) -> dict[str, PersonView]:
-    del world
+def _stance_score(events: list[WorldEvent], account_id: str) -> tuple[str, int]:
+    positive = 0
+    negative = 0
+    for event in sorted(events, key=_event_sort_key):
+        if event.actor_account_id != account_id:
+            continue
+        text = _event_text(event)
+        if not text:
+            continue
+        stance = classify_stance(text)
+        if stance in {"question", "skeptic"}:
+            negative += 1
+        else:
+            positive += 1
+
+    score = positive - negative
+    if score > 0:
+        return ("positive", score)
+    if score < 0:
+        return ("negative", score)
+    if positive or negative:
+        return ("neutral", score)
+    return ("other", 0)
+
+
+def _fold_people(
+    persons: list[Person], events: list[WorldEvent]
+) -> tuple[dict[str, Person], dict[str, list[str]]]:
     ordered_events = sorted(events, key=_event_sort_key)
     account_to_person = {
         account.account_id: person.person_id
@@ -81,7 +107,7 @@ def fold_world(
         person.person_id: person.model_copy(deep=True)
         for person in sorted(persons, key=lambda item: item.person_id)
     }
-    account_lookup = {
+    account_lookup: dict[str, Account] = {
         account.account_id: account
         for person in working_people.values()
         for account in person.accounts
@@ -121,6 +147,46 @@ def fold_world(
                 target_account.influence_score += 0.5
                 remember_run(target_id, event.run_id)
 
+    return working_people, run_ids_by_person
+
+
+def project_standing_timeline(  # review:P7-T9
+    person: Person, events: list[WorldEvent], run_order: list[str]
+) -> list[StandingPoint]:
+    timeline: list[StandingPoint] = []
+    if not person.accounts:
+        return timeline
+
+    account_id = person.accounts[0].account_id
+    for index, run_id in enumerate(run_order):
+        prefix_run_ids = set(run_order[: index + 1])
+        prefix_events = [event for event in events if event.run_id in prefix_run_ids]
+        folded_people, _ = _fold_people([person], prefix_events)
+        folded_person = folded_people.get(person.person_id, person)
+        influence = sum(account.influence_score for account in folded_person.accounts)
+        followers = sum(account.num_followers for account in folded_person.accounts)
+        stance_dominant, stance_score = _stance_score(prefix_events, account_id)
+        timeline.append(
+            StandingPoint(
+                run_id=run_id,
+                influence=influence,
+                followers=followers,
+                stance_dominant=stance_dominant,
+                stance_score=stance_score,
+            )
+        )
+
+    return timeline
+
+
+def fold_world(
+    world: World, persons: list[Person], events: list[WorldEvent]
+) -> dict[str, PersonView]:
+    del world
+    ordered_events = sorted(events, key=_event_sort_key)
+    working_people, run_ids_by_person = _fold_people(persons, ordered_events)
+    source_people = {person.person_id: person for person in persons}
+
     return {
         person_id: PersonView(
             person=person,
@@ -129,6 +195,11 @@ def fold_world(
             else StanceState(),
             total_influence=sum(account.influence_score for account in person.accounts),
             run_ids=run_ids_by_person.get(person_id, []),
+            standing_timeline=project_standing_timeline(
+                source_people.get(person_id, person),
+                ordered_events,
+                run_ids_by_person.get(person_id, []),
+            ),
         )
         for person_id, person in working_people.items()
     }

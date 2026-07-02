@@ -65,6 +65,14 @@ class StanceState(BaseModel):
     dominant: str = "other"
 
 
+class StandingPoint(BaseModel):
+    run_id: str
+    influence: float = 0.0
+    followers: int = 0
+    stance_dominant: str = "other"
+    stance_score: int = 0
+
+
 class BoundedMemory(BaseModel):
     stance_line: str = ""
     recent_utterances: list[str] = Field(default_factory=list)
@@ -75,6 +83,7 @@ class PersonView(BaseModel):
     stance: StanceState
     total_influence: float = 0.0
     run_ids: list[str] = Field(default_factory=list)
+    standing_timeline: list[StandingPoint] = Field(default_factory=list)
 
 
 def persona_starting_standing(kind: PersonaKind) -> tuple[int, float]:

@@ -5,13 +5,19 @@ from weiguan.world.models import (
     Person,
     PersonaKind,
     PersonView,
+    StandingPoint,
     StanceState,
     World,
     WorldEvent,
     WorldEventKind,
     persona_starting_standing,
 )
-from weiguan.world.projector import fold_world, project_bounded_memory, project_stance
+from weiguan.world.projector import (
+    fold_world,
+    project_bounded_memory,
+    project_stance,
+    project_standing_timeline,
+)
 from weiguan.world.store import WorldStore
 
 __all__ = [
@@ -21,6 +27,7 @@ __all__ = [
     "Person",
     "PersonaKind",
     "PersonView",
+    "StandingPoint",
     "StanceState",
     "World",
     "WorldEvent",
@@ -29,5 +36,6 @@ __all__ = [
     "persona_starting_standing",
     "project_bounded_memory",
     "project_stance",
+    "project_standing_timeline",
     "WorldStore",
 ]
