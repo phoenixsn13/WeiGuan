@@ -17,6 +17,7 @@ class AttentionContextConfig:
     seed_chars: int = 220
     audience_instruction: str = "你是中文社交平台上的普通用户。"
     actor_labels: dict[int, str] | None = None
+    self_memory_override: str | None = None
 
 
 @dataclass(frozen=True)
@@ -142,13 +143,17 @@ def build_attention_context(
             return "一位用户"
         return actor_labels.get(actor_id, "一位用户")
 
+    base_memory = (
+        f"你是{actor_label(actor_id)}。{config.audience_instruction}"
+        "你只能看到平台推荐给你的少量公开内容和自己参与过的讨论。"
+        "请像真实社交媒体用户一样自然发言；所有发帖、评论、转发理由和访谈回答都必须使用简体中文。"
+        "不要编造 @用户数字 这类内部编号提及。"
+    )
+    if config.self_memory_override:  # review:P6-T7
+        base_memory = f"{config.self_memory_override}。{base_memory}"
+
     return AttentionContext(
-        self_memory=(
-            f"你是{actor_label(actor_id)}。{config.audience_instruction}"
-            "你只能看到平台推荐给你的少量公开内容和自己参与过的讨论。"
-            "请像真实社交媒体用户一样自然发言；所有发帖、评论、转发理由和访谈回答都必须使用简体中文。"
-            "不要编造 @用户数字 这类内部编号提及。"
-        ),
+        self_memory=base_memory,
         seed_post={
             "post_id": seed.get("post_id"),
             "author_id": seed.get("user_id"),
