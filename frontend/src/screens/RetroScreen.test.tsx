@@ -205,7 +205,7 @@ test("retro sidebar cleans profile prefixes and negative filter shows negative s
   expect(screen.getByText("估值小刀")).toBeInTheDocument();
 });
 
-test("sentiment tabs preserve the full timeline while changing the highlight", async () => {  // review:UI-P18-AC1
+test("sentiment tabs classify stages by their dominant evidence", async () => {  // review:UI-P18-AC1
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string) => {
@@ -245,10 +245,34 @@ test("sentiment tabs preserve the full timeline while changing the highlight", a
             ],
             replies: [
               {
+                comment_id: 6,
+                post_id: 1,
+                author_id: 2,
+                content: "这个方向挺靠谱，落地数据如果跟上就看好",
+                num_likes: 0,
+                num_dislikes: 0,
+              },
+              {
                 comment_id: 7,
                 post_id: 1,
                 author_id: 2,
                 content: "先看落地数据，泡沫风险也要说清楚",
+                num_likes: 0,
+                num_dislikes: 0,
+              },
+              {
+                comment_id: 8,
+                post_id: 1,
+                author_id: 2,
+                content: "我还在观望，政策怎么落地还不好说",
+                num_likes: 0,
+                num_dislikes: 0,
+              },
+              {
+                comment_id: 9,
+                post_id: 1,
+                author_id: 2,
+                content: "继续看后续披露，先不下结论",
                 num_likes: 0,
                 num_dislikes: 0,
               },
@@ -274,14 +298,18 @@ test("sentiment tabs preserve the full timeline while changing the highlight", a
   mount();
   await screen.findByText(/第 1 波/);
 
-  for (const label of ["正向", "中立", "负向"]) {
-    fireEvent.click(screen.getByRole("button", { name: label }));
-    expect(screen.queryByText("没有符合条件的阶段。")).not.toBeInTheDocument();
-    expect(screen.getByText(/第 1 波/)).toBeInTheDocument();
-    expect(screen.getByText(/第 2 波/)).toBeInTheDocument();
-    expect(screen.getByText(/第 3 波/)).toBeInTheDocument();
-    expect(screen.getByText(/第 4 波/)).toBeInTheDocument();
-  }
+  fireEvent.click(screen.getByRole("button", { name: "正向" }));
+  expect(screen.getByText(/第 1 波/)).toBeInTheDocument();
+  expect(screen.queryByText(/第 2 波/)).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "负向" }));
+  expect(screen.getByText(/第 2 波/)).toBeInTheDocument();
+  expect(screen.queryByText(/第 1 波/)).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "中立" }));
+  expect(screen.getByText(/第 3 波/)).toBeInTheDocument();
+  expect(screen.getByText(/第 4 波/)).toBeInTheDocument();
+  expect(screen.queryByText(/第 1 波/)).not.toBeInTheDocument();
 });
 
 test("generate insights shows verdict and suggestions", async () => {  // review:P5-T5-AC2

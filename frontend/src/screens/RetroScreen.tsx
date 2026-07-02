@@ -71,31 +71,55 @@ const NEGATIVE_REPLY_WORDS = [
   "风险",
 ] as const;
 
+const POSITIVE_REPLY_WORDS = [
+  "支持",
+  "靠谱",
+  "有用",
+  "看好",
+  "赞",
+  "真实",
+  "合理",
+  "不错",
+  "认可",
+  "期待",
+  "强",
+] as const;
+
 function looksNegative(reply: Reply): boolean {
   return NEGATIVE_REPLY_WORDS.some((word) => reply.content.includes(word));
 }
 
-function waveSentiment(
-  metrics: RetroMetrics,
-  bucket: Reply[],
-  index: number,
-): "positive" | "negative" | "neutral" {
-  const bucketHasNegativeReply = bucket.some(looksNegative);
-  const finalBucketGetsAggregateNegativeSignal =
-    index === WAVE_COPY.length - 1 && metrics.sentiment.negative > 0;
-  if (bucketHasNegativeReply || finalBucketGetsAggregateNegativeSignal) {
+function looksPositive(reply: Reply): boolean {
+  return POSITIVE_REPLY_WORDS.some((word) => reply.content.includes(word));
+}
+
+function replySentiment(reply: Reply): Wave["sentiment"] {
+  if (looksNegative(reply)) return "negative";
+  if (looksPositive(reply)) return "positive";
+  return "neutral";
+}
+
+function waveSentiment(bucket: Reply[]): Wave["sentiment"] {
+  const counts = bucket.reduce(
+    (acc, reply) => {
+      acc[replySentiment(reply)] += 1;
+      return acc;
+    },
+    { positive: 0, negative: 0, neutral: 0 },
+  );
+  if (counts.negative > counts.positive && counts.negative > counts.neutral) {
     return "negative";
   }
-  if (metrics.sentiment.positive > metrics.sentiment.negative && index !== 2) {
+  if (counts.positive > counts.negative && counts.positive > counts.neutral) {
     return "positive";
   }
   return "neutral";
 }
 
 function moodLabel(sentiment: Wave["sentiment"]): string {
-  if (sentiment === "negative") return "负向信号";
+  if (sentiment === "negative") return "负向占优";
   if (sentiment === "positive") return "正向占优";
-  return "观望为主";
+  return "中立观望";
 }
 
 function buildWaves(metrics: RetroMetrics, snapshot: RunSnapshot | null): Wave[] {
@@ -104,22 +128,17 @@ function buildWaves(metrics: RetroMetrics, snapshot: RunSnapshot | null): Wave[]
   const fallbackContent = seed?.content ?? "暂无保存评论";
   return WAVE_COPY.map(([title, description], index) => {
     const bucket = replyBucket(replies, index, WAVE_COPY.length);
-    const sentiment = waveSentiment(metrics, bucket, index);
-    const reply =
-      sentiment === "negative" ? bucket.find(looksNegative) ?? bucket[0] : bucket[0];
-    const negativeFallback =
-      sentiment === "negative" && !reply && metrics.sentiment.negative > 0;
+    const sentiment = waveSentiment(bucket);
+    const reply = bucket.find((item) => replySentiment(item) === sentiment) ?? bucket[0];
     return {
       title,
       description,
       representative:
         reply?.content ??
-        (negativeFallback
-          ? `收到 ${metrics.sentiment.negative} 个踩、举报等负向反馈`
-          : index === 0
-            ? fallbackContent
-            : "这一波暂无新增评论"),
-      discussion: reply ? actorLabel(snapshot, reply.author_id) : negativeFallback ? "负向反馈" : "等待更多讨论",
+        (index === 0
+          ? fallbackContent
+          : "这一波暂无新增评论"),
+      discussion: reply ? actorLabel(snapshot, reply.author_id) : "等待更多讨论",
       mood: moodLabel(sentiment),
       sentiment,
       spread:
@@ -140,9 +159,10 @@ function filterWaves(waves: Wave[], filter: SentimentFilter): Wave[] {
   return waves.filter(matcher[filter]);
 }
 
-function waveMatchesFilter(wave: Wave, filter: SentimentFilter): boolean {
-  if (filter === "全部") return true;
-  return filterWaves([wave], filter).length > 0;
+function emptyFilterLabel(filter: SentimentFilter): string {
+  return filter === "全部"
+    ? "暂无发酵阶段。"
+    : `没有${filter}占上风的阶段。`;
 }
 
 function sectionTitle(section: RetroSection): string {
@@ -219,6 +239,7 @@ export default function RetroScreen() {
     ["负向", "negative", metrics.sentiment.negative],
   ];
   const waves = buildWaves(metrics, snapshot);
+  const filteredWaves = filterWaves(waves, sentimentFilter);
   const displaySnapshot = snapshot ?? emptySnapshot();
   const timeline = timelineRows(displaySnapshot);
   const events = keyEvents(displaySnapshot);
@@ -339,16 +360,15 @@ export default function RetroScreen() {
 
         {section === "waves" && (
           <div className="relative grid gap-4 border-l-4 border-slate-200 pl-6">
-            {waves.map((wave) => {
-              const highlighted = waveMatchesFilter(wave, sentimentFilter);
-              return (
+            {filteredWaves.length === 0 && (
+              <div className="rounded-card border border-dashed border-line bg-white p-8 text-center text-sm text-slate-400">
+                {emptyFilterLabel(sentimentFilter)}
+              </div>
+            )}
+            {filteredWaves.map((wave) => (
                 <article
                   key={wave.title}
-                  className={[
-                    "relative rounded-card border bg-white p-5 shadow-sm transition",
-                    highlighted ? "border-line" : "border-line/70 opacity-60",
-                    sentimentFilter !== "全部" && highlighted ? "ring-2 ring-brand/30" : "",
-                  ].join(" ")}
+                  className="relative rounded-card border border-line bg-white p-5 shadow-sm"
                 >
                   <span className="absolute -left-[38px] top-7 h-5 w-5 rounded-full border-4 border-brand bg-white" />
                   <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_230px]">
@@ -395,8 +415,7 @@ export default function RetroScreen() {
                     </div>
                   </div>
                 </article>
-              );
-            })}
+            ))}
           </div>
         )}
 
