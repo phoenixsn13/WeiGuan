@@ -32,7 +32,7 @@ async def test_create_run_returns_id():  # review:P2-T4-AC1
 
 async def test_create_run_rejects_bad_steps():  # review:P2-T4-AC2
     async with _client() as client:
-        r = await client.post("/api/runs", json=_body(steps=3), headers=HDR)
+        r = await client.post("/api/runs", json=_body(steps=1001), headers=HDR)
     assert r.status_code == 400
 
 

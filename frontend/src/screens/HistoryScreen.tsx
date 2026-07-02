@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 
 import { fetchRuns, type RunSummary } from "../api/client";
 import { Button } from "../components/Button";
+import { TrendRail } from "../components/TrendRail";
 
 function statusLabel(status: RunSummary["status"]): string {
   if (status === "done") return "已完成";
@@ -42,60 +43,70 @@ export default function HistoryScreen() {
         </div>
       )}
 
-      <div className="grid gap-3">
-        {runs.map((run) => (
-          <article
-            key={run.run_id}
-            className="rounded-card border border-line bg-white p-5 shadow-sm transition hover:border-accent/40 hover:shadow-spotlight"
-          >
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-500">
-                  <span className="rounded-full bg-slate-100 px-2 py-1">
-                    {statusLabel(run.status)}
-                  </span>
-                  <span>
-                    {run.steps} 步 · 微博客
-                  </span>
-                </div>
-                <div className="sr-only">
-                  {statusLabel(run.status)} · {run.steps} 步 · 微博客
-                </div>
-                <h2 className="mt-3 line-clamp-2 text-lg font-bold leading-7">
-                  {run.content}
-                </h2>
-                <div className="mt-4 flex flex-wrap gap-4 text-sm text-slate-500">
-                  <span>
-                    评论{" "}
-                    <span className="tabular font-semibold text-slate-950">{run.totals.replies ?? 0}</span>
-                  </span>
-                  <span>
-                    转发{" "}
-                    <span className="tabular font-semibold text-slate-950">{run.totals.reposts ?? 0}</span>
-                  </span>
-                  <span>
-                    点赞 <span className="tabular font-semibold text-slate-950">{run.totals.likes ?? 0}</span>
-                  </span>
-                </div>
-              </div>
-              <div className="flex shrink-0 gap-2">
-                <button
-                  className="min-h-11 rounded-card border border-ink/10 px-3 text-sm hover:border-accent hover:text-accent"
-                  onClick={() => navigate(`/run/${run.run_id}/live?replay=1`)}
+      {runs.length > 0 && (
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="grid gap-3">
+            {runs.map((run) => (
+              <article
+                key={run.run_id}
+                className="rounded-card border border-line bg-white p-5 shadow-sm transition hover:border-accent/40 hover:shadow-spotlight"
+              >
+                <div
+                  data-testid="history-run-card-layout"
+                  className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start"
                 >
-                  看评论区
-                </button>
-                <button
-                  className="min-h-11 rounded-card bg-ink px-3 text-sm text-cream hover:bg-accent"
-                  onClick={() => navigate(`/run/${run.run_id}/retro`)}
-                >
-                  看回放
-                </button>
-              </div>
-            </div>
-          </article>
-        ))}
-      </div>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-500">
+                      <span className="rounded-full bg-slate-100 px-2 py-1">
+                        {statusLabel(run.status)}
+                      </span>
+                      <span>
+                        {run.steps} 步 · 微博客
+                      </span>
+                    </div>
+                    <div className="sr-only">
+                      {statusLabel(run.status)} · {run.steps} 步 · 微博客
+                    </div>
+                    <h2 className="mt-3 line-clamp-2 text-lg font-bold leading-7">
+                      {run.content}
+                    </h2>
+                    <div className="mt-4 flex flex-wrap gap-4 text-sm text-slate-500">
+                      <span>
+                        评论{" "}
+                        <span className="tabular font-semibold text-slate-950">{run.totals.replies ?? 0}</span>
+                      </span>
+                      <span>
+                        转发{" "}
+                        <span className="tabular font-semibold text-slate-950">{run.totals.reposts ?? 0}</span>
+                      </span>
+                      <span>
+                        点赞 <span className="tabular font-semibold text-slate-950">{run.totals.likes ?? 0}</span>
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 gap-2 sm:justify-end">
+                    <button
+                      className="min-h-11 rounded-card border border-ink/10 px-3 text-sm hover:border-accent hover:text-accent"
+                      onClick={() => navigate(`/run/${run.run_id}/live?replay=1`)}
+                    >
+                      看评论区
+                    </button>
+                    <button
+                      className="min-h-11 rounded-card bg-ink px-3 text-sm text-cream hover:bg-accent"
+                      onClick={() => navigate(`/run/${run.run_id}/retro`)}
+                    >
+                      看回放
+                    </button>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+          <div className="lg:sticky lg:top-24 lg:self-start">
+            <TrendRail runs={runs} />
+          </div>
+        </div>
+      )}
     </section>
   );
 }

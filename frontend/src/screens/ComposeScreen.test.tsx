@@ -42,6 +42,28 @@ test("submits content and navigates to live", async () => {  // review:P4-T6-AC1
   expect(body.steps).toBe(10);
 });
 
+test("explains rounds and submits a custom long run", async () => {  // review:UI-P11-AC2
+  const spy = vi.fn(async () => ({
+    ok: true,
+    json: async () => ({ run_id: "r_1000" }),
+  }));
+  vi.stubGlobal("fetch", spy);
+  mount();
+
+  expect(screen.getByText(/第 1 步发布原帖/)).toBeInTheDocument();
+  fireEvent.click(screen.getByLabelText(/自定义轮次/));
+  fireEvent.change(screen.getByLabelText("自定义轮次数"), { target: { value: "1000" } });
+  fireEvent.change(screen.getByPlaceholderText(/有什么新鲜事/), {
+    target: { value: "长帖发酵测试" },
+  });
+  fireEvent.click(screen.getByText(/开始围观/));
+
+  await waitFor(() => expect(screen.getByText("进行时页")).toBeInTheDocument());
+  const [, init] = spy.mock.calls[0] as unknown as [unknown, RequestInit];
+  const body = JSON.parse(init.body as string);
+  expect(body.steps).toBe(1000);
+});
+
 test("shows error when create fails", async () => {  // review:P4-T6-AC2
   vi.stubGlobal(
     "fetch",

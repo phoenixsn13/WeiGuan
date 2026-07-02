@@ -6,10 +6,17 @@ import { useApiKey } from "../api/useApiKey";
 import { Button } from "../components/Button";
 
 const ROUNDS = [
-  { value: 6, label: "快速围观" },
-  { value: 10, label: "标准" },
-  { value: 15, label: "深度发酵" },
+  { value: 6, label: "快速围观", hint: "看第一波反应" },
+  { value: 10, label: "标准", hint: "适合多数内容" },
+  { value: 15, label: "深度发酵", hint: "观察讨论分化" },
 ];
+
+const MAX_CUSTOM_STEPS = 1000;
+
+function clampSteps(value: number): number {
+  if (Number.isNaN(value)) return 1;
+  return Math.max(1, Math.min(MAX_CUSTOM_STEPS, Math.round(value)));
+}
 
 // review:P4-T6
 export default function ComposeScreen() {
@@ -30,14 +37,17 @@ export default function ComposeScreen() {
   } = useApiKey();
   const [content, setContent] = useState("");
   const [steps, setSteps] = useState(10);
+  const [customSteps, setCustomSteps] = useState(30);
+  const [customMode, setCustomMode] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const selectedSteps = customMode ? clampSteps(customSteps) : steps;
 
   async function startRun() {
     setError("");
     try {
       const { run_id } = await createRun(
-        { audience, content, steps, platform: "twitter" },
+        { audience, content, steps: selectedSteps, platform: "twitter" },
         { key, model, baseUrl, reasoningEffort, thinking },
       );
       navigate(`/run/${run_id}/live`);
@@ -58,25 +68,82 @@ export default function ComposeScreen() {
           rows={7}
           className="mt-5 w-full resize-none rounded-card border border-line p-4 text-[16px] leading-7 focus:border-accent focus:outline-none"
         />
-        <div className="mt-4 grid gap-2 text-sm sm:grid-cols-3">
+        <div className="mt-4 rounded-card border border-line bg-slate-50 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="text-sm font-bold text-slate-950">讨论轮次</div>
+              <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
+                第 1 步发布原帖；之后每一轮让一批模拟用户基于当前评论区继续点赞、评论或转发。
+                轮次越多，越接近一条长微博持续发酵的过程。
+              </p>
+            </div>
+            <div className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-500">
+              当前 {selectedSteps} 轮
+            </div>
+          </div>
+        </div>
+        <div className="mt-3 grid gap-2 text-sm sm:grid-cols-4">
           {ROUNDS.map((round) => (
             <label
               key={round.value}
               className={[
-                "flex min-h-12 cursor-pointer items-center justify-between rounded-card border px-3 font-semibold",
-                steps === round.value ? "border-accent bg-blue-50 text-accent" : "border-line text-slate-600",
+                "flex min-h-16 cursor-pointer items-center justify-between rounded-card border px-3",
+                !customMode && steps === round.value ? "border-accent bg-blue-50 text-accent" : "border-line text-slate-600",
               ].join(" ")}
             >
-              <span>{round.label}</span>
+              <span>
+                <span className="block font-semibold">{round.label}</span>
+                <span className="mt-1 block text-xs text-slate-400">{round.value} 轮 · {round.hint}</span>
+              </span>
               <input
                 type="radio"
                 name="steps"
-                checked={steps === round.value}
-                onChange={() => setSteps(round.value)}
+                checked={!customMode && steps === round.value}
+                onChange={() => {
+                  setCustomMode(false);
+                  setSteps(round.value);
+                }}
               />
             </label>
           ))}
+          <label
+            className={[
+              "flex min-h-16 cursor-pointer items-center justify-between rounded-card border px-3",
+              customMode ? "border-accent bg-blue-50 text-accent" : "border-line text-slate-600",
+            ].join(" ")}
+          >
+            <span>
+              <span className="block font-semibold">自定义轮次</span>
+              <span className="mt-1 block text-xs text-slate-400">1-1000 轮</span>
+            </span>
+            <input
+              type="radio"
+              name="steps"
+              checked={customMode}
+              onChange={() => setCustomMode(true)}
+            />
+          </label>
         </div>
+        {customMode && (
+          <div className="mt-3 rounded-card border border-line bg-white p-4">
+            <label className="grid gap-2 text-sm font-semibold text-slate-700">
+              自定义轮次数
+              <input
+                type="number"
+                min={1}
+                max={MAX_CUSTOM_STEPS}
+                value={customSteps}
+                onChange={(event) => setCustomSteps(clampSteps(Number(event.target.value)))}
+                className="max-w-48 rounded-card border border-line px-3 py-2 text-base text-slate-950 focus:border-accent focus:outline-none"
+              />
+            </label>
+            {selectedSteps > 100 && (
+              <p className="mt-3 text-sm leading-6 text-slate-500">
+                长跑会生成更多数据库记录和回放事件。评论区只保留窗口化展示，历史页会优先看摘要和热词。
+              </p>
+            )}
+          </div>
+        )}
         {error && <div className="mt-3 text-sm text-sentiment-negative">{error}</div>}
         <div className="mt-5">
           <Button onClick={startRun}>开始围观</Button>

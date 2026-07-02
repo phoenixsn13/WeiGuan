@@ -15,6 +15,8 @@ class RoundPreset(int, Enum):
 
 
 _ALLOWED_STEPS = {p.value for p in RoundPreset}
+_MIN_STEPS = 1
+_MAX_STEPS = 1000
 _FIXED_PROMPT_TOKENS = 2_000
 _TOKEN_CHAR_RATIO = 0.45
 _USD_CNY = 7.25
@@ -97,8 +99,8 @@ class RunConfig(BaseModel):
 
     @model_validator(mode="after")
     def _steps_preset(self):
-        if self.steps not in _ALLOWED_STEPS:
-            raise ValueError("steps must be one of 6/10/15")
+        if self.steps < _MIN_STEPS or self.steps > _MAX_STEPS:
+            raise ValueError("steps must be between 1 and 1000")
         if self.llm_max_agents < 1:
             raise ValueError("llm_max_agents must be >= 1")
         if self.llm_max_steps is not None and self.llm_max_steps < 0:

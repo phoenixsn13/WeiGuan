@@ -48,6 +48,54 @@ test("renders historical runs and opens live view", async () => {  // review:UI-
   expect(screen.getByText("评论区?replay=1")).toBeInTheDocument();
 });
 
+test("shows shared hot topics from saved runs", async () => {  // review:UI-P11-AC3
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => ({
+      ok: true,
+      json: async () => [
+        {
+          run_id: "r_1",
+          content: "spacex股价怎么回事啊",
+          steps: 15,
+          platform: "twitter",
+          status: "done",
+          totals: { replies: 13, reposts: 1, likes: 6 },
+        },
+      ],
+    })),
+  );
+
+  mount();
+
+  expect(await screen.findByText("围观热榜")).toBeInTheDocument();
+  expect(screen.getAllByText("#spacex股价怎么回事啊").length).toBeGreaterThan(0);
+});
+
+test("history cards keep actions in a fixed right column", async () => {  // review:UI-P11-AC6
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => ({
+      ok: true,
+      json: async () => [
+        {
+          run_id: "r_1",
+          content: "今天meta说要建数据中心，把闲置的AI算力做成云服务，这明显就是AI泡沫破裂的前奏",
+          steps: 15,
+          platform: "twitter",
+          status: "running",
+          totals: { replies: 10, reposts: 0, likes: 4 },
+        },
+      ],
+    })),
+  );
+
+  mount();
+
+  const layout = await screen.findByTestId("history-run-card-layout");
+  expect(layout.className).toContain("sm:grid-cols-[minmax(0,1fr)_auto]");
+});
+
 test("opens replay from historical run", async () => {  // review:UI-P1-AC4
   vi.stubGlobal(
     "fetch",

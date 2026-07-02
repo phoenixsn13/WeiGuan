@@ -128,6 +128,22 @@ test("feed styles mentions and hashtags inside post text", () => {  // review:UI
   expect(screen.getAllByText("#大模型")[0]).toHaveClass("text-accent");
 });
 
+test("feed does not style leaked internal numeric mentions as real users", () => {  // review:UI-P11-AC5
+  render(
+    <XFeed
+      vm={{
+        ...vm,
+        seedPost: {
+          ...vm.seedPost!,
+          content: "@用户11 这个说得比我还在点子上",
+        },
+      }}
+    />,
+  );
+
+  expect(screen.getByText("@用户11")).not.toHaveClass("text-accent");
+});
+
 test("action bar counts use tabular numerals", () => {  // review:P3-T3-AC2
   render(<XActionBar replies={12} reposts={5} likes={48} />);
   const like = screen.getByText("48");

@@ -25,10 +25,13 @@ def test_valid_config_defaults_platform_twitter():  # review:P2-T1-AC1
     assert c.llm_thinking_enabled is False
 
 
-def test_steps_must_be_preset():  # review:P2-T1-AC2
+def test_steps_accept_presets_and_custom_range():  # review:UI-P11-AC1
+    assert _cfg(steps=RoundPreset.STANDARD.value).steps == 10
+    assert _cfg(steps=1000).steps == 1000
     with pytest.raises(ValidationError):
-        _cfg(steps=3)
-    assert RoundPreset.STANDARD.value == 10
+        _cfg(steps=0)
+    with pytest.raises(ValidationError):
+        _cfg(steps=1001)
 
 
 def test_audience_exactly_one():  # review:P2-T1-AC3

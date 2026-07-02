@@ -6,12 +6,29 @@ import GalleryScreen from "./GalleryScreen";
 function mount() {
   vi.stubGlobal(
     "fetch",
-    vi.fn(async () => ({
-      ok: true,
-      json: async () => [
-        { id: "tech_devs", name: "科技程序员群", emoji: "T", blurb: "毒舌" },
-      ],
-    })),
+    vi.fn(async (url: string) => {
+      if (url === "/api/runs") {
+        return {
+          ok: true,
+          json: async () => [
+            {
+              run_id: "r_1",
+              content: "AI算力租赁是不是泡沫",
+              steps: 10,
+              platform: "twitter",
+              status: "done",
+              totals: { replies: 8, reposts: 2, likes: 5 },
+            },
+          ],
+        };
+      }
+      return {
+        ok: true,
+        json: async () => [
+          { id: "tech_devs", name: "科技程序员群", emoji: "T", blurb: "毒舌" },
+        ],
+      };
+    }),
   );
   render(
     <MemoryRouter initialEntries={["/"]}>
@@ -65,4 +82,10 @@ test("shows backend connection error instead of a blank crowd list", async () =>
   expect(await screen.findByText(/圈子加载失败/)).toBeInTheDocument();
   expect(screen.getByText(/确认后端服务/)).toBeInTheDocument();
   expect(screen.getByRole("button", { name: /重试/ })).toBeInTheDocument();
+});
+
+test("shows shared hot topics beside crowd choices", async () => {  // review:UI-P11-AC4
+  mount();
+  expect(await screen.findByText("围观热榜")).toBeInTheDocument();
+  expect(screen.getAllByText("#AI算力租赁是不是泡沫").length).toBeGreaterThan(0);
 });
