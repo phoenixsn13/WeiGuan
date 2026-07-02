@@ -2,6 +2,9 @@ import {
   createRun,
   fetchCrowds,
   fetchInsights,
+  createPerson,
+  listPersons,
+  previewCost,
   fetchRetro,
   fetchRunSummary,
   fetchRunSnapshot,
@@ -240,4 +243,50 @@ test("fetchSavedInsights reads persisted suggestions", async () => {  // review:
   expect(insights).not.toBeNull();
   expect(insights?.verdict).toBe("已保存");
   expect(spy).toHaveBeenCalledWith("/api/runs/r_1/insights");
+});
+
+test("identity APIs call person endpoints", async () => {  // review:P7-T5-AC1
+  const spy = vi.fn(async () => ({
+    ok: true,
+    json: async () => ({
+      world_id: "w_1",
+      person: { person_id: "p_1", display_name: "财经大号", accounts: [] },
+    }),
+  }));
+  vi.stubGlobal("fetch", spy);
+
+  await createPerson({
+    world_id: "w_1",
+    display_name: "财经大号",
+    persona_kind: "kol",
+    platform: "twitter",
+    handle: "finance_kol",
+  });
+
+  const [url, init] = spy.mock.calls[0] as unknown as [string, RequestInit];
+  expect(url).toBe("/api/persons");
+  expect(JSON.parse(init.body as string).persona_kind).toBe("kol");
+});
+
+test("listPersons and previewCost hit backend contracts", async () => {  // review:P7-T5-AC2
+  const spy = vi.fn(async (url: string) => ({
+    ok: true,
+    json: async () =>
+      url.includes("preview-cost")
+        ? { estimated_rmb: 1.23, budgeted_agents: 8, decision_steps: 9 }
+        : { persons: [] },
+  }));
+  vi.stubGlobal("fetch", spy);
+
+  await listPersons("w_1");
+  const cost = await previewCost({
+    steps: 10,
+    llm_max_agents: 8,
+    attention_comment_budget: 12,
+    person_memory_budget: 4,
+  });
+
+  expect(spy.mock.calls[0][0]).toBe("/api/worlds/w_1/persons");
+  expect(String(spy.mock.calls[1][0])).toContain("/api/runs/preview-cost?");
+  expect(cost.estimated_rmb).toBe(1.23);
 });

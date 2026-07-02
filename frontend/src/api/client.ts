@@ -13,6 +13,10 @@ export interface CreateRunBody {
   content: string;
   steps: number;
   platform: "twitter" | "reddit";
+  world_id?: string;
+  poster_persona?: PersonaKind;
+  poster_person_id?: string;
+  person_memory_budget?: number;
 }
 
 export interface Creds {
@@ -32,6 +36,53 @@ export interface RunSummary {
   current_step?: number;
   created_at?: string;
   totals: Record<string, number>;
+}
+
+export type PersonaKind = "ordinary" | "verified" | "kol";
+
+export interface Account {
+  account_id: string;
+  person_id: string;
+  platform: "twitter" | "reddit";
+  handle: string;
+  avatar_seed: string;
+  num_followers: number;
+  influence_score: number;
+}
+
+export interface Person {
+  person_id: string;
+  display_name: string;
+  persona_kind: PersonaKind;
+  accounts: Account[];
+}
+
+export interface PersonView {
+  person: Person;
+  stance: { stance_counts: Record<string, number>; dominant: string };
+  total_influence: number;
+  run_ids: string[];
+}
+
+export interface CreatePersonBody {
+  world_id?: string;
+  display_name: string;
+  persona_kind: PersonaKind;
+  platform: "twitter" | "reddit";
+  handle: string;
+}
+
+export interface PreviewCostParams {
+  steps: number;
+  llm_max_agents: number;
+  attention_comment_budget: number;
+  person_memory_budget: number;
+}
+
+export interface PreviewCost {
+  estimated_rmb: number;
+  budgeted_agents: number;
+  decision_steps: number;
 }
 
 function llmHeaders(creds: Creds): Record<string, string> {
@@ -83,6 +134,45 @@ export async function createRun(
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
     throw new Error(error.detail ?? "create run failed");
+  }
+  return response.json();
+}
+
+// review:P7-T5
+export async function createPerson(
+  body: CreatePersonBody,
+): Promise<{ world_id: string; person: Person }> {
+  const response = await fetch("/api/persons", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.detail ?? "create person failed");
+  }
+  return response.json();
+}
+
+export async function listPersons(worldId: string): Promise<PersonView[]> {
+  const response = await fetch(`/api/worlds/${worldId}/persons`);
+  if (!response.ok) {
+    throw new Error("failed to load persons");
+  }
+  const data = await response.json();
+  return data.persons;
+}
+
+export async function previewCost(params: PreviewCostParams): Promise<PreviewCost> {
+  const query = new URLSearchParams({
+    steps: String(params.steps),
+    llm_max_agents: String(params.llm_max_agents),
+    attention_comment_budget: String(params.attention_comment_budget),
+    person_memory_budget: String(params.person_memory_budget),
+  });
+  const response = await fetch(`/api/runs/preview-cost?${query.toString()}`);
+  if (!response.ok) {
+    throw new Error("failed to preview cost");
   }
   return response.json();
 }
