@@ -38,18 +38,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <header className="sticky top-0 z-30 border-b border-white/10 bg-slate-950 shadow-chrome">
         <div className="mx-auto flex h-16 max-w-[1680px] items-center justify-between gap-4 px-4 sm:px-6">
           <BrandMark />
+          {/* review:P7-T8 */}
           <nav className="hidden h-16 items-stretch gap-1 md:flex">
-            <NavItem to="/">选圈子</NavItem>
-            <NavItem to="/history">历史记录</NavItem>
+            <NavItem to="/compose">发起</NavItem>
+            <NavItem to="/">世界</NavItem>
+            <NavItem to="/history">历史</NavItem>
           </nav>
           <div className="flex items-center gap-3">
             <div className="hidden items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/70 sm:flex">
               <span className="h-2 w-2 rounded-full bg-sentiment-positive" />
               只在你发起时推演
             </div>
-            <div className="grid h-9 w-9 place-items-center rounded-full bg-white/10 text-sm font-semibold text-white">
+            <NavLink
+              className="grid h-9 w-9 place-items-center rounded-full bg-white/10 text-sm font-semibold text-white transition hover:bg-white/15"
+              to="/identity/me"
+            >
               我
-            </div>
+            </NavLink>
           </div>
         </div>
       </header>

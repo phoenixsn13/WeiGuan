@@ -49,3 +49,16 @@ test("live route renders live screen", () => {  // review:PF0-T4-AC3
   at("/run/r_1/live");
   expect(screen.getByText(/等待第一条/)).toBeInTheDocument();
 });
+
+test("shell navigation uses world-mind labels and links identity entry", () => {  // review:P7-T8-AC1
+  at("/history");
+
+  expect(screen.getByRole("link", { name: "发起" })).toHaveAttribute("href", "/compose");
+  expect(screen.getByRole("link", { name: "世界" })).toHaveAttribute("href", "/");
+  expect(screen.getByRole("link", { name: "历史" })).toHaveAttribute("href", "/history");
+  expect(screen.queryByRole("link", { name: "选圈子" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: "历史记录" })).not.toBeInTheDocument();
+
+  const identity = screen.getByRole("link", { name: "我" });
+  expect(identity).toHaveAttribute("href", "/identity/me");
+});
