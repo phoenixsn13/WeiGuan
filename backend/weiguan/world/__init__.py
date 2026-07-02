@@ -1,3 +1,4 @@
+from weiguan.world.eventlog import EventLog
 from weiguan.world.models import (
     Account,
     BoundedMemory,
@@ -11,10 +12,12 @@ from weiguan.world.models import (
     persona_starting_standing,
 )
 from weiguan.world.projector import fold_world, project_bounded_memory, project_stance
+from weiguan.world.store import WorldStore
 
 __all__ = [
     "Account",
     "BoundedMemory",
+    "EventLog",
     "Person",
     "PersonaKind",
     "PersonView",
@@ -26,4 +29,5 @@ __all__ = [
     "persona_starting_standing",
     "project_bounded_memory",
     "project_stance",
+    "WorldStore",
 ]
