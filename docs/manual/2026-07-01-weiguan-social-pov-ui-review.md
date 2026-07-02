@@ -1,4 +1,4 @@
-# 围观 Social POV UI Review
+# 围观社交视角 UI 评审
 
 ## 设计资产
 

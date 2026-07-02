@@ -1,17 +1,17 @@
-# 围观 Plan 5 — INTERVIEW 追问抽屉 + 复盘上帝视角 Implementation Plan
+# 围观 计划 5 — INTERVIEW 追问抽屉 + 复盘上帝视角 实现计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-> **审核锚点**：遵守 `2026-07-01-weiguan-conventions-and-contracts.md` §1。每个 Task = 锚点 `P5-T<n>`；实现打 `# review:P5-T<n>`/`// review:P5-T<n>`、commit trailer `Review-Anchor: P5-T<n>`、验收测试打 `-AC<k>`。
+> **给 agentic 实现者：** 必须使用 `superpowers:subagent-driven-development`（推荐）或 `superpowers:executing-plans`，按任务逐项实现本计划。步骤使用复选框（`- [ ]`）语法跟踪。
+> **审核锚点**：遵守 `2026-07-01-weiguan-conventions-and-contracts.md` §1。每个任务 = 锚点 `P5-T<n>`；实现打 `# review:P5-T<n>`/`// review:P5-T<n>`、commit trailer `Review-Anchor: P5-T<n>`、验收测试打 `-AC<k>`。
 
-**Goal:** 收尾两大体验：①点任意评论人 → 侧滑抽屉追问"你为什么这么想"（契约 §2.4）；②复盘上帝视角——情绪分布/传播曲线/总量（纯计算）+ 1–2 条可操作建议（LLM）。
+**目标：** 收尾两大体验：①点任意评论人 → 侧滑抽屉追问"你为什么这么想"（契约 §2.4）；②复盘上帝视角——情绪分布/传播曲线/总量（纯计算）+ 1–2 条可操作建议（LLM）。
 
-**Architecture:** 后端加"复盘聚合"（`compute_metrics` 纯函数 + `GET /retro`）与"洞察生成"（`generate_insights` LLM + `POST /insights`）。前端加 API 客户端三个方法、`InterviewDrawer` 组件（接入 LiveScreen）、`RetroScreen`（图表 + 建议）。数值透明可测，读懂评论的判断交给 LLM。
+**架构：** 后端加"复盘聚合"（`compute_metrics` 纯函数 + `GET /retro`）与"洞察生成"（`generate_insights` LLM + `POST /insights`）。前端加 API 客户端三个方法、`InterviewDrawer` 组件（接入 LiveScreen）、`RetroScreen`（图表 + 建议）。数值透明可测，读懂评论的判断交给 LLM。
 
-**Tech Stack:** 后端 Python/FastAPI + openai SDK；前端 React/TS/Tailwind + Vitest。
+**技术栈：** 后端 Python/FastAPI + openai SDK；前端 React/TS/Tailwind + Vitest。
 
-## Global Constraints
-- 承接 Plan 2（interview 端点/契约 §2.4、snapshot §2.5）、Plan 3（LiveScreen/XFeed `onActorClick`）、Plan 4（`useApiKey`/client）、Plan F0（壳/tokens）。
-- **新增复盘端点**（契约未冻结部分，本 Plan 定稿）：`GET /api/runs/{id}/retro`（纯指标、免 key）、`POST /api/runs/{id}/insights`（LLM、需 key）。
+## 全局约束
+- 承接 计划 2（interview 端点/契约 §2.4、snapshot §2.5）、计划 3（LiveScreen/XFeed `onActorClick`）、计划 4（`useApiKey`/client）、计划 F0（壳/tokens）。
+- **新增复盘端点**（契约未冻结部分，本计划定稿）：`GET /api/runs/{id}/retro`（纯指标、免 key）、`POST /api/runs/{id}/insights`（LLM、需 key）。
 - 情绪分布用**透明启发式**（基于点赞/点踩/转发/举报计数），确定性可测；**不**在数值层做 LLM 分类。LLM 只负责 verdict + 建议。
 - 复盘是"壳/上帝视角"，允许使用围观品牌色（区别于皮肤区）。
 - insights 是真 LLM 任务，`@pytest.mark.llm`（有 key 必过，无 key skip）。
@@ -33,11 +33,11 @@ frontend/src/
 
 ---
 
-### Task 1 (P5-T1): 复盘指标 compute_metrics + GET /retro
+### 任务 1 (P5-T1): 复盘指标 compute_metrics + GET /retro
 
-**Files:** Create `backend/weiguan/analysis/__init__.py`、`backend/weiguan/analysis/retro.py`；Modify `backend/weiguan/api/routes.py`；Test `backend/tests/analysis/test_retro.py`（含 `backend/tests/analysis/__init__.py`）.
+**文件：** Create `backend/weiguan/analysis/__init__.py`、`backend/weiguan/analysis/retro.py`；Modify `backend/weiguan/api/routes.py`；Test `backend/tests/analysis/test_retro.py`（含 `backend/tests/analysis/__init__.py`）.
 
-**Interfaces — Produces:**
+**接口 — 产出：**
 - `SentimentBuckets(positive:int, negative:int, neutral:int)`
 - `RetroMetrics(sentiment:SentimentBuckets, spread_by_step:list[int], totals:dict[str,int])`
 - `compute_metrics(snapshot:RunSnapshot) -> RetroMetrics`（纯）。启发式（针对种子帖 seedId）：
@@ -46,7 +46,7 @@ frontend/src/
   - totals = {likes, dislikes, replies, reposts, quotes, reports}。
 - `GET /api/runs/{id}/retro` → `compute_metrics(record.snapshot).model_dump()`
 
-- [ ] **Step 1: 写失败测试 `tests/analysis/test_retro.py`**
+- [ ] **步骤 1：写失败测试 `tests/analysis/test_retro.py`**
 ```python
 from weiguan.analysis.retro import compute_metrics
 from weiguan.canonical import (RunSnapshot, Post, Reply, Reaction, ReactionKind,
@@ -85,9 +85,9 @@ def test_totals_and_spread():  # review:P5-T1-AC2
     assert m.spread_by_step == [1, 2]      # created_at "1":1, "2":2
 ```
 
-- [ ] **Step 2: 运行确认失败** — `cd backend && python -m pytest tests/analysis/test_retro.py -v` → FAIL。
+- [ ] **步骤 2：运行确认失败** — `cd backend && python -m pytest tests/analysis/test_retro.py -v` → FAIL。
 
-- [ ] **Step 3: 写实现 `weiguan/analysis/retro.py`**
+- [ ] **步骤 3：写实现 `weiguan/analysis/retro.py`**
 ```python
 # review:P5-T1
 from __future__ import annotations
@@ -132,7 +132,7 @@ def compute_metrics(snapshot: RunSnapshot) -> RetroMetrics:
                 "reposts": reposts, "quotes": quotes, "reports": reports})
 ```
 
-- [ ] **Step 4: 在 `weiguan/api/routes.py` 追加端点**
+- [ ] **步骤 4：在 `weiguan/api/routes.py` 追加端点**
 ```python
 from weiguan.analysis.retro import compute_metrics   # 顶部 import
 
@@ -144,8 +144,8 @@ async def retro(run_id: str, request: Request):  # review:P5-T1
     return compute_metrics(record.snapshot).model_dump()
 ```
 
-- [ ] **Step 5: 运行确认通过** — `python -m pytest tests/analysis/test_retro.py -v` → PASS（2 passed）。
-- [ ] **Step 6: 提交**
+- [ ] **步骤 5：运行确认通过** — `python -m pytest tests/analysis/test_retro.py -v` → PASS（2 passed）。
+- [ ] **步骤 6：提交**
 ```bash
 git add backend/weiguan/analysis/retro.py backend/weiguan/analysis/__init__.py backend/weiguan/api/routes.py backend/tests/analysis
 git commit -m "feat(analysis): 复盘指标 compute_metrics + GET /retro
@@ -155,16 +155,16 @@ Review-Anchor: P5-T1"
 
 ---
 
-### Task 2 (P5-T2): 洞察建议 generate_insights（LLM）+ POST /insights
+### 任务 2 (P5-T2): 洞察建议 generate_insights（LLM）+ POST /insights
 
-**Files:** Create `backend/weiguan/analysis/insights.py`；Modify `backend/weiguan/api/routes.py`；Test `backend/tests/analysis/test_insights_llm.py`.
+**文件：** Create `backend/weiguan/analysis/insights.py`；Modify `backend/weiguan/api/routes.py`；Test `backend/tests/analysis/test_insights_llm.py`.
 
-**Interfaces — Produces:**
+**接口 — 产出：**
 - `Insights(verdict:str, suggestions:list[str])`
 - `generate_insights(snapshot:RunSnapshot, config:RunConfig) -> Insights`：把种子帖 + 若干评论 + 指标喂给 LLM，产出一句 verdict 与 1–2 条建议。
 - `POST /api/runs/{id}/insights`（头 `X-LLM-Key`/`X-LLM-Model`）→ `Insights`。
 
-- [ ] **Step 1: 写真跑测试 `tests/analysis/test_insights_llm.py`**
+- [ ] **步骤 1：写真跑测试 `tests/analysis/test_insights_llm.py`**
 ```python
 import os
 import pytest
@@ -194,9 +194,9 @@ def test_insights_returns_verdict_and_suggestions():  # review:P5-T2-AC1
     assert all(s.strip() for s in ins.suggestions)
 ```
 
-- [ ] **Step 2: 运行确认（无 key skip）** — `python -m pytest tests/analysis/test_insights_llm.py -m llm -v` → `1 skipped`。
+- [ ] **步骤 2：运行确认（无 key skip）** — `python -m pytest tests/analysis/test_insights_llm.py -m llm -v` → `1 skipped`。
 
-- [ ] **Step 3: 写实现 `weiguan/analysis/insights.py`**
+- [ ] **步骤 3：写实现 `weiguan/analysis/insights.py`**
 ```python
 # review:P5-T2  复盘洞察（真 LLM）
 from __future__ import annotations
@@ -236,7 +236,7 @@ def generate_insights(snapshot: RunSnapshot, config: RunConfig) -> Insights:
                     suggestions=sugg)
 ```
 
-- [ ] **Step 4: 在 `routes.py` 追加端点**
+- [ ] **步骤 4：在 `routes.py` 追加端点**
 ```python
 from weiguan.analysis.insights import generate_insights  # 顶部 import
 
@@ -253,14 +253,14 @@ async def insights(run_id: str, request: Request,
     return generate_insights(record.snapshot, cfg).model_dump()
 ```
 
-- [ ] **Step 5: 用真实 key 运行，必须通过** —
+- [ ] **步骤 5：用真实 key 运行，必须通过** —
 ```bash
 cd backend && WEIGUAN_TEST_LLM_KEY=<你的key> python -m pytest tests/analysis/test_insights_llm.py -m llm -v
 ```
-Expected: PASS（1 passed）。
+期望： PASS（1 passed）。
 
-- [ ] **Step 6: 回归全部非 LLM 后端测试** — `cd backend && python -m pytest -m "not llm" -v` → 全绿。
-- [ ] **Step 7: 提交**
+- [ ] **步骤 6：回归全部非 LLM 后端测试** — `cd backend && python -m pytest -m "not llm" -v` → 全绿。
+- [ ] **步骤 7：提交**
 ```bash
 git add backend/weiguan/analysis/insights.py backend/weiguan/api/routes.py backend/tests/analysis/test_insights_llm.py
 git commit -m "feat(analysis): generate_insights + POST /insights（LLM）
@@ -270,17 +270,17 @@ Review-Anchor: P5-T2"
 
 ---
 
-### Task 3 (P5-T3): 前端 API 客户端补充
+### 任务 3 (P5-T3): 前端 API 客户端补充
 
-**Files:** Modify `frontend/src/api/client.ts`；Test `frontend/src/api/client.test.ts`（追加）.
+**文件：** Modify `frontend/src/api/client.ts`；Test `frontend/src/api/client.test.ts`（追加）.
 
-**Interfaces — Produces:**
+**接口 — 产出：**
 - `interviewActor(runId, actorId, question, creds): Promise<{answer:string}>`（`POST /interview`，带 BYOK 头）
 - `fetchRetro(runId): Promise<RetroMetrics>`（`GET /retro`）
 - `fetchInsights(runId, creds): Promise<Insights>`（`POST /insights`，带 BYOK 头）
 - 类型 `RetroMetrics{sentiment:{positive,negative,neutral}; spread_by_step:number[]; totals:Record<string,number>}`、`Insights{verdict:string; suggestions:string[]}`
 
-- [ ] **Step 1: 追加失败测试到 `api/client.test.ts`**
+- [ ] **步骤 1：追加失败测试到 `api/client.test.ts`**
 ```ts
 import { interviewActor, fetchRetro, fetchInsights } from "./client";
 
@@ -311,9 +311,9 @@ test("fetchInsights posts with key", async () => {  // review:P5-T3-AC3
 });
 ```
 
-- [ ] **Step 2: 运行确认失败** — `cd frontend && npm test -- client` → FAIL。
+- [ ] **步骤 2：运行确认失败** — `cd frontend && npm test -- client` → FAIL。
 
-- [ ] **Step 3: 追加实现到 `api/client.ts`**
+- [ ] **步骤 3：追加实现到 `api/client.ts`**
 ```ts
 // review:P5-T3
 export interface RetroMetrics {
@@ -353,8 +353,8 @@ export async function fetchInsights(runId: string, creds: Creds): Promise<Insigh
 }
 ```
 
-- [ ] **Step 4: 运行确认通过** — `npm test -- client` → PASS（原 3 + 新 3 = 6 passed）。
-- [ ] **Step 5: 提交**
+- [ ] **步骤 4：运行确认通过** — `npm test -- client` → PASS（原 3 + 新 3 = 6 passed）。
+- [ ] **步骤 5：提交**
 ```bash
 git add frontend/src/api/client.ts frontend/src/api/client.test.ts
 git commit -m "feat(frontend): client 补充 interview/retro/insights
@@ -364,20 +364,20 @@ Review-Anchor: P5-T3"
 
 ---
 
-### Task 4 (P5-T4): InterviewDrawer 追问抽屉 + 接入 LiveScreen
+### 任务 4 (P5-T4): InterviewDrawer 追问抽屉 + 接入 LiveScreen
 
-**Files:** Create `frontend/src/components/InterviewDrawer.tsx`；Modify `frontend/src/screens/LiveScreen.tsx`、`frontend/src/index.css`（加 slidein）；Test `frontend/src/components/InterviewDrawer.test.tsx`.
+**文件：** Create `frontend/src/components/InterviewDrawer.tsx`；Modify `frontend/src/screens/LiveScreen.tsx`、`frontend/src/index.css`（加 slidein）；Test `frontend/src/components/InterviewDrawer.test.tsx`.
 
-**Interfaces — Produces:**
+**接口 — 产出：**
 - `InterviewDrawer({ runId, actor, onClose })`：`actor` 为 null 时不渲染；否则右侧滑入抽屉、背景压暗；输入问题 → `interviewActor` → 追加一轮问答。
 - LiveScreen：`XFeed onActorClick` 设选中 actor，渲染抽屉。
 
-- [ ] **Step 1: 追加 slidein 到 `frontend/src/index.css`**
+- [ ] **步骤 1：追加 slidein 到 `frontend/src/index.css`**
 ```css
 @keyframes slidein { from { transform: translateX(100%); } to { transform: none; } }
 ```
 
-- [ ] **Step 2: 写失败测试 `components/InterviewDrawer.test.tsx`**
+- [ ] **步骤 2：写失败测试 `components/InterviewDrawer.test.tsx`**
 ```tsx
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { InterviewDrawer } from "./InterviewDrawer";
@@ -405,7 +405,7 @@ test("asks question and shows answer", async () => {  // review:P5-T4-AC2
 });
 ```
 
-- [ ] **Step 3: 写实现 `components/InterviewDrawer.tsx`**
+- [ ] **步骤 3：写实现 `components/InterviewDrawer.tsx`**
 ```tsx
 // review:P5-T4
 import { useState } from "react";
@@ -458,11 +458,11 @@ export function InterviewDrawer({ runId, actor, onClose }:
 }
 ```
 
-- [ ] **Step 4: 接入 `screens/LiveScreen.tsx`**
+- [ ] **步骤 4：接入 `screens/LiveScreen.tsx`**
 在 import 增 `import { useState } from "react";` 与 `import { InterviewDrawer } from "../components/InterviewDrawer";`、`import type { Actor } from "../model/canonical";`。在组件内加 `const [selected, setSelected] = useState<Actor | null>(null);`，把 `<XFeed vm={vm} />` 改为 `<XFeed vm={vm} onActorClick={setSelected} />`，并在 `</div>` 前加 `<InterviewDrawer runId={id} actor={selected} onClose={() => setSelected(null)} />`。
 
-- [ ] **Step 5: 运行确认通过** — `cd frontend && npm test -- InterviewDrawer && npm test -- LiveScreen` → 全绿（LiveScreen 原测试不受影响，抽屉默认 null）。
-- [ ] **Step 6: 提交**
+- [ ] **步骤 5：运行确认通过** — `cd frontend && npm test -- InterviewDrawer && npm test -- LiveScreen` → 全绿（LiveScreen 原测试不受影响，抽屉默认 null）。
+- [ ] **步骤 6：提交**
 ```bash
 git add frontend/src/components/InterviewDrawer.tsx frontend/src/components/InterviewDrawer.test.tsx frontend/src/screens/LiveScreen.tsx frontend/src/index.css
 git commit -m "feat(frontend): InterviewDrawer 追问抽屉并接入 LiveScreen
@@ -472,13 +472,13 @@ Review-Anchor: P5-T4"
 
 ---
 
-### Task 5 (P5-T5): RetroScreen 复盘上帝视角
+### 任务 5 (P5-T5): RetroScreen 复盘上帝视角
 
-**Files:** Modify `frontend/src/screens/RetroScreen.tsx`（替换 F0 占位）；Test `frontend/src/screens/RetroScreen.test.tsx`.
+**文件：** Modify `frontend/src/screens/RetroScreen.tsx`（替换 F0 占位）；Test `frontend/src/screens/RetroScreen.test.tsx`.
 
-**Interfaces — Produces:** RetroScreen 读路由 `:id` → `fetchRetro` 渲染情绪分布条 + 传播 spark + 总量；"生成建议"按钮 → `fetchInsights` 显示 verdict + suggestions。
+**接口 — 产出：** RetroScreen 读路由 `:id` → `fetchRetro` 渲染情绪分布条 + 传播 spark + 总量；"生成建议"按钮 → `fetchInsights` 显示 verdict + suggestions。
 
-- [ ] **Step 1: 写失败测试 `screens/RetroScreen.test.tsx`**
+- [ ] **步骤 1：写失败测试 `screens/RetroScreen.test.tsx`**
 ```tsx
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
@@ -520,9 +520,9 @@ test("generate insights shows verdict and suggestions", async () => {  // review
 });
 ```
 
-- [ ] **Step 2: 运行确认失败** — `npm test -- RetroScreen` → FAIL。
+- [ ] **步骤 2：运行确认失败** — `npm test -- RetroScreen` → FAIL。
 
-- [ ] **Step 3: 写实现 `screens/RetroScreen.tsx`**
+- [ ] **步骤 3：写实现 `screens/RetroScreen.tsx`**
 ```tsx
 // review:P5-T5  复盘上帝视角（壳，允许品牌色）
 import { useEffect, useState } from "react";
@@ -583,9 +583,9 @@ export default function RetroScreen() {
 }
 ```
 
-- [ ] **Step 4: 运行确认通过** — `npm test -- RetroScreen` → PASS（2 passed）。
-- [ ] **Step 5: 回归全部前端测试** — `cd frontend && npm test` → 全绿。
-- [ ] **Step 6: 提交**
+- [ ] **步骤 4：运行确认通过** — `npm test -- RetroScreen` → PASS（2 passed）。
+- [ ] **步骤 5：回归全部前端测试** — `cd frontend && npm test` → 全绿。
+- [ ] **步骤 6：提交**
 ```bash
 git add frontend/src/screens/RetroScreen.tsx frontend/src/screens/RetroScreen.test.tsx
 git commit -m "feat(frontend): RetroScreen 复盘上帝视角（情绪/传播/建议）
@@ -595,7 +595,7 @@ Review-Anchor: P5-T5"
 
 ---
 
-## 审核索引（Review Index）
+## 审核索引
 
 | 锚点 | 断言 | 审核凭据 |
 |---|---|---|
@@ -610,14 +610,14 @@ Review-Anchor: P5-T5"
 | P5-T5-AC1 | 复盘渲染情绪百分比 | `RetroScreen.test.tsx` |
 | P5-T5-AC2 | 生成建议显示 verdict+建议 | `RetroScreen.test.tsx` |
 
-## Self-Review
-- **Spec 覆盖**：实现 §3 步骤 5–6（追问 + 复盘）、§6.2 上帝视角壳（品牌色）、§7.4 追问抽屉线框（点头像→右滑→问答）、§7.5 复盘线框（情绪分布/传播/建议）。契约 §2.4 接入前端；新增 `GET /retro`、`POST /insights` 并定稿。
+## 自审
+- **规格覆盖**：实现 §3 步骤 5–6（追问 + 复盘）、§6.2 上帝视角壳（品牌色）、§7.4 追问抽屉线框（点头像→右滑→问答）、§7.5 复盘线框（情绪分布/传播/建议）。契约 §2.4 接入前端；新增 `GET /retro`、`POST /insights` 并定稿。
 - **占位符扫描**：无 TBD；情绪数值为透明启发式（非占位），读评论判断交 LLM verdict；每步含完整代码与命令。
-- **类型一致性**：`RetroMetrics/Insights`（后端 pydantic）与前端 `client.ts` 同构；`interviewActor/fetchRetro/fetchInsights` 与 §2.4/新端点对齐；`InterviewDrawer` 消费 `Actor` 与 Plan 3 一致；`XFeed onActorClick`（Plan 3 已留 prop）在此接入，不改皮肤。
+- **类型一致性**：`RetroMetrics/Insights`（后端 pydantic）与前端 `client.ts` 同构；`interviewActor/fetchRetro/fetchInsights` 与 §2.4/新端点对齐；`InterviewDrawer` 消费 `Actor` 与 计划 3 一致；`XFeed onActorClick`（计划 3 已留 prop）在此接入，不改皮肤。
 ```
 ```
 
-## 全局收尾（交接部署提示，非本 Plan 任务）
+## 全局收尾（交接部署提示，非本计划任务）
 - 生产入口装配：`create_app(RoutingEngine(make_resolver(workdir, generate_custom_profile), lambda p: OasisEngine(p, per_run_dir)))`。
 - 全量真跑验收：`WEIGUAN_TEST_LLM_KEY=<key> pytest -m llm`（P2-T6 + P4-T3 + P5-T2 三处 LLM 对接全绿）。
 - 前端全绿：`cd frontend && npm test`；后端非 LLM 全绿：`cd backend && pytest -m "not llm"`。

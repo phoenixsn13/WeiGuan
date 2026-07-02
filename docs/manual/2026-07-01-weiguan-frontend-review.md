@@ -1,8 +1,8 @@
-# 围观前端 Review Manual
+# 围观前端评审手册
 
 日期：2026-07-01
 
-## Review 资产
+## 评审资产
 
 以下截图由 Playwright 访问本地 Vite 页面生成，API 与 SSE 事件使用本地 mock，避免依赖真实后端与 LLM key。
 

@@ -6,14 +6,14 @@
 
 ## 提示词（复制这段给 codex）
 
-你是实现者。按 `docs/manual/2026-07-01-weiguan-remediation-2-seed-engagement.md`（含附录 A/B/C）逐项整改「围观」的真 OASIS/LLM 链路。设计已定稿，**照做、不改设计、不改断言绕过**；每项 TDD（先写失败测试再实现），每个 Task 一个 commit 带 `Review-Anchor:` trailer，保留既有 `# review:` 锚点、新能力打新锚点。
+你是实现者。按 `docs/manual/2026-07-01-weiguan-remediation-2-seed-engagement.md`（含附录 A/B/C）逐项整改「围观」的真 OASIS/LLM 链路。设计已定稿，**照做、不改设计、不改断言绕过**；每项 TDD（先写失败测试再实现），每个任务一个 commit 带 `Review-Anchor:` trailer，保留既有 `# review:` 锚点、新能力打新锚点。
 
 背景问题（已在代码层确认，别再复查根因，直接修）：
 - 真 run 产出 14 帖、0 评论/互动——因为 `oasis.make(DefaultPlatformType.TWITTER)` 强制 `recsys_type="twhin-bert"`，模型加载失败→feed 空→agent 看不到 seed。
 - 真跑断言 `assert later >= 1` 太弱，数任意帖，掩盖了上面的问题。
 - `interview()` 会 `os.remove(run.db)` 毁掉刚跑完的现场并重建空记忆 agent，追问和真实评论无关。
 
-按顺序做这三个 Task：
+按顺序做这三个任务：
 
 **P2-T7　种子可见 + 推荐降级 + 失败要响**（`weiguan/engine/oasis_engine.py`）
 - 照**附录 A**：`_make_env` 弃用 `DefaultPlatformType.TWITTER`，自建 `Platform(recsys_type="random", max_rec_post_len=500, refresh_rec_post_count=500, following_post_count=5)` 传入 `oasis.make(platform=<Platform>)`。目标：seed 恒在每个 agent 的 feed，且零模型下载。

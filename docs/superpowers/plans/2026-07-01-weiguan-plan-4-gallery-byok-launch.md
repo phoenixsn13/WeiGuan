@@ -1,18 +1,18 @@
-# 围观 Plan 4 — 圈子画廊 + 自定义受众 + BYOK + 发起运行 Implementation Plan
+# 围观 计划 4 — 圈子画廊 + 自定义受众 + BYOK + 发起运行 实现计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-> **审核锚点**：遵守 `2026-07-01-weiguan-conventions-and-contracts.md` §1。每个 Task = 锚点 `P4-T<n>`；实现打 `# review:P4-T<n>`/`// review:P4-T<n>`、commit trailer `Review-Anchor: P4-T<n>`、验收测试打 `-AC<k>`。
+> **给 agentic 实现者：** 必须使用 `superpowers:subagent-driven-development`（推荐）或 `superpowers:executing-plans`，按任务逐项实现本计划。步骤使用复选框（`- [ ]`）语法跟踪。
+> **审核锚点**：遵守 `2026-07-01-weiguan-conventions-and-contracts.md` §1。每个任务 = 锚点 `P4-T<n>`；实现打 `# review:P4-T<n>`/`// review:P4-T<n>`、commit trailer `Review-Anchor: P4-T<n>`、验收测试打 `-AC<k>`。
 
-**Goal:** 让用户能"选圈子/自定义受众 → BYOK → 写内容 → 选轮次 → 开始围观"，把请求经契约 §2.2 发起，成功后跳到进行时页。
+**目标：** 让用户能"选圈子/自定义受众 → BYOK → 写内容 → 选轮次 → 开始围观"，把请求经契约 §2.2 发起，成功后跳到进行时页。
 
-**Architecture:** 后端加"圈子注册表"（curated OASIS profile 包 + `GET /api/crowds`）、"路由引擎 RoutingEngine"（按 audience 解析 profile 后委派 OasisEngine，路由逻辑可注入、免 LLM 测）、"自定义人群生成"（LLM 把一句话描述变成 OASIS profile CSV）。前端加 BYOK（localStorage）、API 客户端、画廊屏、写内容屏。
+**架构：** 后端加"圈子注册表"（curated OASIS profile 包 + `GET /api/crowds`）、"路由引擎 RoutingEngine"（按 audience 解析 profile 后委派 OasisEngine，路由逻辑可注入、免 LLM 测）、"自定义人群生成"（LLM 把一句话描述变成 OASIS profile CSV）。前端加 BYOK（localStorage）、API 客户端、画廊屏、写内容屏。
 
-**Tech Stack:** 后端 Python/FastAPI + openai SDK（自定义人群生成）；前端 React/TS/Tailwind + Vitest（mock fetch）。
+**技术栈：** 后端 Python/FastAPI + openai SDK（自定义人群生成）；前端 React/TS/Tailwind + Vitest（mock fetch）。
 
-## Global Constraints
-- 承接 Plan 2（引擎/契约 §2.2）、Plan 3（LiveScreen 路由 `/run/:id/live`）、Plan F0（壳/tokens/占位屏）。
-- **不改 Plan 2 的 `OasisEngine` 构造签名**：多圈子经新增 `RoutingEngine` 实现，`create_app` 仍注入单一 Engine。
-- BYOK：key 存前端 `localStorage`，请求时放 `X-LLM-Key` 头；后端不落库（已由 Plan 2 保证）。
+## 全局约束
+- 承接 计划 2（引擎/契约 §2.2）、计划 3（LiveScreen 路由 `/run/:id/live`）、计划 F0（壳/tokens/占位屏）。
+- **不改 计划 2 的 `OasisEngine` 构造签名**：多圈子经新增 `RoutingEngine` 实现，`create_app` 仍注入单一 Engine。
+- BYOK：key 存前端 `localStorage`，请求时放 `X-LLM-Key` 头；后端不落库（已由 计划 2 保证）。
 - 轮次前端只给 6/10/15 三选一（快速/标准/深度）。
 - 自定义人群生成是真 LLM 任务，测试用 `@pytest.mark.llm`（有 key 必过、无 key skip）。
 
@@ -32,22 +32,22 @@ frontend/src/
 
 ---
 
-### Task 1 (P4-T1): 圈子注册表 + GET /api/crowds
+### 任务 1 (P4-T1): 圈子注册表 + GET /api/crowds
 
-**Files:** Create `backend/weiguan/engine/crowds.py`、`backend/weiguan/data/crowds/{tech_devs,fan_circle,finance_snark,parenting_moms,hardcore_gamers}.csv`；Modify `backend/weiguan/api/routes.py`；Test `backend/tests/engine/test_crowds.py`.
+**文件：** Create `backend/weiguan/engine/crowds.py`、`backend/weiguan/data/crowds/{tech_devs,fan_circle,finance_snark,parenting_moms,hardcore_gamers}.csv`；Modify `backend/weiguan/api/routes.py`；Test `backend/tests/engine/test_crowds.py`.
 
-**Interfaces — Produces:**
+**接口 — 产出：**
 - `Crowd(id:str, name:str, emoji:str, blurb:str, profile_file:str)`
 - `CROWDS: list[Crowd]`（下述 5 个）
 - `crowd_profile_path(crowd_id:str) -> str`（绝对路径；未知 id → `KeyError`）
 - `list_crowds() -> list[dict]`（仅 id/name/emoji/blurb，供 API）
 - `GET /api/crowds` → `list_crowds()`
 
-- [ ] **Step 1: 造 5 个圈子 profile CSV**
+- [ ] **步骤 1：造 5 个圈子 profile CSV**
 从仓库根 `oasis/data/twitter_dataset/anonymous_topic_200_1h/False_Business_0.csv` 及同目录其它 csv，各切 ~60 行，保持表头 `,user_id,name,username,following_agentid_list,previous_tweets,user_char,description` 不变，另存为下列文件（可按主题微调 `user_char/description` 文案，但列不变）：
 `backend/weiguan/data/crowds/tech_devs.csv`、`fan_circle.csv`、`finance_snark.csv`、`parenting_moms.csv`、`hardcore_gamers.csv`。
 
-- [ ] **Step 2: 写失败测试 `tests/engine/test_crowds.py`**
+- [ ] **步骤 2：写失败测试 `tests/engine/test_crowds.py`**
 ```python
 import os
 import pytest
@@ -78,9 +78,9 @@ def test_list_crowds_hides_profile_file():  # review:P4-T1-AC4
     assert set(item) == {"id", "name", "emoji", "blurb"}
 ```
 
-- [ ] **Step 3: 运行确认失败** — `cd backend && python -m pytest tests/engine/test_crowds.py -v` → FAIL。
+- [ ] **步骤 3：运行确认失败** — `cd backend && python -m pytest tests/engine/test_crowds.py -v` → FAIL。
 
-- [ ] **Step 4: 写实现 `weiguan/engine/crowds.py`**
+- [ ] **步骤 4：写实现 `weiguan/engine/crowds.py`**
 ```python
 # review:P4-T1
 from __future__ import annotations
@@ -119,7 +119,7 @@ def list_crowds() -> list[dict]:
             for c in CROWDS]
 ```
 
-- [ ] **Step 5: 在 `weiguan/api/routes.py` 追加端点**
+- [ ] **步骤 5：在 `weiguan/api/routes.py` 追加端点**
 ```python
 from weiguan.engine.crowds import list_crowds  # 顶部 import
 
@@ -128,8 +128,8 @@ async def crowds():  # review:P4-T1
     return list_crowds()
 ```
 
-- [ ] **Step 6: 运行确认通过** — `python -m pytest tests/engine/test_crowds.py -v` → PASS（4 passed）。
-- [ ] **Step 7: 提交**
+- [ ] **步骤 6：运行确认通过** — `python -m pytest tests/engine/test_crowds.py -v` → PASS（4 passed）。
+- [ ] **步骤 7：提交**
 ```bash
 git add backend/weiguan/engine/crowds.py backend/weiguan/data backend/weiguan/api/routes.py backend/tests/engine/test_crowds.py
 git commit -m "feat(engine): 圈子注册表 + GET /api/crowds
@@ -139,15 +139,15 @@ Review-Anchor: P4-T1"
 
 ---
 
-### Task 2 (P4-T2): RoutingEngine（按受众解析 profile 后委派）
+### 任务 2 (P4-T2): RoutingEngine（按受众解析 profile 后委派）
 
-**Files:** Create `backend/weiguan/engine/routing.py`；Test `backend/tests/engine/test_routing.py`.
+**文件：** Create `backend/weiguan/engine/routing.py`；Test `backend/tests/engine/test_routing.py`.
 
-**Interfaces — Produces:**
+**接口 — 产出：**
 - `RoutingEngine(resolve_profile: Callable[[RunConfig], str], engine_builder: Callable[[str], Engine])` 实现 `Engine`：`run`/`interview` 先 `resolve_profile(config)` 得 profile 路径，再 `engine_builder(path)` 造子引擎并委派。
 - `make_resolver(workdir:str, key_to_custom) -> Callable`：crowd_id → `crowd_profile_path`；custom → 调 `key_to_custom(config, workdir)` 生成（Task3 提供）。
 
-- [ ] **Step 1: 写失败测试 `tests/engine/test_routing.py`**
+- [ ] **步骤 1：写失败测试 `tests/engine/test_routing.py`**
 ```python
 from weiguan.engine.routing import RoutingEngine
 from weiguan.engine.fake import FakeEngine
@@ -179,9 +179,9 @@ async def test_routing_interview_delegates():  # review:P4-T2-AC2
     assert "2" in ans
 ```
 
-- [ ] **Step 2: 运行确认失败** — `python -m pytest tests/engine/test_routing.py -v` → FAIL。
+- [ ] **步骤 2：运行确认失败** — `python -m pytest tests/engine/test_routing.py -v` → FAIL。
 
-- [ ] **Step 3: 写实现 `weiguan/engine/routing.py`**
+- [ ] **步骤 3：写实现 `weiguan/engine/routing.py`**
 ```python
 # review:P4-T2
 from __future__ import annotations
@@ -219,8 +219,8 @@ def make_resolver(workdir: str,
     return resolve
 ```
 
-- [ ] **Step 4: 运行确认通过** — `python -m pytest tests/engine/test_routing.py -v` → PASS（2 passed）。
-- [ ] **Step 5: 提交**
+- [ ] **步骤 4：运行确认通过** — `python -m pytest tests/engine/test_routing.py -v` → PASS（2 passed）。
+- [ ] **步骤 5：提交**
 ```bash
 git add backend/weiguan/engine/routing.py backend/tests/engine/test_routing.py
 git commit -m "feat(engine): RoutingEngine 按受众解析 profile 并委派
@@ -230,16 +230,16 @@ Review-Anchor: P4-T2"
 
 ---
 
-### Task 3 (P4-T3): 自定义人群生成（LLM）
+### 任务 3 (P4-T3): 自定义人群生成（LLM）
 
-**Files:** Modify `backend/pyproject.toml`（加 `openai`）；Create `backend/weiguan/engine/custom_profile.py`；Test `backend/tests/engine/test_custom_profile_llm.py`.
+**文件：** Modify `backend/pyproject.toml`（加 `openai`）；Create `backend/weiguan/engine/custom_profile.py`；Test `backend/tests/engine/test_custom_profile_llm.py`.
 
-**Interfaces — Produces:**
+**接口 — 产出：**
 - `generate_custom_profile(config: RunConfig, workdir: str, n: int = 60) -> str`：用 `config.llm_key/llm_model` 让 LLM 依 `config.audience.custom` 生成 n 条 OASIS twitter profile 行，写 CSV（含标准表头）到 `workdir/custom_profile.csv`，返回路径。
 
-- [ ] **Step 1: 追加依赖** — `backend/pyproject.toml` 的 `[project].dependencies` 加 `"openai>=1.30"`。
+- [ ] **步骤 1：追加依赖** — `backend/pyproject.toml` 的 `[project].dependencies` 加 `"openai>=1.30"`。
 
-- [ ] **Step 2: 写真跑测试 `tests/engine/test_custom_profile_llm.py`**
+- [ ] **步骤 2：写真跑测试 `tests/engine/test_custom_profile_llm.py`**
 ```python
 import os
 import csv
@@ -269,9 +269,9 @@ def test_generates_valid_profile_csv(tmp_path):  # review:P4-T3-AC1
     assert len(rows) >= 6   # 表头 + ≥5 行
 ```
 
-- [ ] **Step 3: 运行确认（无 key skip）** — `python -m pytest tests/engine/test_custom_profile_llm.py -m llm -v` → `1 skipped`。
+- [ ] **步骤 3：运行确认（无 key skip）** — `python -m pytest tests/engine/test_custom_profile_llm.py -m llm -v` → `1 skipped`。
 
-- [ ] **Step 4: 写实现 `weiguan/engine/custom_profile.py`**
+- [ ] **步骤 4：写实现 `weiguan/engine/custom_profile.py`**
 ```python
 # review:P4-T3  自定义受众 → OASIS profile（真 LLM）
 from __future__ import annotations
@@ -311,13 +311,13 @@ def generate_custom_profile(config: RunConfig, workdir: str, n: int = 60) -> str
     return path
 ```
 
-- [ ] **Step 5: 用真实 key 运行，必须通过** —
+- [ ] **步骤 5：用真实 key 运行，必须通过** —
 ```bash
 cd backend && WEIGUAN_TEST_LLM_KEY=<你的key> python -m pytest tests/engine/test_custom_profile_llm.py -m llm -v
 ```
-Expected: PASS（1 passed）。
+期望： PASS（1 passed）。
 
-- [ ] **Step 6: 提交**
+- [ ] **步骤 6：提交**
 ```bash
 git add backend/pyproject.toml backend/weiguan/engine/custom_profile.py backend/tests/engine/test_custom_profile_llm.py
 git commit -m "feat(engine): 自定义受众 → OASIS profile 生成（LLM）
@@ -329,16 +329,16 @@ Review-Anchor: P4-T3"
 
 ---
 
-### Task 4 (P4-T4): 前端 BYOK + API 客户端
+### 任务 4 (P4-T4): 前端 BYOK + API 客户端
 
-**Files:** Create `frontend/src/api/useApiKey.ts`、`frontend/src/api/client.ts`；Test `frontend/src/api/client.test.ts`.
+**文件：** Create `frontend/src/api/useApiKey.ts`、`frontend/src/api/client.ts`；Test `frontend/src/api/client.test.ts`.
 
-**Interfaces — Produces:**
+**接口 — 产出：**
 - `useApiKey(): { key:string; model:string; setKey(v):void; setModel(v):void }`（localStorage `wg_llm_key`/`wg_llm_model`，model 默认 `gpt-4o-mini`）。
 - `fetchCrowds(): Promise<Crowd[]>`（`GET /api/crowds`）
 - `createRun(body, creds): Promise<{run_id:string}>`（`POST /api/runs`，头 `X-LLM-Key`/`X-LLM-Model`；非 2xx 抛错含 detail）。
 
-- [ ] **Step 1: 写失败测试 `api/client.test.ts`**
+- [ ] **步骤 1：写失败测试 `api/client.test.ts`**
 ```ts
 import { fetchCrowds, createRun } from "./client";
 
@@ -370,9 +370,9 @@ test("createRun throws on error", async () => {  // review:P4-T4-AC3
 });
 ```
 
-- [ ] **Step 2: 运行确认失败** — `cd frontend && npm test -- client` → FAIL。
+- [ ] **步骤 2：运行确认失败** — `cd frontend && npm test -- client` → FAIL。
 
-- [ ] **Step 3: 写实现**
+- [ ] **步骤 3：写实现**
 
 `api/useApiKey.ts`:
 ```ts
@@ -419,8 +419,8 @@ export async function createRun(body: CreateRunBody, creds: Creds): Promise<{ ru
 }
 ```
 
-- [ ] **Step 4: 运行确认通过** — `npm test -- client` → PASS（3 passed）。
-- [ ] **Step 5: 提交**
+- [ ] **步骤 4：运行确认通过** — `npm test -- client` → PASS（3 passed）。
+- [ ] **步骤 5：提交**
 ```bash
 git add frontend/src/api/useApiKey.ts frontend/src/api/client.ts frontend/src/api/client.test.ts
 git commit -m "feat(frontend): BYOK 存储 + API 客户端（crowds/createRun）
@@ -430,13 +430,13 @@ Review-Anchor: P4-T4"
 
 ---
 
-### Task 5 (P4-T5): GalleryScreen 圈子画廊 + 自定义受众
+### 任务 5 (P4-T5): GalleryScreen 圈子画廊 + 自定义受众
 
-**Files:** Modify `frontend/src/screens/GalleryScreen.tsx`（替换 F0 占位）；Test `frontend/src/screens/GalleryScreen.test.tsx`.
+**文件：** Modify `frontend/src/screens/GalleryScreen.tsx`（替换 F0 占位）；Test `frontend/src/screens/GalleryScreen.test.tsx`.
 
-**Interfaces — Produces:** GalleryScreen 挂载时 `fetchCrowds` 渲染圈子卡（Card），点卡 → `navigate("/compose", { state: { audience: { crowd_id } } })`；底部"自定义受众"textarea + 按钮 → `navigate("/compose", { state: { audience: { custom } } })`。
+**接口 — 产出：** GalleryScreen 挂载时 `fetchCrowds` 渲染圈子卡（Card），点卡 → `navigate("/compose", { state: { audience: { crowd_id } } })`；底部"自定义受众"textarea + 按钮 → `navigate("/compose", { state: { audience: { custom } } })`。
 
-- [ ] **Step 1: 写失败测试 `screens/GalleryScreen.test.tsx`**
+- [ ] **步骤 1：写失败测试 `screens/GalleryScreen.test.tsx`**
 ```tsx
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
@@ -477,9 +477,9 @@ test("custom audience navigates to compose", async () => {  // review:P4-T5-AC3
 });
 ```
 
-- [ ] **Step 2: 运行确认失败** — `npm test -- GalleryScreen` → FAIL。
+- [ ] **步骤 2：运行确认失败** — `npm test -- GalleryScreen` → FAIL。
 
-- [ ] **Step 3: 写实现 `screens/GalleryScreen.tsx`**
+- [ ] **步骤 3：写实现 `screens/GalleryScreen.tsx`**
 ```tsx
 // review:P4-T5
 import { useEffect, useState } from "react";
@@ -525,8 +525,8 @@ export default function GalleryScreen() {
 }
 ```
 
-- [ ] **Step 4: 运行确认通过** — `npm test -- GalleryScreen` → PASS（3 passed）。
-- [ ] **Step 5: 提交**
+- [ ] **步骤 4：运行确认通过** — `npm test -- GalleryScreen` → PASS（3 passed）。
+- [ ] **步骤 5：提交**
 ```bash
 git add frontend/src/screens/GalleryScreen.tsx frontend/src/screens/GalleryScreen.test.tsx
 git commit -m "feat(frontend): GalleryScreen 圈子画廊 + 自定义受众
@@ -536,13 +536,13 @@ Review-Anchor: P4-T5"
 
 ---
 
-### Task 6 (P4-T6): ComposeScreen 写内容 + 选轮次 + 发起运行
+### 任务 6 (P4-T6): ComposeScreen 写内容 + 选轮次 + 发起运行
 
-**Files:** Modify `frontend/src/screens/ComposeScreen.tsx`（替换 F0 占位）；Test `frontend/src/screens/ComposeScreen.test.tsx`.
+**文件：** Modify `frontend/src/screens/ComposeScreen.tsx`（替换 F0 占位）；Test `frontend/src/screens/ComposeScreen.test.tsx`.
 
-**Interfaces — Produces:** ComposeScreen 读 `location.state.audience`；含内容 textarea、轮次单选（6 快速/10 标准/15 深度，默认 10）、BYOK key 输入（缺则显示）；点"开始围观" → `createRun` → 成功 `navigate("/run/{run_id}/live")`；失败显示错误。
+**接口 — 产出：** ComposeScreen 读 `location.state.audience`；含内容 textarea、轮次单选（6 快速/10 标准/15 深度，默认 10）、BYOK key 输入（缺则显示）；点"开始围观" → `createRun` → 成功 `navigate("/run/{run_id}/live")`；失败显示错误。
 
-- [ ] **Step 1: 写失败测试 `screens/ComposeScreen.test.tsx`**
+- [ ] **步骤 1：写失败测试 `screens/ComposeScreen.test.tsx`**
 ```tsx
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
@@ -588,9 +588,9 @@ test("shows error when create fails", async () => {  // review:P4-T6-AC2
 });
 ```
 
-- [ ] **Step 2: 运行确认失败** — `npm test -- ComposeScreen` → FAIL。
+- [ ] **步骤 2：运行确认失败** — `npm test -- ComposeScreen` → FAIL。
 
-- [ ] **Step 3: 写实现 `screens/ComposeScreen.tsx`**
+- [ ] **步骤 3：写实现 `screens/ComposeScreen.tsx`**
 ```tsx
 // review:P4-T6
 import { useState } from "react";
@@ -647,9 +647,9 @@ export default function ComposeScreen() {
 }
 ```
 
-- [ ] **Step 4: 运行确认通过** — `npm test -- ComposeScreen` → PASS（2 passed）。
-- [ ] **Step 5: 回归全部前端测试** — `cd frontend && npm test` → 全绿。
-- [ ] **Step 6: 提交**
+- [ ] **步骤 4：运行确认通过** — `npm test -- ComposeScreen` → PASS（2 passed）。
+- [ ] **步骤 5：回归全部前端测试** — `cd frontend && npm test` → 全绿。
+- [ ] **步骤 6：提交**
 ```bash
 git add frontend/src/screens/ComposeScreen.tsx frontend/src/screens/ComposeScreen.test.tsx
 git commit -m "feat(frontend): ComposeScreen 写内容+轮次+发起运行
@@ -659,7 +659,7 @@ Review-Anchor: P4-T6"
 
 ---
 
-## 审核索引（Review Index）
+## 审核索引
 
 | 锚点 | 断言 | 审核凭据 |
 |---|---|---|
@@ -679,7 +679,7 @@ Review-Anchor: P4-T6"
 | P4-T6-AC1 | 提交内容跳 live、steps 默认 10 | `ComposeScreen.test.tsx` |
 | P4-T6-AC2 | 缺 key/失败显示错误 | `ComposeScreen.test.tsx` |
 
-## Self-Review
-- **Spec 覆盖**：落实 §3 步骤 1–3（选圈子/自定义 → 写内容 → 选轮次 → 开始围观）、§5.1 圈子=profile 包、§5.2 BYOK、§5.3 轮次枚举、§7.1–7.2 线框（画廊/发布框）。契约 §2.2 前后端两侧落地。
+## 自审
+- **规格覆盖**：落实 §3 步骤 1–3（选圈子/自定义 → 写内容 → 选轮次 → 开始围观）、§5.1 圈子=profile 包、§5.2 BYOK、§5.3 轮次枚举、§7.1–7.2 线框（画廊/发布框）。契约 §2.2 前后端两侧落地。
 - **占位符扫描**：无 TBD；custom 分支由真 LLM 生成（非占位），装配提示明确交接部署入口。
-- **类型一致性**：`RunConfig/Audience`（后端）与 `CreateRunBody`（前端）字段对齐契约 §2.2；`RoutingEngine`/`make_resolver` 与 `generate_custom_profile` 签名一致；`fetchCrowds/createRun/useApiKey` 在画廊/写内容屏消费一致；跳转路径 `/run/:id/live` 与 Plan 3 LiveScreen 路由一致。
+- **类型一致性**：`RunConfig/Audience`（后端）与 `CreateRunBody`（前端）字段对齐契约 §2.2；`RoutingEngine`/`make_resolver` 与 `generate_custom_profile` 签名一致；`fetchCrowds/createRun/useApiKey` 在画廊/写内容屏消费一致；跳转路径 `/run/:id/live` 与 计划 3 LiveScreen 路由一致。

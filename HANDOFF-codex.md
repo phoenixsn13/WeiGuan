@@ -11,28 +11,28 @@
 
 ## 执行顺序（计划文档均在 `docs/superpowers/plans/`）
 ```
-Plan 1  规范模型 + OASIS Adapter        （纯后端内核，无 LLM）
+计划 1  规范模型 + OASIS Adapter        （纯后端内核，无 LLM）
   ↓
-Plan 2  引擎 + SSE + API               （含真实 LLM 打通，硬验收）
+计划 2  引擎 + SSE + API               （含真实 LLM 打通，硬验收）
   ↓
-Plan F0 前端骨架 + 产品壳 + 设计 tokens
+计划 F0 前端骨架 + 产品壳 + 设计 tokens
   ↓
-Plan 3 / Plan 4 / Plan 5  ← 三者只依赖已冻结契约，可并行
+计划 3 / 计划 4 / 计划 5  ← 三者只依赖已冻结契约，可并行
    3 poster POV + X 皮肤 + 流式播放
    4 圈子画廊 + 自定义受众 + BYOK + 发起
    5 追问抽屉 + 复盘上帝视角
 ```
-每篇计划自带 Task、逐步 TDD、完整代码、AC 和末尾**审核索引表**。**按顺序逐 Task 做，先写失败测试再实现。**
+每篇计划自带任务、逐步 TDD、完整代码、AC 和末尾**审核索引表**。**按顺序逐任务做，先写失败测试再实现。**
 
 ## 铁律（务必遵守）
 - **契约不可越界**：任一层只依赖 `weiguan.canonical` + 冻结契约，**不得直接读 OASIS 表 / 不得跨层依赖内部实现**。皮肤只消费 ViewModel，皮肤区**禁止**出现围观品牌色。
-- **审核锚点**（每个 Task 都要打，供事后审计）：
+- **审核锚点**（每个任务 都要打，供事后审计）：
   - 代码注释 `# review:P2-T3`（Py）/ `// review:P2-T3`（TS）
   - commit trailer：`Review-Anchor: P2-T3`
   - 验收测试处：`# review:P2-T3-AC1`
 - **真实 LLM 必须打通**，不许拿"跳过"充数。三处 `@pytest.mark.llm`：`P2-T6`、`P4-T3`、`P5-T2`。无 key 时 skip，**有 key 时必须 PASS**。
-- **频繁提交**：每个 Task 结束就按计划里的 commit 命令提交。
-- 不改已定稿的签名（如 `OasisEngine` 构造、`RunConfig`、SSE 事件名）；需要扩展时用**组合**（见 Plan 4 的 `RoutingEngine`）。
+- **频繁提交**：每个任务 结束就按计划里的 commit 命令提交。
+- 不改已定稿的签名（如 `OasisEngine` 构造、`RunConfig`、SSE 事件名）；需要扩展时用**组合**（见 计划 4 的 `RoutingEngine`）。
 
 ## 验证命令
 ```bash
@@ -43,7 +43,7 @@ cd backend && WEIGUAN_TEST_LLM_KEY=<你的key> python -m pytest -m llm -v
 # 前端
 cd frontend && npm install && npm test
 ```
-每个 Task 内的"运行确认失败/通过"命令是权威，按它做。
+每个任务 内的"运行确认失败/通过"命令是权威，按它做。
 
 ## 目录
 ```
@@ -53,7 +53,7 @@ oasis/      OASIS 源码与数据（符号链接，只读参考；profile 数据
 docs/superpowers/{specs,plans}/   设计与计划（真源）
 ```
 
-## 生产装配（做完 Plan 4/5 后）
+## 生产装配（做完 计划 4/5 后）
 ```python
 create_app(RoutingEngine(
     make_resolver(workdir, generate_custom_profile),
@@ -62,7 +62,7 @@ create_app(RoutingEngine(
 
 ## 完成的定义
 - `pytest -m "not llm"` 与 `npm test` 全绿；`pytest -m llm`（带 key）全绿。
-- 每个 Task 的 AC 都有对应 `review:` 锚点，且与该计划审核索引表一致。
+- 每个任务 的 AC 都有对应 `review:` 锚点，且与该计划审核索引表一致。
 - 端到端手测：选圈子 → 写内容 → 开始围观（X 皮肤流式）→ 点头像追问 → 看结果（复盘 + 建议）。
 
-有卡点：回到对应计划文档的该 Task；契约相关回 conventions-and-contracts.md。不要靠猜。
+有卡点：回到对应计划文档的该任务；契约相关回 conventions-and-contracts.md。不要靠猜。

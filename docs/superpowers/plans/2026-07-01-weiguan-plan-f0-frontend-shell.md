@@ -1,18 +1,18 @@
-# 围观 Plan F0 — 前端骨架 + 产品壳 + 设计 tokens Implementation Plan
+# 围观 计划 F0 — 前端骨架 + 产品壳 + 设计 tokens 实现计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-> **审核锚点**：遵守 `2026-07-01-weiguan-conventions-and-contracts.md` §1。每个 Task = 锚点 `PF0-T<n>`；实现时打 `// review:PF0-T<n>`、commit trailer `Review-Anchor: PF0-T<n>`、验收测试打 `// review:PF0-T<n>-AC<k>`。
+> **给 agentic 实现者：** 必须使用 `superpowers:subagent-driven-development`（推荐）或 `superpowers:executing-plans`，按任务逐项实现本计划。步骤使用复选框（`- [ ]`）语法跟踪。
+> **审核锚点**：遵守 `2026-07-01-weiguan-conventions-and-contracts.md` §1。每个任务 = 锚点 `PF0-T<n>`；实现时打 `// review:PF0-T<n>`、commit trailer `Review-Anchor: PF0-T<n>`、验收测试打 `// review:PF0-T<n>-AC<k>`。
 
-**Goal:** 立起 React+Vite+TS+Tailwind 前端骨架，把设计文档 §6 的视觉语言固化为可复用的 tokens 与壳组件，并铺好 Plan 3/4/5 往里加内容的路由与挂载点——**不实现任何皮肤或业务功能**。
+**目标：** 立起 React+Vite+TS+Tailwind 前端骨架，把设计文档 §6 的视觉语言固化为可复用的 tokens 与壳组件，并铺好 计划 3/4/5 往里加内容的路由与挂载点——**不实现任何皮肤或业务功能**。
 
-**Architecture:** 三层：`design/`（tokens：颜色/字体/圆角/聚光阴影/情绪语义色/POV 枚举）→ `components/`（壳原语：Button/Card/SentimentTag）→ `shell/`（AppShell 品牌外壳 + 路由，含 4 个占位屏，供后续 Plan 替换内容）。皮肤与 ViewModel 消费**不在本 Plan**。
+**架构：** 三层：`design/`（tokens：颜色/字体/圆角/聚光阴影/情绪语义色/POV 枚举）→ `components/`（壳原语：Button/Card/SentimentTag）→ `shell/`（AppShell 品牌外壳 + 路由，含 4 个占位屏，供后续计划替换内容）。皮肤与 ViewModel 消费**不在本计划**。
 
-**Tech Stack:** React 18，Vite 5，TypeScript 5，Tailwind CSS 3，Vitest + @testing-library/react + jsdom，react-router-dom 6。
+**技术栈：** React 18，Vite 5，TypeScript 5，Tailwind CSS 3，Vitest + @testing-library/react + jsdom，react-router-dom 6。
 
-## Global Constraints
+## 全局约束
 - 只做骨架/壳/tokens；**不实现皮肤、不接后端、不写业务屏内容**（占位屏仅放标题文字）。
 - 视觉 tokens 必须与设计文档 §6 一致（下方逐值列出，逐字使用）。
-- 品牌壳（寄存器 B）与皮肤区（寄存器 A）**分离**：本 Plan 只做壳；皮肤区留空插槽。
+- 品牌壳（寄存器 B）与皮肤区（寄存器 A）**分离**：本计划只做壳；皮肤区留空插槽。
 - 前端根目录 `frontend/`；测试命令 `cd frontend && npm test`（Vitest run 模式）。
 - 设计 token 值（来自 §6，逐字）：
   - ink `#14140F`、cream `#F7F4EC`
@@ -38,13 +38,13 @@ frontend/
 
 ---
 
-### Task 1 (PF0-T1): Vite+React+TS+Tailwind+Vitest 骨架
+### 任务 1 (PF0-T1): Vite+React+TS+Tailwind+Vitest 骨架
 
-**Files:** Create `frontend/` 下全部脚手架文件；Test `frontend/src/App.test.tsx`（临时 smoke）。
+**文件：** Create `frontend/` 下全部脚手架文件；Test `frontend/src/App.test.tsx`（临时 smoke）。
 
-**Interfaces — Produces:** `npm test` 可跑、`npm run build` 可过的空壳；`App` 组件渲染 "围观"。
+**接口 — 产出：** `npm test` 可跑、`npm run build` 可过的空壳；`App` 组件渲染 "围观"。
 
-- [ ] **Step 1: 写 `frontend/package.json`**
+- [ ] **步骤 1：写 `frontend/package.json`**
 ```json
 {
   "name": "weiguan-frontend",
@@ -78,7 +78,7 @@ frontend/
 }
 ```
 
-- [ ] **Step 2: 写配置文件**
+- [ ] **步骤 2：写配置文件**
 
 `frontend/vite.config.ts`:
 ```ts
@@ -158,7 +158,7 @@ export default {
 } satisfies Config;
 ```
 
-- [ ] **Step 3: 写 `frontend/index.html` 与入口**
+- [ ] **步骤 3：写 `frontend/index.html` 与入口**
 
 `frontend/index.html`:
 ```html
@@ -193,14 +193,14 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode><App /></React.StrictMode>
 );
 ```
-`frontend/src/App.tsx`（本 Task 临时版，PF0-T4 会替换为路由）:
+`frontend/src/App.tsx`（本任务 临时版，PF0-T4 会替换为路由）:
 ```tsx
 export default function App() {
   return <div className="font-display text-2xl">围观</div>;
 }
 ```
 
-- [ ] **Step 4: 写 smoke 测试 `frontend/src/App.test.tsx`**
+- [ ] **步骤 4：写 smoke 测试 `frontend/src/App.test.tsx`**
 ```tsx
 import { render, screen } from "@testing-library/react";
 import App from "./App";
@@ -211,10 +211,10 @@ test("renders brand", () => {  // review:PF0-T1-AC1
 });
 ```
 
-- [ ] **Step 5: 安装并运行** — `cd frontend && npm install && npm test`
-Expected: 1 passed。再 `npm run build` Expected: 构建成功。
+- [ ] **步骤 5：安装并运行** — `cd frontend && npm install && npm test`
+期望： 1 passed。再 `npm run build` 期望： 构建成功。
 
-- [ ] **Step 6: 提交**
+- [ ] **步骤 6：提交**
 ```bash
 git add frontend/
 git commit -m "chore(frontend): Vite+React+TS+Tailwind+Vitest 骨架
@@ -224,20 +224,20 @@ Review-Anchor: PF0-T1"
 
 ---
 
-### Task 2 (PF0-T2): 设计 tokens 模块
+### 任务 2 (PF0-T2): 设计 tokens 模块
 
-**Files:** Create `frontend/src/design/tokens.ts`；Test `frontend/src/design/tokens.test.ts`.
+**文件：** Create `frontend/src/design/tokens.ts`；Test `frontend/src/design/tokens.test.ts`.
 
-**Interfaces — Produces:**
+**接口 — 产出：**
 - `colors` = { ink, cream, brand, accent }
 - `sentimentColor(kind: Sentiment): string`，`Sentiment = "positive"|"negative"|"neutral"|"contested"`
 - `POV = { POSTER:"poster", PLATFORM:"platform", KOL:"kol" } as const`（v1 只用 POSTER，其余留位）
 
-- [ ] **Step 1: 写失败测试 `design/tokens.test.ts`**
+- [ ] **步骤 1：写失败测试 `design/tokens.test.ts`**
 ```ts
 import { colors, sentimentColor, POV } from "./tokens";
 
-test("brand and accent tokens match spec §6", () => {  // review:PF0-T2-AC1
+test("brand and accent tokens match 设计 §6", () => {  // review:PF0-T2-AC1
   expect(colors.brand).toBe("#E8A13A");
   expect(colors.accent).toBe("#2C4A7C");
   expect(colors.ink).toBe("#14140F");
@@ -256,11 +256,11 @@ test("POV enum reserves three lenses, poster first", () => {  // review:PF0-T2-A
 });
 ```
 
-- [ ] **Step 2: 运行确认失败** — `npm test -- tokens` → FAIL。
+- [ ] **步骤 2：运行确认失败** — `npm test -- tokens` → FAIL。
 
-- [ ] **Step 3: 写实现 `design/tokens.ts`**
+- [ ] **步骤 3：写实现 `design/tokens.ts`**
 ```ts
-// review:PF0-T2  设计 tokens（对应 spec §6）
+// review:PF0-T2  设计 tokens（对应 设计 §6）
 export const colors = {
   ink: "#14140F",
   cream: "#F7F4EC",
@@ -283,8 +283,8 @@ export const POV = { POSTER: "poster", PLATFORM: "platform", KOL: "kol" } as con
 export type PovKind = (typeof POV)[keyof typeof POV];
 ```
 
-- [ ] **Step 4: 运行确认通过** — `npm test -- tokens` → PASS（3 passed）。
-- [ ] **Step 5: 提交**
+- [ ] **步骤 4：运行确认通过** — `npm test -- tokens` → PASS（3 passed）。
+- [ ] **步骤 5：提交**
 ```bash
 git add frontend/src/design
 git commit -m "feat(frontend): 设计 tokens（颜色/情绪/POV）
@@ -294,16 +294,16 @@ Review-Anchor: PF0-T2"
 
 ---
 
-### Task 3 (PF0-T3): 壳原语 Button / Card / SentimentTag
+### 任务 3 (PF0-T3): 壳原语 Button / Card / SentimentTag
 
-**Files:** Create `frontend/src/components/{Button,Card,SentimentTag}.tsx`；Test `frontend/src/components/components.test.tsx`.
+**文件：** Create `frontend/src/components/{Button,Card,SentimentTag}.tsx`；Test `frontend/src/components/components.test.tsx`.
 
-**Interfaces — Produces:**
+**接口 — 产出：**
 - `Button({children, onClick, variant?})`，variant `"primary"|"ghost"`，primary 用 brand 底色。
 - `Card({children, interactive?})`，`interactive` 时带 `hover:shadow-spotlight`（聚光升起）；根节点 `data-testid="wg-card"`。
 - `SentimentTag({kind, label})`，用 `sentimentColor(kind)` 上色（positive/negative/neutral 用纯色，contested 用渐变 background）。
 
-- [ ] **Step 1: 写失败测试 `components/components.test.tsx`**
+- [ ] **步骤 1：写失败测试 `components/components.test.tsx`**
 ```tsx
 import { render, screen, fireEvent } from "@testing-library/react";
 import { Button } from "./Button";
@@ -329,9 +329,9 @@ test("sentiment tag colors positive", () => {  // review:PF0-T3-AC3
 });
 ```
 
-- [ ] **Step 2: 运行确认失败** — `npm test -- components` → FAIL。
+- [ ] **步骤 2：运行确认失败** — `npm test -- components` → FAIL。
 
-- [ ] **Step 3: 写实现**
+- [ ] **步骤 3：写实现**
 
 `components/Button.tsx`:
 ```tsx
@@ -371,8 +371,8 @@ export function SentimentTag({ kind, label }: Props) {
 }
 ```
 
-- [ ] **Step 4: 运行确认通过** — `npm test -- components` → PASS（3 passed）。
-- [ ] **Step 5: 提交**
+- [ ] **步骤 4：运行确认通过** — `npm test -- components` → PASS（3 passed）。
+- [ ] **步骤 5：提交**
 ```bash
 git add frontend/src/components
 git commit -m "feat(frontend): 壳原语 Button/Card/SentimentTag
@@ -382,16 +382,16 @@ Review-Anchor: PF0-T3"
 
 ---
 
-### Task 4 (PF0-T4): AppShell 品牌外壳 + 路由 + 占位屏
+### 任务 4 (PF0-T4): AppShell 品牌外壳 + 路由 + 占位屏
 
-**Files:** Create `frontend/src/shell/{AppShell,routes}.tsx`、`frontend/src/screens/{GalleryScreen,ComposeScreen,LiveScreen,RetroScreen}.tsx`；Modify `frontend/src/App.tsx`；Test `frontend/src/shell/shell.test.tsx`.
+**文件：** Create `frontend/src/shell/{AppShell,routes}.tsx`、`frontend/src/screens/{GalleryScreen,ComposeScreen,LiveScreen,RetroScreen}.tsx`；Modify `frontend/src/App.tsx`；Test `frontend/src/shell/shell.test.tsx`.
 
-**Interfaces — Produces:**
+**接口 — 产出：**
 - `AppShell({children})`：顶部品牌条（"围观" wordmark + 标语 + 主题切换占位按钮），下方 `<main>` 渲染 children（皮肤/业务将挂这里）。
 - `routes.tsx`：导出 `AppRoutes` 组件，映射 `/`→Gallery、`/compose`→Compose、`/run/:id/live`→Live、`/run/:id/retro`→Retro（均为占位屏，仅标题文字）。
 - `App` 用 `BrowserRouter` 包 `AppShell` + `AppRoutes`。
 
-- [ ] **Step 1: 写失败测试 `shell/shell.test.tsx`**
+- [ ] **步骤 1：写失败测试 `shell/shell.test.tsx`**
 ```tsx
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
@@ -422,9 +422,9 @@ test("live route renders live placeholder", () => {  // review:PF0-T4-AC3
 });
 ```
 
-- [ ] **Step 2: 运行确认失败** — `npm test -- shell` → FAIL。
+- [ ] **步骤 2：运行确认失败** — `npm test -- shell` → FAIL。
 
-- [ ] **Step 3: 写实现**
+- [ ] **步骤 3：写实现**
 
 `shell/AppShell.tsx`:
 ```tsx
@@ -444,7 +444,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
 }
 ```
-四个占位屏（每个仅一行标题，供后续 Plan 替换）：
+四个占位屏（每个仅一行标题，供后续计划替换）：
 `screens/GalleryScreen.tsx`:
 ```tsx
 export default function GalleryScreen() {
@@ -505,8 +505,8 @@ export default function App() {
 ```
 > 注意：Task1 的 `src/App.test.tsx` 断言 "围观" 仍成立（AppShell 含 wordmark），但它直接 `render(<App/>)` 会因 BrowserRouter 正常工作；保留该测试。
 
-- [ ] **Step 4: 运行确认通过** — `cd frontend && npm test` → 全绿（App smoke + tokens 3 + components 3 + shell 3）。
-- [ ] **Step 5: 提交**
+- [ ] **步骤 4：运行确认通过** — `cd frontend && npm test` → 全绿（App smoke + tokens 3 + components 3 + shell 3）。
+- [ ] **步骤 5：提交**
 ```bash
 git add frontend/src/shell frontend/src/screens frontend/src/App.tsx
 git commit -m "feat(frontend): AppShell 品牌壳 + 路由 + 占位屏
@@ -516,7 +516,7 @@ Review-Anchor: PF0-T4"
 
 ---
 
-## 审核索引（Review Index）
+## 审核索引
 
 | 锚点 | 断言 | 审核凭据 |
 |---|---|---|
@@ -531,7 +531,7 @@ Review-Anchor: PF0-T4"
 | PF0-T4-AC2 | `/` 渲染画廊占位 | `shell.test.tsx` |
 | PF0-T4-AC3 | `/run/:id/live` 渲染进行时占位 | `shell.test.tsx` |
 
-## Self-Review
-- **Spec 覆盖**：落实 §6 全部 tokens（双色主题底色、brand/accent、情绪语义色、圆角/聚光阴影、display/body 字体、tabular-nums）与"壳/皮肤分离"约束；铺好 §3 核心循环的 4 个路由挂载点（画廊→写内容→进行时→复盘）。皮肤与 ViewModel 消费明确留给 Plan 3。
-- **占位符扫描**：占位屏是**有意的**空屏（后续 Plan 替换），非计划占位符；每步均有完整文件内容与命令。
+## 自审
+- **规格覆盖**：落实 §6 全部 tokens（双色主题底色、brand/accent、情绪语义色、圆角/聚光阴影、display/body 字体、tabular-nums）与"壳/皮肤分离"约束；铺好 §3 核心循环的 4 个路由挂载点（画廊→写内容→进行时→复盘）。皮肤与 ViewModel 消费明确留给 计划 3。
+- **占位符扫描**：占位屏是**有意的**空屏（后续计划替换），非计划占位符；每步均有完整文件内容与命令。
 - **类型一致性**：`POV`/`Sentiment`/`sentimentColor` 在 tokens 定义、被 SentimentTag 消费；`AppShell`/`AppRoutes` 签名在 shell 与 App 中一致；Tailwind theme 的 `brand/accent/sentiment/shadow-spotlight/rounded-card/font-display` 与组件 className 引用一致。

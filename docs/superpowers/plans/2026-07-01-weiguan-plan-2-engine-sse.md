@@ -1,17 +1,17 @@
-# 围观 Plan 2 — 引擎封装 + 逐步运行 + SSE + API Implementation Plan
+# 围观 计划 2 — 引擎封装 + 逐步运行 + SSE + API 实现计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-> **审核锚点**：遵守 `2026-07-01-weiguan-conventions-and-contracts.md` §1。每个 Task = 锚点 `P2-T<n>`；实现时打 `# review:P2-T<n>`、commit trailer `Review-Anchor: P2-T<n>`、验收测试打 `# review:P2-T<n>-AC<k>`。
+> **给 agentic 实现者：** 必须使用 `superpowers:subagent-driven-development`（推荐）或 `superpowers:executing-plans`，按任务逐项实现本计划。步骤使用复选框（`- [ ]`）语法跟踪。
+> **审核锚点**：遵守 `2026-07-01-weiguan-conventions-and-contracts.md` §1。每个任务 = 锚点 `P2-T<n>`；实现时打 `# review:P2-T<n>`、commit trailer `Review-Anchor: P2-T<n>`、验收测试打 `# review:P2-T<n>-AC<k>`。
 
-**Goal:** 把 OASIS 引擎封装成"输入(受众,内容,轮次,BYOK) → 逐步流式吐出增量 RunSnapshot"的服务，并用 FastAPI 暴露契约 §2.2–2.5 的 REST/SSE。
+**目标：** 把 OASIS 引擎封装成"输入(受众,内容,轮次,BYOK) → 逐步流式吐出增量 RunSnapshot"的服务，并用 FastAPI 暴露契约 §2.2–2.5 的 REST/SSE。
 
-**Architecture:** 引擎层定义 `Engine` 协议，两套实现：`FakeEngine`（确定性、无 LLM，做流程测试）与 `OasisEngine`（真调 LLM，本批**必须打通**）。API 层通过依赖注入选择引擎，纯函数 `diff_snapshots` 负责把"全量快照"变成"逐步增量"。
+**架构：** 引擎层定义 `Engine` 协议，两套实现：`FakeEngine`（确定性、无 LLM，做流程测试）与 `OasisEngine`（真调 LLM，本批**必须打通**）。API 层通过依赖注入选择引擎，纯函数 `diff_snapshots` 负责把"全量快照"变成"逐步增量"。
 
-**Tech Stack:** Python 3.10+，pydantic v2，FastAPI，sse-starlette，pytest + pytest-asyncio，camel-oasis（真引擎）。
+**技术栈：** Python 3.10+，pydantic v2，FastAPI，sse-starlette，pytest + pytest-asyncio，camel-oasis（真引擎）。
 
-## Global Constraints
+## 全局约束
 
-- 承接 Plan 1：**只依赖 `weiguan.canonical` 与 `weiguan.adapter.load_run_snapshot`**，不直接读 OASIS 表。
+- 承接 计划 1：**只依赖 `weiguan.canonical` 与 `weiguan.adapter.load_run_snapshot`**，不直接读 OASIS 表。
 - BYOK：LLM key 只经内存传递，不落库、不写日志。真引擎创建 model 前，同时 `os.environ["OPENAI_API_KEY"]=key` 且给 `ModelFactory.create(api_key=key)`（双保险，兼容 camel 版本差异）。
 - 轮次只允许 `steps ∈ {6,10,15}`（快速/标准/深度）。
 - **本批必须打通真实 LLM**：`P2-T6` 的 `@pytest.mark.llm` 真跑测试是必交付项，测试者会用真实 key 运行并**必须通过**；不得以"跳过"充数。
@@ -21,9 +21,9 @@
 ## 文件结构
 ```
 backend/
-  pyproject.toml                       # Task 4 追加依赖 & pytest 配置
+  pyproject.toml                       # 任务 4 追加依赖 & pytest 配置
   weiguan/engine/
-    __init__.py                        # Task 3 re-export
+    __init__.py                        # 任务 3 re-export
     config.py       RunConfig/RoundPreset/Audience + 校验   # P2-T1
     diff.py         diff_snapshots 纯函数                    # P2-T2
     base.py         Engine 协议 + RunDelta                   # P2-T3
@@ -41,16 +41,16 @@ backend/
 
 ---
 
-### Task 1 (P2-T1): RunConfig + 轮次枚举 + 校验
+### 任务 1 (P2-T1): RunConfig + 轮次枚举 + 校验
 
-**Files:** Create `backend/weiguan/engine/__init__.py`（空，Task3 回填）、`backend/weiguan/engine/config.py`；Test `backend/tests/engine/test_config.py`（含 `backend/tests/engine/__init__.py` 空文件）。
+**文件：** Create `backend/weiguan/engine/__init__.py`（空，Task3 回填）、`backend/weiguan/engine/config.py`；Test `backend/tests/engine/test_config.py`（含 `backend/tests/engine/__init__.py` 空文件）。
 
-**Interfaces — Produces:**
+**接口 — 产出：**
 - `RoundPreset(int,Enum){FAST=6,STANDARD=10,DEEP=15}`
 - `Audience(crowd_id:str|None, custom:str|None)`（恰好一个非空）
 - `RunConfig(audience:Audience, content:str, steps:int, platform:Platform, llm_key:str, llm_model:str)`；非法 `steps`/双空/双填 `audience` → `pydantic.ValidationError`。
 
-- [ ] **Step 1: 写失败测试 `tests/engine/test_config.py`**
+- [ ] **步骤 1：写失败测试 `tests/engine/test_config.py`**
 ```python
 import pytest
 from pydantic import ValidationError
@@ -83,9 +83,9 @@ def test_audience_exactly_one():  # review:P2-T1-AC3
         _cfg(audience=Audience(crowd_id="a", custom="b"))  # 双填
 ```
 
-- [ ] **Step 2: 运行确认失败** — `cd backend && python -m pytest tests/engine/test_config.py -v` → FAIL（ModuleNotFound）。
+- [ ] **步骤 2：运行确认失败** — `cd backend && python -m pytest tests/engine/test_config.py -v` → FAIL（ModuleNotFound）。
 
-- [ ] **Step 3: 写实现 `weiguan/engine/config.py`**
+- [ ] **步骤 3：写实现 `weiguan/engine/config.py`**
 ```python
 from __future__ import annotations
 from pydantic import BaseModel, model_validator
@@ -128,8 +128,8 @@ class RunConfig(BaseModel):
         return self
 ```
 
-- [ ] **Step 4: 运行确认通过** — 同命令 → PASS（3 passed）。
-- [ ] **Step 5: 提交**
+- [ ] **步骤 4：运行确认通过** — 同命令 → PASS（3 passed）。
+- [ ] **步骤 5：提交**
 ```bash
 git add backend/weiguan/engine/config.py backend/weiguan/engine/__init__.py backend/tests/engine
 git commit -m "feat(engine): RunConfig 与轮次枚举校验
@@ -139,13 +139,13 @@ Review-Anchor: P2-T1"
 
 ---
 
-### Task 2 (P2-T2): diff_snapshots 纯增量函数
+### 任务 2 (P2-T2): diff_snapshots 纯增量函数
 
-**Files:** Create `backend/weiguan/engine/diff.py`；Test `backend/tests/engine/test_diff.py`.
+**文件：** Create `backend/weiguan/engine/diff.py`；Test `backend/tests/engine/test_diff.py`.
 
-**Interfaces — Produces:** `diff_snapshots(prev: RunSnapshot, curr: RunSnapshot) -> RunSnapshot`：返回只含 curr 中"相对 prev 新增"的实体的 RunSnapshot（保留 curr 的 platform/seed_post_id）。身份键：actors=user_id；posts=post_id；replies=comment_id；reactions=(kind,actor_id,target_type,target_id,created_at)；follows=(follower_id,followee_id)；reports=(actor_id,post_id,created_at)；traces=(actor_id,created_at,action,info)。
+**接口 — 产出：** `diff_snapshots(prev: RunSnapshot, curr: RunSnapshot) -> RunSnapshot`：返回只含 curr 中"相对 prev 新增"的实体的 RunSnapshot（保留 curr 的 platform/seed_post_id）。身份键：actors=user_id；posts=post_id；replies=comment_id；reactions=(kind,actor_id,target_type,target_id,created_at)；follows=(follower_id,followee_id)；reports=(actor_id,post_id,created_at)；traces=(actor_id,created_at,action,info)。
 
-- [ ] **Step 1: 写失败测试 `tests/engine/test_diff.py`**
+- [ ] **步骤 1：写失败测试 `tests/engine/test_diff.py`**
 ```python
 from weiguan.engine.diff import diff_snapshots
 from weiguan.canonical import (RunSnapshot, Actor, Post, Reply, Reaction,
@@ -182,9 +182,9 @@ def test_diff_empty_when_no_change():  # review:P2-T2-AC3
     assert d.posts == [] and d.actors == []
 ```
 
-- [ ] **Step 2: 运行确认失败** — `python -m pytest tests/engine/test_diff.py -v` → FAIL。
+- [ ] **步骤 2：运行确认失败** — `python -m pytest tests/engine/test_diff.py -v` → FAIL。
 
-- [ ] **Step 3: 写实现 `weiguan/engine/diff.py`**
+- [ ] **步骤 3：写实现 `weiguan/engine/diff.py`**
 ```python
 from __future__ import annotations
 from weiguan.canonical import RunSnapshot
@@ -214,8 +214,8 @@ def diff_snapshots(prev: RunSnapshot, curr: RunSnapshot) -> RunSnapshot:
     )
 ```
 
-- [ ] **Step 4: 运行确认通过** — → PASS（3 passed）。
-- [ ] **Step 5: 提交**
+- [ ] **步骤 4：运行确认通过** — → PASS（3 passed）。
+- [ ] **步骤 5：提交**
 ```bash
 git add backend/weiguan/engine/diff.py backend/tests/engine/test_diff.py
 git commit -m "feat(engine): diff_snapshots 逐步增量纯函数
@@ -225,16 +225,16 @@ Review-Anchor: P2-T2"
 
 ---
 
-### Task 3 (P2-T3): Engine 协议 + RunDelta + FakeEngine
+### 任务 3 (P2-T3): Engine 协议 + RunDelta + FakeEngine
 
-**Files:** Create `backend/weiguan/engine/base.py`、`backend/weiguan/engine/fake.py`；Modify `backend/weiguan/engine/__init__.py`；Test `backend/tests/engine/test_fake_engine.py`.
+**文件：** Create `backend/weiguan/engine/base.py`、`backend/weiguan/engine/fake.py`；Modify `backend/weiguan/engine/__init__.py`；Test `backend/tests/engine/test_fake_engine.py`.
 
-**Interfaces — Produces:**
+**接口 — 产出：**
 - `RunDelta(step:int, snapshot:RunSnapshot)`
 - `class Engine(Protocol)`: `def run(self, config:RunConfig) -> AsyncIterator[RunDelta]`; `async def interview(self, config:RunConfig, snapshot:RunSnapshot, actor_id:int, question:str) -> str`
 - `FakeEngine` 实现 Engine：`run` 产出 `config.steps` 个 delta（step1 含种子帖 post_id=1，step2 含 1 条评论+1 个赞，其余空），`interview` 返回可预测串。
 
-- [ ] **Step 1: 写失败测试 `tests/engine/test_fake_engine.py`**
+- [ ] **步骤 1：写失败测试 `tests/engine/test_fake_engine.py`**
 ```python
 import pytest
 from weiguan.engine.fake import FakeEngine
@@ -260,9 +260,9 @@ async def test_fake_interview_is_deterministic():  # review:P2-T3-AC2
     assert "2" in ans and "为什么" in ans
 ```
 
-- [ ] **Step 2: 运行确认失败** — `python -m pytest tests/engine/test_fake_engine.py -v` → FAIL。
+- [ ] **步骤 2：运行确认失败** — `python -m pytest tests/engine/test_fake_engine.py -v` → FAIL。
 
-- [ ] **Step 3: 写实现**
+- [ ] **步骤 3：写实现**
 
 `weiguan/engine/base.py`:
 ```python
@@ -328,8 +328,8 @@ __all__ = ["RunConfig", "Audience", "RoundPreset", "Engine", "RunDelta",
            "FakeEngine", "diff_snapshots"]
 ```
 
-- [ ] **Step 4: 运行确认通过** — → PASS（2 passed）。
-- [ ] **Step 5: 提交**
+- [ ] **步骤 4：运行确认通过** — → PASS（2 passed）。
+- [ ] **步骤 5：提交**
 ```bash
 git add backend/weiguan/engine backend/tests/engine/test_fake_engine.py
 git commit -m "feat(engine): Engine 协议 + RunDelta + FakeEngine
@@ -339,16 +339,16 @@ Review-Anchor: P2-T3"
 
 ---
 
-### Task 4 (P2-T4): FastAPI app + RunStore + POST /api/runs + SSE /events
+### 任务 4 (P2-T4): FastAPI app + RunStore + POST /api/runs + SSE /events
 
-**Files:** Modify `backend/pyproject.toml`；Create `backend/weiguan/api/__init__.py`、`store.py`、`app.py`、`routes.py`；Test `backend/tests/api/test_runs_flow.py`（含 `backend/tests/api/__init__.py`）.
+**文件：** Modify `backend/pyproject.toml`；Create `backend/weiguan/api/__init__.py`、`store.py`、`app.py`、`routes.py`；Test `backend/tests/api/test_runs_flow.py`（含 `backend/tests/api/__init__.py`）.
 
-**Interfaces — Produces:**
+**接口 — 产出：**
 - `RunStore`：`create(config)->run_id`、`get(run_id)->RunRecord|None`。`RunRecord{run_id, config, snapshot:RunSnapshot}`；`accumulate(delta_snapshot)` 把增量并入 `snapshot`（extend 各列表，首次设 seed_post_id/platform）。
 - FastAPI app：`create_app(engine: Engine) -> FastAPI`（依赖注入，测试注入 FakeEngine）。
 - 路由：`POST /api/runs`（契约 §2.2，校验 steps/key）、`GET /api/runs/{id}/events`（SSE，契约 §2.3）。
 
-- [ ] **Step 1: 追加依赖到 `backend/pyproject.toml`**
+- [ ] **步骤 1：追加依赖到 `backend/pyproject.toml`**
 ```toml
 # [project].dependencies 追加：
 #   "fastapi>=0.110", "sse-starlette>=2.0", "uvicorn>=0.29"
@@ -362,7 +362,7 @@ asyncio_mode = "auto"
 markers = ["llm: 需要真实 LLM key 的端到端测试"]
 ```
 
-- [ ] **Step 2: 写失败测试 `tests/api/test_runs_flow.py`**
+- [ ] **步骤 2：写失败测试 `tests/api/test_runs_flow.py`**
 ```python
 import json
 from fastapi.testclient import TestClient
@@ -403,9 +403,9 @@ def test_sse_stream_order_and_accumulation():  # review:P2-T4-AC4
     assert events[-1] == "run_done"
 ```
 
-- [ ] **Step 3: 运行确认失败** — `python -m pytest tests/api/test_runs_flow.py -v` → FAIL。
+- [ ] **步骤 3：运行确认失败** — `python -m pytest tests/api/test_runs_flow.py -v` → FAIL。
 
-- [ ] **Step 4: 写实现**
+- [ ] **步骤 4：写实现**
 
 `weiguan/api/store.py`:
 ```python
@@ -524,8 +524,8 @@ def create_app(engine: Engine) -> FastAPI:
 ```
 `weiguan/api/__init__.py` 空文件；`tests/api/__init__.py` 空文件。
 
-- [ ] **Step 5: 运行确认通过** — `python -m pytest tests/api/test_runs_flow.py -v` → PASS（4 passed）。
-- [ ] **Step 6: 提交**
+- [ ] **步骤 5：运行确认通过** — `python -m pytest tests/api/test_runs_flow.py -v` → PASS（4 passed）。
+- [ ] **步骤 6：提交**
 ```bash
 git add backend/pyproject.toml backend/weiguan/api backend/tests/api
 git commit -m "feat(api): POST /runs 与 SSE /events（FakeEngine 流程打通）
@@ -535,13 +535,13 @@ Review-Anchor: P2-T4"
 
 ---
 
-### Task 5 (P2-T5): INTERVIEW + snapshot 端点
+### 任务 5 (P2-T5): INTERVIEW + snapshot 端点
 
-**Files:** Modify `backend/weiguan/api/routes.py`；Test `backend/tests/api/test_interview_snapshot.py`.
+**文件：** Modify `backend/weiguan/api/routes.py`；Test `backend/tests/api/test_interview_snapshot.py`.
 
-**Interfaces — Produces:** `POST /api/runs/{id}/interview`（契约 §2.4）、`GET /api/runs/{id}/snapshot`（契约 §2.5）。
+**接口 — 产出：** `POST /api/runs/{id}/interview`（契约 §2.4）、`GET /api/runs/{id}/snapshot`（契约 §2.5）。
 
-- [ ] **Step 1: 写失败测试 `tests/api/test_interview_snapshot.py`**
+- [ ] **步骤 1：写失败测试 `tests/api/test_interview_snapshot.py`**
 ```python
 from fastapi.testclient import TestClient
 from weiguan.api.app import create_app
@@ -579,9 +579,9 @@ def test_interview_returns_answer():  # review:P2-T5-AC3
     assert r.json()["actor_id"] == 2 and r.json()["answer"]
 ```
 
-- [ ] **Step 2: 运行确认失败** — → FAIL（404/405）。
+- [ ] **步骤 2：运行确认失败** — → FAIL（404/405）。
 
-- [ ] **Step 3: 在 `routes.py` 追加两个端点**
+- [ ] **步骤 3：在 `routes.py` 追加两个端点**
 ```python
 class _InterviewBody(BaseModel):
     actor_id: int
@@ -606,8 +606,8 @@ async def snapshot(run_id: str, request: Request):
     return record.snapshot.model_dump(mode="json")
 ```
 
-- [ ] **Step 4: 运行确认通过** — `python -m pytest tests/api/ -v` → PASS。
-- [ ] **Step 5: 提交**
+- [ ] **步骤 4：运行确认通过** — `python -m pytest tests/api/ -v` → PASS。
+- [ ] **步骤 5：提交**
 ```bash
 git add backend/weiguan/api/routes.py backend/tests/api/test_interview_snapshot.py
 git commit -m "feat(api): interview 与 snapshot 端点
@@ -617,18 +617,18 @@ Review-Anchor: P2-T5"
 
 ---
 
-### Task 6 (P2-T6): OasisEngine 真实 LLM 打通（本批必交付）
+### 任务 6 (P2-T6): OasisEngine 真实 LLM 打通（本批必交付）
 
-**Files:** Create `backend/weiguan/engine/oasis_engine.py`、`backend/tests/fixtures/tiny_twitter_profile.csv`；Test `backend/tests/engine/test_oasis_engine_llm.py`.
+**文件：** Create `backend/weiguan/engine/oasis_engine.py`、`backend/tests/fixtures/tiny_twitter_profile.csv`；Test `backend/tests/engine/test_oasis_engine_llm.py`.
 
-**Interfaces — Produces:** `OasisEngine(profile_path:str, db_dir:str)` 实现 `Engine`：
-- `run(config)`：`generate_twitter_agent_graph` → `oasis.make(TWITTER)` → `env.reset()` → step0 用第一个 agent `ManualAction(CREATE_POST, {"content": config.content})` 注入种子；step1..N 对全体 agent `LLMAction()`；每步后 `load_run_snapshot(db_path, seed_post_id=1)` 与上一步 `diff_snapshots` 得增量并 `yield`。
-- `interview(config, snapshot, actor_id, question)`：对该 agent `ManualAction(INTERVIEW, {"prompt": question})` 跑一步，从 `trace` 表读 `action==INTERVIEW.value` 最新记录、解析 `info` JSON 的 `response`。
+**接口 — 产出：** `OasisEngine(profile_path:str, db_dir:str)` 实现 `Engine`：
+- `run(config)`：`generate_twitter_agent_graph` → `oasis.make(TWITTER)` → `env.reset()` → step0 用第一个 agent `手册Action(CREATE_POST, {"content": config.content})` 注入种子；step1..N 对全体 agent `LLMAction()`；每步后 `load_run_snapshot(db_path, seed_post_id=1)` 与上一步 `diff_snapshots` 得增量并 `yield`。
+- `interview(config, snapshot, actor_id, question)`：对该 agent `手册Action(INTERVIEW, {"prompt": question})` 跑一步，从 `trace` 表读 `action==INTERVIEW.value` 最新记录、解析 `info` JSON 的 `response`。
 
-- [ ] **Step 1: 造 profile fixture**
+- [ ] **步骤 1：造 profile fixture**
 从仓库根 `oasis/data/twitter_dataset/anonymous_topic_200_1h/False_Business_0.csv` 取表头 + 前 3 行数据，存为 `backend/tests/fixtures/tiny_twitter_profile.csv`（保持列 `,user_id,name,username,following_agentid_list,previous_tweets,user_char,description` 不变）。
 
-- [ ] **Step 2: 写真跑测试 `tests/engine/test_oasis_engine_llm.py`**
+- [ ] **步骤 2：写真跑测试 `tests/engine/test_oasis_engine_llm.py`**
 ```python
 import os
 import pytest
@@ -669,9 +669,9 @@ async def test_real_interview_returns_nonempty(tmp_path):  # review:P2-T6-AC2
     assert isinstance(ans, str) and ans.strip()
 ```
 
-- [ ] **Step 3: 运行确认失败（无实现）** — `cd backend && python -m pytest tests/engine/test_oasis_engine_llm.py -m llm -v`（未设 key 时应 skip；设了 key 则 FAIL：模块不存在）。先不设 key，确认 collect 到并 skip：Expected `2 skipped`。
+- [ ] **步骤 3：运行确认失败（无实现）** — `cd backend && python -m pytest tests/engine/test_oasis_engine_llm.py -m llm -v`（未设 key 时应 skip；设了 key 则 FAIL：模块不存在）。先不设 key，确认 collect 到并 skip：期望：`2 skipped`。
 
-- [ ] **Step 4: 写实现 `weiguan/engine/oasis_engine.py`**
+- [ ] **步骤 4：写实现 `weiguan/engine/oasis_engine.py`**
 ```python
 from __future__ import annotations
 import json
@@ -683,7 +683,7 @@ from camel.models import ModelFactory
 from camel.types import ModelPlatformType, ModelType
 
 import oasis
-from oasis import (ActionType, LLMAction, ManualAction,
+from oasis import (ActionType, LLMAction, 手册Action,
                    generate_twitter_agent_graph)
 
 from weiguan.adapter.oasis_adapter import load_run_snapshot
@@ -732,7 +732,7 @@ class OasisEngine:
         env, db_path = await self._make_env(config)
         await env.reset()
         # step0：注入种子帖
-        await env.step({env.agent_graph.get_agent(0): ManualAction(
+        await env.step({env.agent_graph.get_agent(0): 手册Action(
             action_type=ActionType.CREATE_POST,
             action_args={"content": config.content})})
         prev = RunSnapshot()
@@ -752,7 +752,7 @@ class OasisEngine:
     async def interview(self, config, snapshot, actor_id, question) -> str:
         env, db_path = await self._make_env(config)
         await env.reset()
-        await env.step({env.agent_graph.get_agent(actor_id - 1): ManualAction(
+        await env.step({env.agent_graph.get_agent(actor_id - 1): 手册Action(
             action_type=ActionType.INTERVIEW, action_args={"prompt": question})})
         await env.close()
         conn = sqlite3.connect(db_path)
@@ -766,16 +766,16 @@ class OasisEngine:
             return ""
         return json.loads(rows[0][0]).get("response", "")
 ```
-> 注：`interview` 采用独立小环境重放种子帖后追问，保证脱离 run 生命周期也能回答；后续 Plan 5 若需"就地追问同一环境"，在此扩展（保持签名不变）。
+> 注：`interview` 采用独立小环境重放种子帖后追问，保证脱离 run 生命周期也能回答；后续 计划 5 若需"就地追问同一环境"，在此扩展（保持签名不变）。
 
-- [ ] **Step 5: 用真实 key 运行，必须通过** —
+- [ ] **步骤 5：用真实 key 运行，必须通过** —
 ```bash
 cd backend && WEIGUAN_TEST_LLM_KEY=<你的key> python -m pytest tests/engine/test_oasis_engine_llm.py -m llm -v
 ```
-Expected: PASS（2 passed）。**这是本批的硬性验收：LLM 调用对接必须真的通。**
+期望： PASS（2 passed）。**这是本批的硬性验收：LLM 调用对接必须真的通。**
 
-- [ ] **Step 6: 回归全部非 LLM 测试** — `cd backend && python -m pytest -v -m "not llm"` → 全绿。
-- [ ] **Step 7: 提交**
+- [ ] **步骤 6：回归全部非 LLM 测试** — `cd backend && python -m pytest -v -m "not llm"` → 全绿。
+- [ ] **步骤 7：提交**
 ```bash
 git add backend/weiguan/engine/oasis_engine.py backend/tests/engine/test_oasis_engine_llm.py backend/tests/fixtures/tiny_twitter_profile.csv
 git commit -m "feat(engine): OasisEngine 真实 LLM 打通 + 端到端 smoke 测试
@@ -785,7 +785,7 @@ Review-Anchor: P2-T6"
 
 ---
 
-## 审核索引（Review Index）
+## 审核索引
 
 | 锚点 | 断言 | 审核凭据 |
 |---|---|---|
@@ -807,7 +807,7 @@ Review-Anchor: P2-T6"
 | P2-T6-AC1 | **真实 LLM 跑出内容** | `test_real_run_produces_llm_content`（`-m llm` + 真 key） |
 | P2-T6-AC2 | **真实 INTERVIEW 有回答** | `test_real_interview_returns_nonempty`（`-m llm` + 真 key） |
 
-## Self-Review
-- **Spec 覆盖**：实现契约 §2.2–2.5（运行/SSE/追问/快照）与 spec §3 步骤 3–5 的引擎侧、§5.2 BYOK、§5.3 轮次枚举、§8 数据流（注入种子→逐步→diff→流式；错误 `error` 事件不回滚）。
+## 自审
+- **规格覆盖**：实现契约 §2.2–2.5（运行/SSE/追问/快照）与 设计 §3 步骤 3–5 的引擎侧、§5.2 BYOK、§5.3 轮次枚举、§8 数据流（注入种子→逐步→diff→流式；错误 `error` 事件不回滚）。
 - **占位符扫描**：无 TBD；每步含完整代码与命令。真跑测试无 key 时 `skip`，有 key 时**必须 PASS**（硬验收）。
-- **类型一致性**：`Engine.run/interview`、`RunDelta(step,snapshot)`、`RunConfig`、`diff_snapshots`、`load_run_snapshot(seed_post_id=...)` 在 Task 间签名一致；FakeEngine 与 OasisEngine 实现同一协议，可被 `create_app` 互换注入。
+- **类型一致性**：`Engine.run/interview`、`RunDelta(step,snapshot)`、`RunConfig`、`diff_snapshots`、`load_run_snapshot(seed_post_id=...)` 在 任务间签名一致；FakeEngine 与 OasisEngine 实现同一协议，可被 `create_app` 互换注入。

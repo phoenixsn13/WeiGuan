@@ -1,7 +1,7 @@
 # 围观 — 整改意见（给 codex 逐项处理）
 
 > 日期：2026-07-01　审核人：设计/审核者　执行人：codex
-> 背景：Plan 1–5 + F0 已实现，锚点齐全，`pytest -m "not llm"` 34 passed、`vitest` 39 passed、`tsc -b` 通过。
+> 背景：计划 1–5 + F0 已实现，锚点齐全，`pytest -m "not llm"` 34 passed、`vitest` 39 passed、`tsc -b` 通过。
 > 但**审核发现两处未闭合**：①你最强调的"真实 LLM 打通"从未被真跑验证（4 个 `-m llm` 用例全程 skip，且运行依赖未装/未声明）；②一个 F0 老测试的 act 警告。
 > **规则**：沿用 `docs/superpowers/plans/2026-07-01-weiguan-conventions-and-contracts.md` §1 的审核锚点；改实现时**保留原锚点**、提交带 `Review-Anchor:` trailer；**不许改弱测试来绕过**；真跑遇到与计划代码不符的真实 API 行为，**改实现让真链路跑通**（不是改断言）。逐项做完在本文件末尾"回填"区记录结果并粘贴命令输出。
 
@@ -59,7 +59,7 @@ cd backend && WEIGUAN_TEST_LLM_KEY=<用户提供的key> \
 
 ## R3（次要）修 `shell.test.tsx` 的 act() 警告
 
-**问题**：Plan 4 把 `GalleryScreen` 从占位屏换成会 `fetchCrowds()` 的真组件，但 F0 老用例 `shell.test.tsx > "root route renders gallery placeholder"`（锚点 `PF0-T4-AC2`）未 mock fetch → 触发未包裹的异步 setState 警告，并发出一次真网络请求。
+**问题**：计划 4 把 `GalleryScreen` 从占位屏换成会 `fetchCrowds()` 的真组件，但 F0 老用例 `shell.test.tsx > "root route renders gallery placeholder"`（锚点 `PF0-T4-AC2`）未 mock fetch → 触发未包裹的异步 setState 警告，并发出一次真网络请求。
 
 **动作**：在该测试文件的 `/` 场景为 fetch 打桩（保留锚点 `// review:PF0-T4-AC2`）：
 ```tsx
