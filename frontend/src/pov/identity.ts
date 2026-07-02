@@ -40,6 +40,7 @@ function temporaryPerson(): PersonView {
     stance: { stance_counts: {}, dominant: "other" },
     total_influence: 0,
     run_ids: [],
+    standing_timeline: [],
   };
 }
 
@@ -79,29 +80,35 @@ export function groupRunsByIdentity(
 export function stanceDriftSeries(
   person: PersonView,
   runs: RunSummary[],
-): StancePoint[] {
-  const score =
-    (person.stance.stance_counts.positive ?? 0) -
-    (person.stance.stance_counts.negative ?? 0);
-  return identityRuns(person, runs).map((run, index) => ({
-    run_id: run.run_id,
-    label: `第 ${index + 1} 次`,
-    dominant: person.stance.dominant,
-    score,
-  }));
+): StancePoint[] {  // review:P7-T10
+  const orderedRuns = identityRuns(person, runs);
+  const runIndex = new Map(orderedRuns.map((run, index) => [run.run_id, index]));
+  return person.standing_timeline
+    .filter((point) => runIndex.has(point.run_id))
+    .sort((left, right) => (runIndex.get(left.run_id) ?? 0) - (runIndex.get(right.run_id) ?? 0))
+    .map((point) => ({
+      run_id: point.run_id,
+      label: `第 ${(runIndex.get(point.run_id) ?? 0) + 1} 次`,
+      dominant: point.stance_dominant,
+      score: point.stance_score,
+    }));
 }
 
 export function influenceSeries(
   person: PersonView,
   runs: RunSummary[],
-): InfluencePoint[] {
+): InfluencePoint[] {  // review:P7-T10
   const orderedRuns = identityRuns(person, runs);
-  if (orderedRuns.length === 0) {
+  if (orderedRuns.length === 0 || person.standing_timeline.length === 0) {
     return [];
   }
-  return orderedRuns.map((run, index) => ({
-    run_id: run.run_id,
-    label: `第 ${index + 1} 次`,
-    value: Math.round((person.total_influence * (index + 1)) / orderedRuns.length),
-  }));
+  const runIndex = new Map(orderedRuns.map((run, index) => [run.run_id, index]));
+  return person.standing_timeline
+    .filter((point) => runIndex.has(point.run_id))
+    .sort((left, right) => (runIndex.get(left.run_id) ?? 0) - (runIndex.get(right.run_id) ?? 0))
+    .map((point) => ({
+      run_id: point.run_id,
+      label: `第 ${(runIndex.get(point.run_id) ?? 0) + 1} 次`,
+      value: point.influence,
+    }));
 }

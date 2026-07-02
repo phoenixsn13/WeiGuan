@@ -183,6 +183,7 @@ test("continuing an identity sends poster_person_id", async () => {  // review:P
 
   await waitFor(() => expect(screen.getByText("进行时页")).toBeInTheDocument());
   expect(runPostBody(spy).poster_person_id).toBe("p_author");
+  expect(localStorage.getItem("wg_current_person_id")).toBe("p_author");
 });
 
 test("cost preview renders RMB and changes with steps", async () => {  // review:P7-T5-AC5
@@ -196,7 +197,9 @@ test("cost preview renders RMB and changes with steps", async () => {  // review
   vi.stubGlobal("fetch", spy);
   mount();
 
-  expect(await screen.findByText(/约 ¥2.40/)).toBeInTheDocument();
+  expect(await screen.findAllByText(/约 ¥2.40/)).toHaveLength(2);
+  expect(screen.getByText(/自有算力/)).toBeInTheDocument();
+  expect(screen.getByText(/付费 API/)).toBeInTheDocument();
   fireEvent.click(screen.getByLabelText(/深度发酵/));
 
   await waitFor(() =>

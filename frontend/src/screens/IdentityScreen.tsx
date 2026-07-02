@@ -151,18 +151,24 @@ export default function IdentityScreen() {
 
         <section className="rounded-card border border-line bg-white p-5 shadow-sm">
           <h2 className="text-xl font-black tracking-normal">影响力曲线</h2>
-          <div className="mt-4 flex h-28 items-end gap-2">
-            {influencePoints.map((point) => (
-              <div key={point.run_id} className="flex flex-1 flex-col items-center gap-2">
-                <div
-                  className="w-full rounded-t bg-brand"
-                  style={{ height: `${Math.max(12, Math.min(100, point.value))}%` }}
-                  aria-label={`${point.label} 影响力 ${point.value}`}
-                />
-                <div className="text-xs font-semibold text-slate-400">{point.label}</div>
-              </div>
-            ))}
-          </div>
+          {influencePoints.length === 0 ? (
+            <div className="mt-4 rounded-card border border-dashed border-line p-5 text-sm text-slate-500">
+              还没有足够记录形成影响力曲线。
+            </div>
+          ) : (
+            <div className="mt-4 flex h-28 items-end gap-2">
+              {influencePoints.map((point) => (
+                <div key={point.run_id} className="flex flex-1 flex-col items-center gap-2">
+                  <div
+                    className="w-full rounded-t bg-brand"
+                    style={{ height: `${Math.max(12, Math.min(100, point.value))}%` }}
+                    aria-label={`${point.label} 影响力 ${point.value}`}
+                  />
+                  <div className="text-xs font-semibold text-slate-400">{point.label}</div>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
       </div>
     </section>

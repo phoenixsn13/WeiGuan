@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { createRun, previewCost, type PersonaKind, type PreviewCost } from "../api/client";
-import { useApiKey } from "../api/useApiKey";
+import { saveCurrentIdentity, useApiKey } from "../api/useApiKey";
 import { Button } from "../components/Button";
 
 const ROUNDS = [
@@ -104,6 +104,9 @@ export default function ComposeScreen() {
         },
         { key, model, baseUrl, reasoningEffort, thinking },
       );
+      if (continuingPersonId) {
+        saveCurrentIdentity(continuingPersonId, localStorage.getItem("wg_current_world_id") ?? "");
+      }
       navigate(`/run/${run_id}/live`);
     } catch (err) {
       setError((err as Error).message);
@@ -288,9 +291,14 @@ export default function ComposeScreen() {
           </div>
         )}
         {cost && (
-          <div className="mt-3 rounded-card border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-            预计约 ¥{cost.estimated_rmb.toFixed(2)}；本次约 {cost.budgeted_agents} 个可见人物，
-            {cost.decision_steps} 个决策步。
+          <div className="mt-3 rounded-card border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800"> {/* review:P7-T10 */}
+            <div>
+              预计约 ¥{cost.estimated_rmb.toFixed(2)}；本次约 {cost.budgeted_agents} 个可见人物，
+              {cost.decision_steps} 个决策步。
+            </div>
+            <div className="mt-1">
+              自有算力不额外计费；付费 API 按 token 估算约 ¥{cost.estimated_rmb.toFixed(2)}。
+            </div>
           </div>
         )}
         {error && <div className="mt-3 text-sm text-sentiment-negative">{error}</div>}

@@ -65,6 +65,22 @@ test("renders identity card, stance timeline, influence curve, and accounts", as
           stance: { stance_counts: { positive: 3, negative: 1 }, dominant: "positive" },
           total_influence: 56,
           run_ids: ["r_1", "r_2"],
+          standing_timeline: [
+            {
+              run_id: "r_1",
+              influence: 51,
+              followers: 50001,
+              stance_dominant: "positive",
+              stance_score: 1,
+            },
+            {
+              run_id: "r_2",
+              influence: 56,
+              followers: 50003,
+              stance_dominant: "negative",
+              stance_score: -1,
+            },
+          ],
         };
       },
     })),
@@ -87,4 +103,34 @@ test("shows empty state when world id is missing", async () => {  // review:P7-T
   mount("/identity/p_author");
 
   expect(await screen.findByText("缺少世界信息")).toBeInTheDocument();
+});
+
+test("shows honest empty state when standing timeline is unavailable", async () => {  // review:P7-T10-AC2
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => ({
+      ok: true,
+      json: async () => {
+        if (url === "/api/runs") return [];
+        return {
+          person: {
+            person_id: "p_author",
+            display_name: "财经大号",
+            persona_kind: "kol",
+            accounts: [],
+          },
+          stance: { stance_counts: {}, dominant: "other" },
+          total_influence: 0,
+          run_ids: ["r_1"],
+          standing_timeline: [],
+        };
+      },
+    })),
+  );
+
+  mount();
+
+  expect(await screen.findByText("还没有足够记录形成时间线。")).toBeInTheDocument();
+  expect(screen.getByText("影响力曲线")).toBeInTheDocument();
+  expect(screen.getByText("还没有足够记录形成影响力曲线。")).toBeInTheDocument();
 });

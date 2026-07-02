@@ -32,6 +32,7 @@ function mockCrowds() {
 }
 
 afterEach(() => vi.restoreAllMocks());
+beforeEach(() => localStorage.clear());
 
 test("shell shows brand wordmark", () => {  // review:PF0-T4-AC1
   at("/run/r_1/live");
@@ -60,5 +61,15 @@ test("shell navigation uses world-mind labels and links identity entry", () => {
   expect(screen.queryByRole("link", { name: "历史记录" })).not.toBeInTheDocument();
 
   const identity = screen.getByRole("link", { name: "我" });
-  expect(identity).toHaveAttribute("href", "/identity/me");
+  expect(identity).toHaveAttribute("href", "/history");
+});
+
+test("shell identity entry uses current identity binding", () => {  // review:P7-T10-AC3
+  localStorage.setItem("wg_current_person_id", "p_author");
+  localStorage.setItem("wg_current_world_id", "w_1");
+
+  at("/history");
+
+  const identity = screen.getByRole("link", { name: "我" });
+  expect(identity).toHaveAttribute("href", "/identity/p_author?world_id=w_1");
 });

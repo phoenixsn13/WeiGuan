@@ -27,6 +27,7 @@ function person(person_id: string, display_name: string, run_ids: string[]): Per
     stance: { stance_counts: {}, dominant: "other" },
     total_influence: 10,
     run_ids,
+    standing_timeline: [],
   };
 }
 
@@ -90,8 +91,22 @@ test("returns deterministic identity group order by latest run", () => {  // rev
 
 test("derives stance drift and influence series from PersonView run ids", () => {  // review:P7-T7-AC1
   const view = person("p_1", "财经大号", ["r_old", "r_new"]);
-  view.stance = { dominant: "positive", stance_counts: { positive: 3, negative: 1 } };
-  view.total_influence = 20;
+  view.standing_timeline = [
+    {
+      run_id: "r_old",
+      influence: 12,
+      followers: 2001,
+      stance_dominant: "positive",
+      stance_score: 1,
+    },
+    {
+      run_id: "r_new",
+      influence: 19,
+      followers: 2003,
+      stance_dominant: "negative",
+      stance_score: -1,
+    },
+  ];
   const runs = [
     run("r_new", "2026-07-02T08:00:00Z"),
     run("r_old", "2026-07-01T08:00:00Z"),
@@ -101,6 +116,21 @@ test("derives stance drift and influence series from PersonView run ids", () => 
     "r_old",
     "r_new",
   ]);
-  expect(stanceDriftSeries(view, runs)[0].score).toBe(2);
-  expect(influenceSeries(view, runs).map((point) => point.value)).toEqual([10, 20]);
+  expect(stanceDriftSeries(view, runs).map((point) => point.dominant)).toEqual([
+    "positive",
+    "negative",
+  ]);
+  expect(stanceDriftSeries(view, runs).map((point) => point.score)).toEqual([1, -1]);
+  expect(influenceSeries(view, runs).map((point) => point.value)).toEqual([12, 19]);
+});
+
+test("returns empty series when standing timeline is missing", () => {  // review:P7-T10-AC1
+  const view = person("p_1", "财经大号", ["r_old", "r_new"]);
+  const runs = [
+    run("r_new", "2026-07-02T08:00:00Z"),
+    run("r_old", "2026-07-01T08:00:00Z"),
+  ];
+
+  expect(stanceDriftSeries(view, runs)).toEqual([]);
+  expect(influenceSeries(view, runs)).toEqual([]);
 });

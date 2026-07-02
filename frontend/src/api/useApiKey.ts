@@ -1,5 +1,28 @@
 import { useState } from "react";
 
+export interface CurrentIdentity {
+  personId: string;
+  worldId: string;
+}
+
+const CURRENT_PERSON_KEY = "wg_current_person_id";
+const CURRENT_WORLD_KEY = "wg_current_world_id";
+
+// review:P7-T10
+export function getCurrentIdentity(): CurrentIdentity | null {
+  const personId = localStorage.getItem(CURRENT_PERSON_KEY) ?? "";
+  const worldId = localStorage.getItem(CURRENT_WORLD_KEY) ?? "";
+  if (!personId || !worldId) {
+    return null;
+  }
+  return { personId, worldId };
+}
+
+export function saveCurrentIdentity(personId: string, worldId: string) {
+  if (personId) localStorage.setItem(CURRENT_PERSON_KEY, personId);
+  if (worldId) localStorage.setItem(CURRENT_WORLD_KEY, worldId);
+}
+
 // review:P4-T4
 export function useApiKey() {
   const [key, setKeyState] = useState(() => localStorage.getItem("wg_llm_key") ?? "");

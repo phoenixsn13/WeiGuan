@@ -1,5 +1,6 @@
 // review:P4-T4  消费契约 §2.2
 import type { RunSnapshot } from "../model/canonical";
+import { saveCurrentIdentity } from "./useApiKey";
 
 export interface Crowd {
   id: string;
@@ -60,11 +61,20 @@ export interface Person {
   accounts: Account[];
 }
 
+export interface StandingPoint {
+  run_id: string;
+  influence: number;
+  followers: number;
+  stance_dominant: string;
+  stance_score: number;
+}
+
 export interface PersonView {
   person: Person;
   stance: { stance_counts: Record<string, number>; dominant: string };
   total_influence: number;
   run_ids: string[];
+  standing_timeline: StandingPoint[];
 }
 
 export interface CreatePersonBody {
@@ -141,7 +151,6 @@ export async function createRun(
   return response.json();
 }
 
-// review:P7-T5
 export async function createPerson(
   body: CreatePersonBody,
 ): Promise<{ world_id: string; person: Person }> {
@@ -154,7 +163,12 @@ export async function createPerson(
     const error = await response.json().catch(() => ({}));
     throw new Error(error.detail ?? "create person failed");
   }
-  return response.json();
+  const data = await response.json();
+  // review:P7-T10
+  if (data?.person?.person_id && data?.world_id) {
+    saveCurrentIdentity(data.person.person_id, data.world_id);
+  }
+  return data;
 }
 
 export async function listPersons(worldId: string): Promise<PersonView[]> {

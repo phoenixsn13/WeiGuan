@@ -1,6 +1,8 @@
 // review:PF0-T4
 import { NavLink } from "react-router-dom";
 
+import { getCurrentIdentity } from "../api/useApiKey";
+
 function NavItem({ to, children }: { to: string; children: React.ReactNode }) {
   return (
     <NavLink
@@ -33,6 +35,11 @@ function BrandMark() {
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  // review:P7-T10
+  const currentIdentity = getCurrentIdentity();
+  const identityHref = currentIdentity
+    ? `/identity/${currentIdentity.personId}?world_id=${currentIdentity.worldId}`
+    : "/history";
   return (
     <div className="min-h-screen bg-cream text-ink">
       <header className="sticky top-0 z-30 border-b border-white/10 bg-slate-950 shadow-chrome">
@@ -51,7 +58,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
             <NavLink
               className="grid h-9 w-9 place-items-center rounded-full bg-white/10 text-sm font-semibold text-white transition hover:bg-white/15"
-              to="/identity/me"
+              to={identityHref}
             >
               我
             </NavLink>
