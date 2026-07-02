@@ -158,6 +158,27 @@ test("see-results disabled until done, then navigates", () => {  // review:P3-T5
   expect(screen.getByText("复盘页")).toBeInTheDocument();
 });
 
+test("live control bar hides unavailable playback controls", () => {  // review:UI-P15-AC1
+  mount();
+  expect(screen.queryByText("回到开始")).not.toBeInTheDocument();
+  expect(screen.queryByText("上一步")).not.toBeInTheDocument();
+  expect(screen.queryByText("暂停")).not.toBeInTheDocument();
+  expect(screen.queryByText("下一步")).not.toBeInTheDocument();
+  expect(screen.queryByText("到结尾")).not.toBeInTheDocument();
+  expect(screen.getByText("看结果")).toBeInTheDocument();
+});
+
+test("top bar does not duplicate execution progress", () => {  // review:UI-P15-AC2
+  mount();
+  const es = FakeES.last;
+  act(() => es.emit("run_started", { steps: 6 }));
+  act(() => es.emit("step_started", { step: 2, total: 6 }));
+
+  const header = screen.getByLabelText("当前页面状态");
+
+  expect(header?.textContent).not.toContain("2/6");
+});
+
 test("keeps comments inside a scrollable social viewport and switches actor perspective", () => {  // review:UI-P1-AC5
   mount();
   const es = FakeES.last;

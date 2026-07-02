@@ -1,17 +1,20 @@
 import type { Actor, Reply } from "../../model/canonical";
 import { displayHandle, displayName } from "./identity";
 import { RichText } from "./RichText";
+import { relativeSocialTime } from "./time";
 import { XAvatar } from "./XAvatar";
 
 // review:P3-T3
 export function XReply({
   reply,
   author,
+  nowAt,
   onAuthorClick,
   selected,
 }: {
   reply: Reply;
   author: Actor;
+  nowAt?: string | null;
   onAuthorClick?: (actor: Actor) => void;
   selected?: boolean;
 }) {
@@ -37,7 +40,7 @@ export function XReply({
           </button>{" "}
           {authorHandle && <span className="text-slate-400">@{authorHandle}</span>}
           {authorHandle && <span className="text-slate-300">·</span>}
-          <span className="text-slate-400">刚刚</span>
+          <span className="text-slate-400">{relativeSocialTime(reply.created_at, nowAt)}</span>
           {selected && (
             <span className="ml-1 rounded-full bg-brand/25 px-2 py-0.5 text-xs font-semibold text-slate-950">
               他的评论

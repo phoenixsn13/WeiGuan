@@ -100,7 +100,7 @@ function LiveRail({
     : "";
   const progress = total > 0 ? Math.max(6, Math.round((step / total) * 100)) : 100;
   return (
-    <aside className="hidden min-h-[680px] rounded-card bg-slate-950 p-5 text-white shadow-chrome xl:block">
+    <aside className="hidden h-full min-h-[760px] rounded-card bg-slate-950 p-5 text-white shadow-chrome xl:flex xl:flex-col">
       <div className="mb-8">
         <div className="text-xs font-semibold text-white/40">当前视角</div>
         <div className="mt-2 text-lg font-black">
@@ -191,7 +191,7 @@ export default function LiveScreen({
   }, [id, replay]);
 
   return (
-    <div className="relative grid gap-4 xl:grid-cols-[260px_minmax(0,1fr)]">
+    <div className="relative grid items-stretch gap-4 pb-6 xl:grid-cols-[260px_minmax(0,1fr)]">
       <LiveRail
         selected={selected}
         step={step}
@@ -201,8 +201,11 @@ export default function LiveScreen({
         mode={mode}
         onModeChange={setMode}
       />
-      <div className="min-w-0">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-card border border-line bg-white px-4 py-3 shadow-spotlight">
+      <div className="flex min-w-0 flex-col">
+        <div
+          aria-label="当前页面状态"
+          className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-card border border-line bg-white px-4 py-3 shadow-spotlight"
+        >
           <div>
             <div className="text-lg font-black">
               {selected ? `正在从 ${selectedLabel} 的视角看` : "我看到的"}
@@ -230,20 +233,6 @@ export default function LiveScreen({
             >
               历史记录
             </button>
-            {!replay && (
-              <div className="hidden items-center gap-2 rounded-full bg-slate-100 px-3 py-2 sm:flex">
-                <span>
-                  第 <span className="tabular">{step}</span>/
-                  <span className="tabular">{total}</span> 步
-                </span>
-                <span className="h-2 w-20 rounded-full bg-slate-200">
-                  <span
-                    className="block h-2 rounded-full bg-brand"
-                    style={{ width: `${total ? Math.round((step / total) * 100) : 8}%` }}
-                  />
-                </span>
-              </div>
-            )}
           </div>
         </div>
 
@@ -260,31 +249,19 @@ export default function LiveScreen({
           timeline={timeline}
         />
 
-        <div className="sticky bottom-4 z-10 mx-auto mt-4 flex max-w-4xl items-center gap-3 rounded-card border border-line bg-white/95 px-4 py-3 text-sm text-ink shadow-chrome backdrop-blur">
+        <div className="sticky bottom-4 z-10 mx-auto mt-4 flex max-w-3xl items-center gap-3 rounded-card border border-line bg-white/95 px-4 py-3 text-sm text-ink shadow-chrome backdrop-blur">
         <span
           className={[
             "h-2.5 w-2.5 rounded-full",
             status === "done" ? "bg-sentiment-positive" : "bg-brand",
           ].join(" ")}
         />
-        <span className="mr-auto">
+        <span className="font-medium">
           {replay ? "历史回放" : status === "done" ? "围观完成" : "围观进行中"}
         </span>
-        <button className="hidden min-h-11 cursor-not-allowed rounded-card px-3 text-ink/30 sm:block" disabled title="逐步回放需要后端保存帧数据">
-          回到开始
-        </button>
-        <button className="hidden min-h-11 cursor-not-allowed rounded-card px-3 text-ink/30 sm:block" disabled title="逐步回放需要后端保存帧数据">
-          上一步
-        </button>
-        <button className="grid min-h-12 min-w-12 cursor-not-allowed place-items-center rounded-full bg-slate-300 text-lg font-bold text-white" disabled title="暂停/继续需要流控接口">
-          暂停
-        </button>
-        <button className="hidden min-h-11 cursor-not-allowed rounded-card px-3 text-ink/30 sm:block" disabled title="逐步回放需要后端保存帧数据">
-          下一步
-        </button>
-        <button className="hidden min-h-11 cursor-not-allowed rounded-card px-3 text-ink/30 sm:block" disabled title="逐步回放需要后端保存帧数据">
-          到结尾
-        </button>
+        <span className="mr-auto hidden text-slate-500 sm:inline">
+          {`${vm.thread.length} 条评论`}
+        </span>
         <button
           className="min-h-11 rounded-card bg-ink px-4 text-cream disabled:cursor-not-allowed disabled:opacity-40"
           disabled={status !== "done"}

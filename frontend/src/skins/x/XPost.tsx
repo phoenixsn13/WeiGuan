@@ -1,6 +1,7 @@
 import type { Actor, Post } from "../../model/canonical";
 import { displayHandle, displayName } from "./identity";
 import { RichText } from "./RichText";
+import { relativeSocialTime } from "./time";
 import { topicTags } from "./topics";
 import { XActionBar } from "./XActionBar";
 import { XAvatar } from "./XAvatar";
@@ -10,11 +11,13 @@ export function XPost({
   post,
   author,
   replyCount,
+  nowAt,
   onAuthorClick,
 }: {
   post: Post;
   author: Actor;
   replyCount: number;
+  nowAt?: string | null;
   onAuthorClick?: (actor: Actor) => void;
 }) {
   const authorName = displayName(author);
@@ -31,7 +34,7 @@ export function XPost({
           </span>
           <span className="text-slate-400">
             {authorHandle ? `@${authorHandle} · ` : ""}
-            刚刚
+            {relativeSocialTime(post.created_at, nowAt)}
           </span>
           <span className="text-slate-300">·</span>
           <span className="text-slate-500">来自 围观推演</span>

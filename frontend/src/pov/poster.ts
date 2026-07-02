@@ -9,6 +9,7 @@ export interface Notification {
   id: string;
   kind: "like" | "repost" | "quote" | "follow";
   actor: Actor;
+  created_at?: string | null;
 }
 
 export interface PosterViewModel {
@@ -28,6 +29,19 @@ function actorOf(snap: RunSnapshot, userId: number): Actor {
   );
 }
 
+function timeRank(value?: string | null): number {
+  if (!value) return Number.NEGATIVE_INFINITY;
+  const numeric = Number(value);
+  if (Number.isFinite(numeric)) return numeric;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : Number.NEGATIVE_INFINITY;
+}
+
+function compareNewestReply(a: Reply, b: Reply): number {
+  const byTime = timeRank(b.created_at) - timeRank(a.created_at);
+  return byTime || b.comment_id - a.comment_id;
+}
+
 // review:P3-T2  poster 视角纯函数（契约 §2.6 定稿）
 export function posterView(snap: RunSnapshot): PosterViewModel {
   const seedId = snap.seed_post_id ?? null;
@@ -37,11 +51,7 @@ export function posterView(snap: RunSnapshot): PosterViewModel {
 
   const thread: ReplyView[] = snap.replies
     .filter((r) => r.post_id === seedId)
-    .sort(
-      (a, b) =>
-        (a.created_at ?? "").localeCompare(b.created_at ?? "") ||
-        a.comment_id - b.comment_id,
-    )
+    .sort(compareNewestReply)
     .map((reply) => ({ reply, author: actorOf(snap, reply.author_id) }));
 
   const notifications: Notification[] = [];
@@ -55,6 +65,7 @@ export function posterView(snap: RunSnapshot): PosterViewModel {
         id: `like-${reaction.actor_id}`,
         kind: "like",
         actor: actorOf(snap, reaction.actor_id),
+        created_at: reaction.created_at,
       });
     }
   }
@@ -64,6 +75,7 @@ export function posterView(snap: RunSnapshot): PosterViewModel {
         id: `share-${post.post_id}`,
         kind: post.quote_content ? "quote" : "repost",
         actor: actorOf(snap, post.author_id),
+        created_at: post.created_at,
       });
     }
   }
@@ -74,6 +86,7 @@ export function posterView(snap: RunSnapshot): PosterViewModel {
           id: `follow-${follow.follower_id}`,
           kind: "follow",
           actor: actorOf(snap, follow.follower_id),
+          created_at: follow.created_at,
         });
       }
     }

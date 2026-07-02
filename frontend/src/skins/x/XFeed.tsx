@@ -4,6 +4,7 @@ import type { Actor } from "../../model/canonical";
 import type { PosterViewModel } from "../../pov/poster";
 import type { ActorRow, HotRow, RepostRow, TimelineRow } from "../../pov/social";
 import { displayHandle, displayName } from "./identity";
+import { latestSocialTime, relativeSocialTime } from "./time";
 import { XPost } from "./XPost";
 import { XReply } from "./XReply";
 
@@ -75,6 +76,13 @@ export function XFeed({
     hot: "热门",
     timeline: "时间线",
   };
+  const latestAt = latestSocialTime([
+    vm.seedPost.created_at,
+    ...vm.thread.map((item) => item.reply.created_at),
+    ...vm.notifications.map((notice) => notice.created_at),
+    ...reposts.map((row) => row.post.created_at),
+    ...timeline.map((row) => row.at),
+  ]);
 
   return (
     <div className="grid min-h-[680px] overflow-hidden rounded-card border border-line bg-white shadow-spotlight lg:grid-cols-[minmax(0,1fr)_360px]">
@@ -113,6 +121,7 @@ export function XFeed({
             post={vm.seedPost}
             author={vm.me}
             replyCount={vm.thread.length}
+            nowAt={latestAt}
             onAuthorClick={onActorClick}
           />
         </div>
@@ -146,6 +155,7 @@ export function XFeed({
               key={item.reply.comment_id}
               reply={item.reply}
               author={item.author}
+              nowAt={latestAt}
               selected={item.author.user_id === selectedActorId}
               onAuthorClick={onActorClick}
             />
@@ -190,6 +200,9 @@ export function XFeed({
                       {notice.kind === "repost" && "转发了你的微博"}
                       {notice.kind === "quote" && "引用并讨论了你的微博"}
                       {notice.kind === "follow" && "关注了你"}
+                    </div>
+                    <div className="mt-2 text-xs text-slate-400">
+                      {relativeSocialTime(notice.created_at, latestAt)}
                     </div>
                   </div>
                 </div>
@@ -246,7 +259,9 @@ export function XFeed({
                 <div key={row.id} className="border-b border-line px-6 py-4">
                   <div className="flex items-center justify-between gap-3">
                     <div className="text-xs font-bold text-accent">{row.kind}</div>
-                    <div className="text-xs text-slate-400">{row.at || "刚刚"}</div>
+                    <div className="text-xs text-slate-400">
+                      {relativeSocialTime(row.at, latestAt)}
+                    </div>
                   </div>
                   <div className="mt-1 font-bold text-slate-950">{row.title}</div>
                   <div className="mt-1 text-sm leading-6 text-slate-600">{row.detail}</div>
@@ -283,7 +298,9 @@ export function XFeed({
                   {notice.kind === "quote" && " 正在讨论你的微博"}
                   {notice.kind === "follow" && " 可能会继续关注后续"}
                 </div>
-                <div className="mt-2 text-xs text-slate-400">刚刚</div>
+                <div className="mt-2 text-xs text-slate-400">
+                  {relativeSocialTime(notice.created_at, latestAt)}
+                </div>
               </div>
             </div>
           ))}

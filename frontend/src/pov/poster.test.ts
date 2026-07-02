@@ -91,6 +91,26 @@ test("thread joins replies with authors", () => {  // review:P3-T2-AC2
   expect(vm.thread[0].reply.content).toBe("缓存没清吧");
 });
 
+test("thread sorts newest replies first", () => {  // review:UI-P14-AC1
+  const state = snap();
+  state.replies.push({
+    comment_id: 2,
+    post_id: 1,
+    author_id: 3,
+    content: "后来补充一句",
+    created_at: "5",
+    num_likes: 0,
+    num_dislikes: 0,
+  });
+
+  const vm = posterView(state);
+
+  expect(vm.thread.map((row) => row.reply.content)).toEqual([
+    "后来补充一句",
+    "缓存没清吧",
+  ]);
+});
+
 test("notifications include like, repost, follow", () => {  // review:P3-T2-AC3
   const kinds = posterView(snap())
     .notifications.map((n) => n.kind)

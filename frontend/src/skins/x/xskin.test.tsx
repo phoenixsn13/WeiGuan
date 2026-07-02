@@ -50,6 +50,39 @@ test("feed renders seed post content and reply", () => {  // review:P3-T3-AC1
   expect(screen.getByText("缓存没清吧")).toBeInTheDocument();
 });
 
+test("feed renders relative social times from event order", () => {  // review:UI-P14-AC2
+  render(
+    <XFeed
+      vm={{
+        ...vm,
+        seedPost: { ...vm.seedPost!, created_at: "1" },
+        thread: [
+          {
+            ...vm.thread[0],
+            reply: { ...vm.thread[0].reply, created_at: "4" },
+          },
+          {
+            reply: {
+              comment_id: 2,
+              post_id: 1,
+              author_id: 2,
+              content: "两分钟前的评论",
+              created_at: "2",
+              num_likes: 0,
+              num_dislikes: 0,
+            },
+            author: vm.thread[0].author,
+          },
+        ],
+      }}
+    />,
+  );
+
+  expect(screen.getAllByText("刚刚").length).toBeGreaterThan(0);
+  expect(screen.getByText("2分钟前")).toBeInTheDocument();
+});
+
+
 test("feed hides internal ids and dataset prefixes in profile labels", () => {  // review:UI-P9-AC1
   render(
     <XFeed
