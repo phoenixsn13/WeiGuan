@@ -59,6 +59,14 @@ export async function fetchRuns(): Promise<RunSummary[]> {
   return response.json();
 }
 
+export async function fetchRunSummary(runId: string): Promise<RunSummary> {
+  const response = await fetch(`/api/runs/${runId}`);
+  if (!response.ok) {
+    throw new Error("failed to load run");
+  }
+  return response.json();
+}
+
 export async function createRun(
   body: CreateRunBody,
   creds: Creds,

@@ -134,6 +134,19 @@ def _resolve_llm_update(
     )
 
 
+def _run_summary(record) -> dict:
+    metrics = compute_metrics(record.snapshot)
+    return {
+        "run_id": record.run_id,
+        "content": record.config.content,
+        "steps": record.config.steps,
+        "platform": record.config.platform.value,
+        "status": record.status,
+        "created_at": record.created_at,
+        "totals": metrics.totals,
+    }
+
+
 # review:P2-T4
 @router.post("/runs")
 async def create_run(
@@ -170,21 +183,15 @@ async def create_run(
 
 @router.get("/runs")
 async def list_runs(request: Request):  # review:UI-P1
-    items = []
-    for record in request.app.state.store.list():
-        metrics = compute_metrics(record.snapshot)
-        items.append(
-            {
-                "run_id": record.run_id,
-                "content": record.config.content,
-                "steps": record.config.steps,
-                "platform": record.config.platform.value,
-                "status": record.status,
-                "created_at": record.created_at,
-                "totals": metrics.totals,
-            }
-        )
-    return items
+    return [_run_summary(record) for record in request.app.state.store.list()]
+
+
+@router.get("/runs/{run_id}")
+async def get_run(run_id: str, request: Request):  # review:UI-P12
+    record = request.app.state.store.get(run_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="run not found")
+    return _run_summary(record)
 
 
 @router.get("/runs/{run_id}/events")

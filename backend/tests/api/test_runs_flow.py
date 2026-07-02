@@ -30,6 +30,21 @@ async def test_create_run_returns_id():  # review:P2-T4-AC1
     assert r.status_code == 200 and r.json()["run_id"].startswith("r_")
 
 
+async def test_get_run_returns_initial_summary_before_events():  # review:UI-P12-AC1
+    async with _client() as client:
+        run_id = (
+            await client.post("/api/runs", json=_body(steps=500), headers=HDR)
+        ).json()["run_id"]
+        response = await client.get(f"/api/runs/{run_id}")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["run_id"] == run_id
+    assert data["content"] == "构建砍到3秒"
+    assert data["steps"] == 500
+    assert data["status"] == "created"
+
+
 async def test_create_run_rejects_bad_steps():  # review:P2-T4-AC2
     async with _client() as client:
         r = await client.post("/api/runs", json=_body(steps=1001), headers=HDR)

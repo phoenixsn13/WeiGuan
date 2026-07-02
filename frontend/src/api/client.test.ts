@@ -3,6 +3,7 @@ import {
   fetchCrowds,
   fetchInsights,
   fetchRetro,
+  fetchRunSummary,
   fetchRunSnapshot,
   fetchRuns,
   interviewActor,
@@ -42,6 +43,27 @@ test("fetchRuns gets historical run summaries", async () => {  // review:UI-P1-A
   const runs = await fetchRuns();
   expect(runs[0].run_id).toBe("r_1");
   expect(runs[0].totals.replies).toBe(3);
+});
+
+test("fetchRunSummary gets one run before events arrive", async () => {  // review:UI-P12-AC3
+  const spy = vi.fn(async () => ({
+    ok: true,
+    json: async () => ({
+      run_id: "r_1",
+      content: "刚写下的正文",
+      steps: 500,
+      platform: "twitter",
+      status: "created",
+      totals: {},
+    }),
+  }));
+  vi.stubGlobal("fetch", spy);
+
+  const summary = await fetchRunSummary("r_1");
+
+  expect(summary.content).toBe("刚写下的正文");
+  expect(summary.steps).toBe(500);
+  expect(spy).toHaveBeenCalledWith("/api/runs/r_1");
 });
 
 test("createRun posts with BYOK headers", async () => {  // review:P4-T4-AC2

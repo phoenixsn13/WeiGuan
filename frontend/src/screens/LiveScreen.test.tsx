@@ -27,6 +27,20 @@ class FakeES {
 function mount() {
   const factory = () => new FakeES() as unknown as EventSource;
   FakeES.created = 0;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        run_id: "r_1",
+        content: "用户刚输入的正文",
+        steps: 500,
+        platform: "twitter",
+        status: "created",
+        totals: {},
+      }),
+    })),
+  );
   render(
     <MemoryRouter initialEntries={["/run/r_1/live"]}>
       <Routes>
@@ -121,6 +135,16 @@ test("streams seed post then reply, shows step counter", () => {  // review:P3-T
   );
   expect(screen.getByText("构建砍到3秒")).toBeInTheDocument();
   expect(screen.getByText("1/6")).toBeInTheDocument();
+});
+
+test("shows pending seed content and total steps before stream deltas", async () => {  // review:UI-P12-AC4
+  mount();
+
+  expect(await screen.findByText("用户刚输入的正文")).toBeInTheDocument();
+  expect(
+    screen.getAllByText((_, node) => node?.textContent?.includes("0/500") ?? false)
+      .length,
+  ).toBeGreaterThan(0);
 });
 
 test("see-results disabled until done, then navigates", () => {  // review:P3-T5-AC2

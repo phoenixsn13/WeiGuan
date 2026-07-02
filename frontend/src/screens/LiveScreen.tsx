@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
-import { fetchRunSnapshot } from "../api/client";
+import { fetchRunSnapshot, fetchRunSummary, type RunSummary } from "../api/client";
 import { useRunStream, type EventSourceFactory } from "../api/runStream";
 import { InterviewDrawer } from "../components/InterviewDrawer";
 import { emptySnapshot } from "../model/accumulate";
@@ -44,6 +44,36 @@ function MiniIcon({ path }: { path: string }) {
       <path d={path} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
     </svg>
   );
+}
+
+function snapshotFromSummary(summary: RunSummary | null): RunSnapshot | null {
+  if (!summary) return null;
+  return {
+    ...emptySnapshot(),
+    platform: summary.platform,
+    seed_post_id: 1,
+    actors: [
+      {
+        user_id: 0,
+        user_name: "me",
+        name: "我",
+        num_followers: 0,
+        num_followings: 0,
+      },
+    ],
+    posts: [
+      {
+        post_id: 1,
+        author_id: 0,
+        kind: "original",
+        content: summary.content,
+        num_likes: 0,
+        num_dislikes: 0,
+        num_shares: 0,
+        num_reports: 0,
+      },
+    ],
+  };
 }
 
 function LiveRail({
@@ -123,11 +153,17 @@ export default function LiveScreen({
   const replay = searchParams.get("replay") === "1";
   const stream = useRunStream(id, streamFactory, !replay);
   const [replaySnapshot, setReplaySnapshot] = useState<RunSnapshot | null>(null);
+  const [runSummary, setRunSummary] = useState<RunSummary | null>(null);
   const [selected, setSelected] = useState<Actor | null>(null);
   const [mode, setMode] = useState<XFeedMode>("comments");
-  const snapshot = replay ? replaySnapshot ?? emptySnapshot() : stream.snapshot;
+  const pendingSnapshot = snapshotFromSummary(runSummary);
+  const snapshot = replay
+    ? replaySnapshot ?? emptySnapshot()
+    : stream.snapshot.seed_post_id
+      ? stream.snapshot
+      : pendingSnapshot ?? stream.snapshot;
   const step = replay ? 0 : stream.step;
-  const total = replay ? 0 : stream.total;
+  const total = replay ? 0 : stream.total || runSummary?.steps || 0;
   const status = replay ? "done" : stream.status;
   const vm = posterView(snapshot);
   const reposts = repostRows(snapshot);
@@ -145,6 +181,13 @@ export default function LiveScreen({
     fetchRunSnapshot(id)
       .then(setReplaySnapshot)
       .catch(() => setReplaySnapshot(null));
+  }, [id, replay]);
+
+  useEffect(() => {
+    if (replay) return;
+    fetchRunSummary(id)
+      .then(setRunSummary)
+      .catch(() => setRunSummary(null));
   }, [id, replay]);
 
   return (
