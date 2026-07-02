@@ -29,6 +29,9 @@ export interface Creds {
 
 export interface RunSummary {
   run_id: string;
+  world_id?: string;
+  poster_person_id?: string;
+  poster_persona?: PersonaKind;
   content: string;
   steps: number;
   platform: "twitter" | "reddit";

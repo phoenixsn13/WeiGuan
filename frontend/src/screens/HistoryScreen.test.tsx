@@ -119,3 +119,70 @@ test("opens replay from historical run", async () => {  // review:UI-P1-AC4
   fireEvent.click(await screen.findByText("看回放"));
   expect(screen.getByText("回放页")).toBeInTheDocument();
 });
+
+test("groups historical runs under persistent identities", async () => {  // review:P7-T6-AC4
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => ({
+      ok: true,
+      json: async () => {
+        if (url === "/api/runs") {
+          return [
+            {
+              run_id: "r_1",
+              world_id: "w_1",
+              content: "第一条",
+              steps: 10,
+              platform: "twitter",
+              status: "done",
+              created_at: "2026-07-01T08:00:00Z",
+              totals: { replies: 3, reposts: 1, likes: 8 },
+            },
+            {
+              run_id: "r_2",
+              world_id: "w_1",
+              content: "第二条",
+              steps: 15,
+              platform: "twitter",
+              status: "done",
+              created_at: "2026-07-02T08:00:00Z",
+              totals: { replies: 4, reposts: 0, likes: 2 },
+            },
+          ];
+        }
+        return {
+          persons: [
+            {
+              person: {
+                person_id: "p_author",
+                display_name: "财经大号",
+                persona_kind: "kol",
+                accounts: [
+                  {
+                    account_id: "acct_1",
+                    person_id: "p_author",
+                    platform: "twitter",
+                    handle: "finance_kol",
+                    avatar_seed: "p_author",
+                    num_followers: 50000,
+                    influence_score: 50,
+                  },
+                ],
+              },
+              stance: { stance_counts: {}, dominant: "other" },
+              total_influence: 56,
+              run_ids: ["r_1", "r_2"],
+            },
+          ],
+        };
+      },
+    })),
+  );
+
+  mount();
+
+  expect(await screen.findByText("财经大号")).toBeInTheDocument();
+  expect(screen.getByText("2 次围观")).toBeInTheDocument();
+  expect(screen.getByText("第二条")).toBeInTheDocument();
+  expect(screen.getByText("第一条")).toBeInTheDocument();
+});

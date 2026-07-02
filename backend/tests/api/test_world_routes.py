@@ -95,3 +95,30 @@ async def test_create_run_passes_world_fields_and_degenerate_body_still_works(
     assert record.config.poster_persona == "kol"
     assert record.config.poster_person_id == "p_author"
     assert record.config.person_memory_budget == 2
+
+
+async def test_run_summary_exposes_world_identity_fields(tmp_path):  # review:P7-T6-AC5
+    app = create_app(FakeEngine(), store_path=tmp_path / "runs.json")
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://test",
+    ) as client:
+        world = (await client.post("/api/worlds", json={"persistent": True})).json()
+        run_id = (
+            await client.post(
+                "/api/runs",
+                json=_body(
+                    world_id=world["world_id"],
+                    poster_persona="kol",
+                    poster_person_id="p_author",
+                ),
+                headers=HDR,
+            )
+        ).json()["run_id"]
+        summary = await client.get(f"/api/runs/{run_id}")
+
+    assert summary.status_code == 200
+    data = summary.json()
+    assert data["world_id"] == world["world_id"]
+    assert data["poster_person_id"] == "p_author"
+    assert data["poster_persona"] == "kol"

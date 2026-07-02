@@ -155,6 +155,9 @@ def _run_summary(record) -> dict:
     metrics = compute_metrics(record.snapshot)
     return {
         "run_id": record.run_id,
+        "world_id": record.config.world_id,
+        "poster_person_id": record.config.poster_person_id,
+        "poster_persona": record.config.poster_persona.value,
         "content": record.config.content,
         "steps": record.config.steps,
         "platform": record.config.platform.value,
