@@ -6,6 +6,12 @@ from collections.abc import Callable
 from weiguan.api.store import RunStore
 from weiguan.engine.base import Engine
 from weiguan.canonical import RunSnapshot
+from weiguan.world.run_bridge import (
+    delta_to_events,
+    ensure_account_for_actor,
+    ensure_world_for_run,
+)
+from weiguan.world.store import WorldStore
 
 
 class RunEvent:
@@ -27,10 +33,12 @@ class RunRunner:
         self,
         store: RunStore,
         engine: Engine,
+        world_store: WorldStore | None = None,
         task_factory: Callable[[object], asyncio.Task] | None = None,
     ) -> None:
         self._store = store
         self._engine = engine
+        self._world_store = world_store
         self._tasks: dict[str, asyncio.Task] = {}
         self._subscribers: dict[str, set[asyncio.Queue[RunEvent]]] = {}
         self._task_factory = task_factory or asyncio.create_task
@@ -74,11 +82,38 @@ class RunRunner:
         record = self._store.get(run_id)
         if record is None:
             return
+        world = None
+        account_of: dict[int, str] = {}
+        if self._world_store is not None:  # review:P6-T6
+            world, poster = ensure_world_for_run(self._world_store, record.config)
+            if poster.accounts:
+                account_of[1] = poster.accounts[0].account_id
         try:
             async for delta in self._engine.run(record.config):
+                if self._world_store is not None and world is not None:
+                    for actor in delta.snapshot.actors:
+                        if actor.user_id not in account_of:
+                            account_of[actor.user_id] = ensure_account_for_actor(
+                                self._world_store,
+                                world_id=world.world_id,
+                                platform=record.config.platform,
+                                actor_id=actor.user_id,
+                                display_name=actor.name
+                                or actor.user_name
+                                or f"actor_{actor.user_id}",
+                            )
                 record.accumulate(delta.snapshot)
                 record.current_step = delta.step
                 self._store.save()
+                if self._world_store is not None and world is not None:
+                    for event in delta_to_events(
+                        delta,
+                        world_id=world.world_id,
+                        run_id=run_id,
+                        platform=record.config.platform,
+                        account_of=account_of,
+                    ):
+                        self._world_store.append_event(event)
                 self._publish(
                     run_id,
                     RunEvent("snapshot", record.current_step, record.snapshot),
