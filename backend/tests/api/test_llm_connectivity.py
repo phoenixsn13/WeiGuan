@@ -48,6 +48,14 @@ def _config_from_backend_env(monkeypatch: pytest.MonkeyPatch) -> RunConfig:
     )
 
 
+def _base_url_hint(base_url: str | None) -> str:
+    if not base_url:
+        return ""
+    if base_url.rstrip("/").endswith("/v1"):
+        return " The configured URL already ends with /v1; check the model server route table."
+    return f" For vLLM, try WEIGUAN_LLM_BASE_URL={base_url.rstrip('/')}/v1."
+
+
 def test_env_llm_model_is_listed_by_openai_compatible_endpoint(monkeypatch):
     config = _config_from_backend_env(monkeypatch)
     client = OpenAI(
@@ -61,6 +69,11 @@ def test_env_llm_model_is_listed_by_openai_compatible_endpoint(monkeypatch):
     except (APIConnectionError, APITimeoutError) as exc:
         raise AssertionError(
             f"cannot reach WEIGUAN_LLM_BASE_URL={config.llm_base_url!r}: {exc}"
+        ) from exc
+    except NotFoundError as exc:
+        raise AssertionError(
+            f"models endpoint returned 404 for WEIGUAN_LLM_BASE_URL={config.llm_base_url!r}."
+            f"{_base_url_hint(config.llm_base_url)} Original error: {exc}"
         ) from exc
 
     ids = [model.id for model in models.data]
@@ -85,8 +98,10 @@ def test_env_llm_accepts_project_chat_options(monkeypatch):
         response = client.chat.completions.create(**options)
     except NotFoundError as exc:
         raise AssertionError(
-            f"model not found by chat endpoint: {config.llm_model!r}; "
-            "check WEIGUAN_LLM_MODEL or stale frontend BYOK headers"
+            f"chat endpoint returned 404 for model={config.llm_model!r} "
+            f"at WEIGUAN_LLM_BASE_URL={config.llm_base_url!r}."
+            f"{_base_url_hint(config.llm_base_url)} If /v1 is already correct, "
+            "check WEIGUAN_LLM_MODEL or stale frontend BYOK headers."
         ) from exc
     except (APIConnectionError, APITimeoutError) as exc:
         raise AssertionError(
