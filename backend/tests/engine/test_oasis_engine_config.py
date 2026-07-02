@@ -350,9 +350,84 @@ async def test_run_limits_llm_agent_batch_and_steps(monkeypatch, tmp_path):  # r
     limited_requests = [
         item for item in env.agent_graph.requested_agent_ids if item is not None
     ]
-    assert limited_requests == [[1, 2], [1, 2]]
+    assert limited_requests == [[1, 2], [3, 4]]
     assert len(env.steps) == 3
     assert all(len(actions) == 2 for actions in env.steps[1:])
+
+
+async def test_run_rotates_single_budgeted_llm_agent(monkeypatch, tmp_path):  # review:UI-P12-AC2
+    class ActionType:
+        CREATE_POST = "create_post"
+
+    class ManualAction:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+    class LLMAction:
+        pass
+
+    class AgentGraph:
+        def __init__(self):
+            self.requested_agent_ids = []
+
+        def get_agent(self, actor_id):
+            return f"agent-{actor_id}"
+
+        def get_agents(self, agent_ids=None):
+            self.requested_agent_ids.append(list(agent_ids) if agent_ids else None)
+            ids = agent_ids or list(range(6))
+            return [(agent_id, f"agent-{agent_id}") for agent_id in ids]
+
+    class FakeEnv:
+        def __init__(self):
+            self.agent_graph = AgentGraph()
+
+        async def reset(self):
+            return None
+
+        async def step(self, actions):
+            return None
+
+        async def close(self):
+            return None
+
+    env = FakeEnv()
+    engine = OasisEngine(profile_path="profile.csv", db_dir=str(tmp_path))
+    config = RunConfig(
+        audience=Audience(crowd_id="tech_devs"),
+        content="hi",
+        steps=5,
+        llm_key="sk-x",
+        llm_model="m",
+        llm_max_agents=1,
+    )
+
+    async def fake_make_env(config):
+        return env, str(tmp_path / "run.db")
+
+    monkeypatch.setattr(engine, "_make_env", fake_make_env)
+    monkeypatch.setattr(
+        engine,
+        "_deps",
+        lambda: {
+            "ActionType": ActionType,
+            "ManualAction": ManualAction,
+            "LLMAction": LLMAction,
+        },
+    )
+    monkeypatch.setattr(engine, "_pin_seed_to_rec", lambda db_path: None)
+    monkeypatch.setattr(engine, "_assert_seed_visible", lambda db_path: None)
+    monkeypatch.setattr(
+        "weiguan.engine.oasis_engine.load_run_snapshot",
+        lambda *args, **kwargs: __import__("weiguan.canonical").canonical.RunSnapshot(),
+    )
+
+    [delta async for delta in engine.run(config)]
+
+    limited_requests = [
+        item for item in env.agent_graph.requested_agent_ids if item is not None
+    ]
+    assert limited_requests == [[1], [2], [3], [4]]
 
 
 def test_llm_agent_ids_respect_budgeted_agent_cap(tmp_path):  # review:PA-T8-AC6

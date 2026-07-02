@@ -196,13 +196,22 @@ class OasisEngine:
         finally:
             conn.close()
 
-    def _llm_agent_ids(self, env, config: RunConfig) -> list[int]:
+    def _llm_agent_ids(
+        self,
+        env,
+        config: RunConfig,
+        decision_step: int = 1,
+    ) -> list[int]:
         ids = [
             agent_id
             for agent_id, _agent in env.agent_graph.get_agents()
             if agent_id != 0
         ]
-        return ids[: config.budgeted_llm_max_agents]
+        if not ids:
+            return []
+        batch_size = min(config.budgeted_llm_max_agents, len(ids))
+        start = ((max(1, decision_step) - 1) * batch_size) % len(ids)
+        return [ids[(start + offset) % len(ids)] for offset in range(batch_size)]
 
     def _install_attention_context(self, env, config: RunConfig) -> None:
         if not hasattr(env.agent_graph, "get_agents"):
@@ -247,8 +256,16 @@ class OasisEngine:
 
             agent.env.to_text_prompt = to_text_prompt
 
-    async def _safe_llm_step(self, env, deps, config: RunConfig) -> None:
-        agents = env.agent_graph.get_agents(agent_ids=self._llm_agent_ids(env, config))
+    async def _safe_llm_step(
+        self,
+        env,
+        deps,
+        config: RunConfig,
+        decision_step: int,
+    ) -> None:
+        agents = env.agent_graph.get_agents(
+            agent_ids=self._llm_agent_ids(env, config, decision_step)
+        )
         actions = {agent: deps["LLMAction"]() for _, agent in agents}
         try:
             await env.step(actions)
@@ -278,7 +295,12 @@ class OasisEngine:
             for step in range(1, safe_steps + 1):
                 if step > 1:
                     try:
-                        await self._safe_llm_step(env, deps, config)
+                        await self._safe_llm_step(
+                            env,
+                            deps,
+                            config,
+                            decision_step=step - 1,
+                        )
                     except Exception:
                         llm_errors += 1
                         if llm_errors >= config.llm_error_threshold:
