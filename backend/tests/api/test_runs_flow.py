@@ -91,6 +91,30 @@ async def test_create_run_uses_env_defaults_when_headers_are_blank():  # review:
     assert record.config.llm_max_tokens == 256
 
 
+async def test_create_run_can_disable_max_steps_by_omitting_limit():  # review:PA-T8-AC2
+    async with _client() as client:
+        r = await client.post("/api/runs", json=_body(15), headers=HDR)
+        run_id = r.json()["run_id"]
+        record = client._transport.app.state.store.get(run_id)
+    assert r.status_code == 200
+    assert record.config.llm_max_steps is None
+    assert record.config.effective_steps == 15
+
+
+async def test_create_run_accepts_explicit_max_steps_header():  # review:PA-T8-AC3
+    async with _client() as client:
+        r = await client.post(
+            "/api/runs",
+            json=_body(15),
+            headers={**HDR, "X-LLM-Max-Steps": "2"},
+        )
+        run_id = r.json()["run_id"]
+        record = client._transport.app.state.store.get(run_id)
+    assert r.status_code == 200
+    assert record.config.llm_max_steps == 2
+    assert record.config.effective_steps == 3
+
+
 async def test_create_run_accepts_openai_compatible_headers():  # review:P2-T6
     headers = {
         "X-LLM-Key": "sk-x",
@@ -127,7 +151,7 @@ async def test_sse_stream_order_and_accumulation():  # review:P2-T4-AC4
 async def test_sse_reports_effective_step_total_when_llm_steps_are_capped():  # review:UI-P8-AC1
     class LimitedEngine:
         async def run(self, config):
-            for step in range(1, min(config.steps, config.llm_max_steps + 1) + 1):
+            for step in range(1, config.effective_steps + 1):
                 yield RunDelta(step=step, snapshot=RunSnapshot())
 
     app = create_app(LimitedEngine())

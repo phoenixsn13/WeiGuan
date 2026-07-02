@@ -189,7 +189,7 @@ class OasisEngine:
             for agent_id, _agent in env.agent_graph.get_agents()
             if agent_id != 0
         ]
-        return ids[: config.llm_max_agents]
+        return ids[: config.budgeted_llm_max_agents]
 
     def _install_attention_context(self, env, config: RunConfig) -> None:
         if not hasattr(env.agent_graph, "get_agents"):

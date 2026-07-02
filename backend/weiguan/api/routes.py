@@ -108,6 +108,7 @@ def _resolve_llm_update(
     base_url: str | None,
     reasoning_effort: str | None,
     thinking: str | None,
+    max_steps: int | None = None,
 ) -> dict:
     defaults = _llm_defaults(request)
     resolved_key = _nonblank(key) or defaults.key
@@ -120,7 +121,7 @@ def _resolve_llm_update(
         _nonblank(reasoning_effort) or defaults.reasoning_effort,
         _nonblank(thinking) or defaults.thinking,
         defaults.max_agents,
-        defaults.max_steps,
+        max_steps if max_steps is not None else defaults.max_steps,
         defaults.error_threshold,
         defaults.max_retries,
         defaults.max_tokens,
@@ -143,6 +144,7 @@ async def create_run(
     x_llm_base_url: str | None = Header(default=None),
     x_llm_reasoning_effort: str | None = Header(default=None),
     x_llm_thinking: str | None = Header(default=None),
+    x_llm_max_steps: int | None = Header(default=None),
 ):
     try:
         cfg = RunConfig(
@@ -157,6 +159,7 @@ async def create_run(
                 x_llm_base_url,
                 x_llm_reasoning_effort,
                 x_llm_thinking,
+                x_llm_max_steps,
             ),
         )
     except ValidationError as exc:

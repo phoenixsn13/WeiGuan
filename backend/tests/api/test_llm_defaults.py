@@ -8,6 +8,17 @@ def test_load_env_file_reads_weiguan_llm_defaults(tmp_path, monkeypatch):  # rev
         "WEIGUAN_LLM_BASE_URL",
         "WEIGUAN_LLM_REASONING_EFFORT",
         "WEIGUAN_LLM_THINKING",
+        "WEIGUAN_LLM_MAX_AGENTS",
+        "WEIGUAN_LLM_MAX_STEPS",
+        "WEIGUAN_LLM_ERROR_THRESHOLD",
+        "WEIGUAN_LLM_MAX_RETRIES",
+        "WEIGUAN_LLM_MAX_TOKENS",
+        "WEIGUAN_LLM_COST_BUDGET_RMB",
+        "WEIGUAN_OASIS_MAX_REC_POST_LEN",
+        "WEIGUAN_OASIS_REFRESH_REC_POST_COUNT",
+        "WEIGUAN_OASIS_FOLLOWING_POST_COUNT",
+        "WEIGUAN_OASIS_LLM_SEMAPHORE",
+        "WEIGUAN_ATTENTION_COMMENT_BUDGET",
     ]:
         monkeypatch.delenv(name, raising=False)
     env_file = tmp_path / ".env"
@@ -54,3 +65,14 @@ def test_load_env_file_reads_weiguan_llm_defaults(tmp_path, monkeypatch):  # rev
     assert defaults.oasis_following_post_count == 3
     assert defaults.oasis_llm_semaphore == 4
     assert defaults.attention_comment_budget == 12
+
+
+def test_blank_max_steps_disables_hard_step_cap(tmp_path, monkeypatch):  # review:PA-T8-AC5
+    monkeypatch.delenv("WEIGUAN_LLM_MAX_STEPS", raising=False)
+    env_file = tmp_path / ".env"
+    env_file.write_text("WEIGUAN_LLM_MAX_STEPS=\n", encoding="utf-8")
+
+    load_env_file(env_file)
+    defaults = defaults_from_env()
+
+    assert defaults.max_steps is None

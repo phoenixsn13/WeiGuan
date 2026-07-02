@@ -53,8 +53,24 @@ def test_openai_compatible_llm_options():  # review:P2-T6
 def test_cost_safety_defaults_bound_oasis_context():  # review:PA-T7-AC2
     c = _cfg()
     assert c.llm_cost_budget_rmb == 5.0
+    assert c.llm_max_steps is None
+    assert c.effective_steps == c.steps
     assert c.oasis_max_rec_post_len == 10
     assert c.oasis_refresh_rec_post_count == 5
     assert c.oasis_following_post_count == 3
     assert c.oasis_llm_semaphore == 4
     assert c.attention_comment_budget == 12
+
+
+def test_optional_max_steps_only_caps_when_explicitly_configured():  # review:PA-T8-AC1
+    assert _cfg(steps=15).effective_steps == 15
+    assert _cfg(steps=15, llm_max_steps=2).effective_steps == 3
+
+
+def test_budget_estimate_caps_agents_without_shortening_steps():  # review:PA-T8-AC4
+    normal = _cfg(steps=15, llm_max_agents=8, llm_cost_budget_rmb=5)
+    constrained = _cfg(steps=15, llm_max_agents=8, llm_cost_budget_rmb=0.05)
+
+    assert normal.budgeted_llm_max_agents == 8
+    assert constrained.budgeted_llm_max_agents < 8
+    assert constrained.effective_steps == 15

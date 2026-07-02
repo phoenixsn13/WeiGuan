@@ -355,6 +355,34 @@ async def test_run_limits_llm_agent_batch_and_steps(monkeypatch, tmp_path):  # r
     assert all(len(actions) == 2 for actions in env.steps[1:])
 
 
+def test_llm_agent_ids_respect_budgeted_agent_cap(tmp_path):  # review:PA-T8-AC6
+    class AgentGraph:
+        def get_agents(self):
+            return [(agent_id, f"agent-{agent_id}") for agent_id in range(9)]
+
+    class Env:
+        agent_graph = AgentGraph()
+
+    config = RunConfig(
+        audience=Audience(crowd_id="tech_devs"),
+        content="hi",
+        steps=15,
+        llm_key="sk-x",
+        llm_model="m",
+        llm_max_agents=8,
+        llm_cost_budget_rmb=0.05,
+    )
+
+    ids = OasisEngine(profile_path="profile.csv", db_dir=str(tmp_path))._llm_agent_ids(
+        Env(),
+        config,
+    )
+
+    assert len(ids) == config.budgeted_llm_max_agents
+    assert len(ids) < config.llm_max_agents
+    assert config.effective_steps == 15
+
+
 async def test_run_breaks_circuit_when_llm_step_fails(monkeypatch, tmp_path):  # review:PA-T6-AC2
     class ActionType:
         CREATE_POST = "create_post"

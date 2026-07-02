@@ -133,14 +133,14 @@ WEIGUAN_LLM_MODEL=deepseek-v4-pro
 WEIGUAN_LLM_REASONING_EFFORT=
 WEIGUAN_LLM_THINKING=
 WEIGUAN_LLM_MAX_AGENTS=4
-WEIGUAN_LLM_MAX_STEPS=1
+WEIGUAN_LLM_MAX_STEPS=
 WEIGUAN_LLM_ERROR_THRESHOLD=1
 WEIGUAN_LLM_MAX_RETRIES=0
 WEIGUAN_LLM_MAX_TOKENS=256
 ```
 
 `backend/.env` 不提交。浏览器 BYOK 设置为空时，后端使用这些默认值；浏览器里填写的字段优先级更高。
-安全阀在后端强制生效：即使浏览器选择 10/15 轮，OASIS 真 LLM 调用也只会按 `WEIGUAN_LLM_MAX_AGENTS` 和 `WEIGUAN_LLM_MAX_STEPS` 控制规模，provider 出错达到阈值会熔断。
+安全阀在后端强制生效：默认不再用 `WEIGUAN_LLM_MAX_STEPS` 截断浏览器选择的 6/10/15 轮；留空表示关闭硬步数截断。成本安全主要由 bounded attention context、预算估算和 `WEIGUAN_LLM_MAX_AGENTS` 控制。只有显式设置 `WEIGUAN_LLM_MAX_STEPS` 时，才会作为运维级硬熔断缩短真实 LLM 决策轮数。provider 出错达到阈值仍会熔断。
 
 终端 1：
 

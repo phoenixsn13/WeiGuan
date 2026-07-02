@@ -88,7 +88,7 @@ RunConfig 默认值：
 ```text
 llm_cost_budget_rmb = 5.0
 llm_max_agents = 8
-llm_max_steps = 2
+llm_max_steps = None  # 默认关闭硬步数截断
 llm_max_retries = 0
 llm_max_tokens = 512
 
@@ -104,6 +104,7 @@ attention_comment_budget = 12
 
 ```text
 WEIGUAN_LLM_COST_BUDGET_RMB=5
+WEIGUAN_LLM_MAX_STEPS=
 WEIGUAN_OASIS_MAX_REC_POST_LEN=10
 WEIGUAN_OASIS_REFRESH_REC_POST_COUNT=5
 WEIGUAN_OASIS_FOLLOWING_POST_COUNT=3
@@ -151,7 +152,9 @@ AttentionContext:
 - 平台窗口从 500/500 收缩到配置化小窗口。
 - `oasis.make()` 传入 `semaphore=config.oasis_llm_semaphore`。
 - seed 通过 `_pin_seed_to_rec()` 写入 rec 表，保证可见性。
-- `llm_max_agents` 和 `llm_max_steps` 仍作为第一层硬限制。
+- 默认不再用 `llm_max_steps` 粗暴截断用户选择的 6/10/15 步；留空表示关闭硬步数截断。
+- `llm_cost_budget_rmb` 结合 bounded attention context 估算默认成本，优先约束参与 agent 数，不缩短轮次。
+- `llm_max_steps` 仅作为运维级硬熔断；显式设置后才会把实际执行步数限制为 `llm_max_steps + 1`（首步为用户 seed 发帖）。
 - `OasisEngine._install_attention_context()` 在 `env.reset()` 后为非 seed agent 替换 `agent.env.to_text_prompt()`，让真实 `LLMAction()` 使用有限注意力上下文，而不是 OASIS 默认全量 comments observation。
 
 后续增强：
