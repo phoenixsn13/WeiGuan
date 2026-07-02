@@ -9,6 +9,53 @@ afterEach(() => {
   localStorage.clear();
 });
 
+const analysis = {
+  diffusion: {
+    tree: [
+      { post_id: 1, author_id: 1, depth: 0, children: [2] },
+      { post_id: 2, author_id: 20, depth: 1, children: [] },
+    ],
+    max_depth: 1,
+    breadth: 1,
+    cascade_size: 1,
+    key_rebroadcasters: [20],
+  },
+  opinion: {
+    stance_by_tick: [{ tick: "1", stance_counts: { question: 2, analysis: 1 } }],
+    convergence_trend: "diverging",
+    polarization_index: 0.67,
+    homophily: 0.9,
+    cross_stance_ratio: 0.1,
+    echo_chamber_risk: "high",
+  },
+  influence: {
+    ranking: [{ actor_id: 20, in_degree: 5, centrality: 0.6, structural_influence: 0.6, kcore: 2 }],
+    top_leaders: [20],
+    iterations: 12,
+  },
+  temporal: {
+    fermentation_curve: [
+      { tick: "1", volume: 2, sentiment: "positive" },
+      { tick: "2", volume: 5, sentiment: "negative" },
+    ],
+    peak_tick: 2,
+    half_life_ticks: 1,
+    sentiment_reversals: [{ tick: "2", from: "positive", to: "negative" }],
+  },
+};
+
+const snapshot = {
+  platform: "twitter",
+  seed_post_id: 1,
+  actors: [{ user_id: 1, user_name: "财00_韭菜观察员", name: "财00_韭菜观察员" }],
+  posts: [{ post_id: 1, author_id: 1, kind: "original", content: "真实历史主帖" }],
+  replies: [],
+  reactions: [],
+  follows: [],
+  reports: [],
+  traces: [],
+};
+
 function mount() {
   render(
     <MemoryRouter initialEntries={["/run/r_1/retro"]}>
@@ -19,373 +66,53 @@ function mount() {
   );
 }
 
-test("renders sentiment from retro metrics", async () => {  // review:P5-T5-AC1
+function stubFetch(savedInsights: object | null = null) {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string) => {
-      if (url.endsWith("/snapshot")) {
-        return {
-          ok: true,
-          json: async () => ({
-            platform: "twitter",
-            seed_post_id: 1,
-            actors: [],
-            posts: [],
-            replies: [],
-            reactions: [],
-            follows: [],
-            reports: [],
-            traces: [],
-          }),
-        };
+      if (url.endsWith("/analysis")) return { ok: true, json: async () => analysis };
+      if (url.endsWith("/snapshot")) return { ok: true, json: async () => snapshot };
+      if (url.endsWith("/insights") && savedInsights) {
+        return { ok: true, json: async () => savedInsights };
       }
-      return {
-        ok: true,
-        json: async () => ({
-          sentiment: { positive: 5, negative: 2, neutral: 3 },
-          spread_by_step: [1, 3, 2],
-          totals: { reposts: 1, reports: 1 },
-        }),
-      };
+      if (url.endsWith("/insights")) return { ok: false, status: 404, json: async () => ({}) };
+      return { ok: true, json: async () => ({}) };
     }),
   );
-  mount();
-  expect((await screen.findAllByText(/^正向$/)).length).toBeGreaterThan(0);
-  expect(screen.getByText(/50%/)).toBeInTheDocument();
-  expect(screen.getByText("围观回放")).toBeInTheDocument();
-  expect(screen.getAllByText("发酵时间线").length).toBeGreaterThan(0);
-  expect(screen.getByText(/第 1 波/)).toBeInTheDocument();
-  expect(screen.getByText("回到评论区")).toHaveAttribute(
-    "href",
-    "/run/r_1/live?replay=1",
-  );
-});
+}
 
-test("replay timeline uses saved snapshot replies instead of canned copy", async () => {  // review:UI-P1-AC8
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (url: string) => {
-      if (url.endsWith("/snapshot")) {
-        return {
-          ok: true,
-          json: async () => ({
-            platform: "twitter",
-            seed_post_id: 1,
-            actors: [
-              {
-                user_id: 2,
-                user_name: "dev_marco",
-                name: "Marco",
-                num_followers: 12,
-                num_followings: 3,
-              },
-            ],
-            posts: [
-              {
-                post_id: 1,
-                author_id: 1,
-                kind: "original",
-                content: "真实历史主帖",
-                num_likes: 0,
-                num_dislikes: 0,
-                num_shares: 0,
-                num_reports: 0,
-              },
-            ],
-            replies: [
-              {
-                comment_id: 7,
-                post_id: 1,
-                author_id: 2,
-                content: "真实历史评论：CI 环境要说明",
-                num_likes: 3,
-                num_dislikes: 0,
-              },
-            ],
-            reactions: [],
-            follows: [],
-            reports: [],
-            traces: [],
-          }),
-        };
-      }
-      return {
-        ok: true,
-        json: async () => ({
-          sentiment: { positive: 1, negative: 0, neutral: 0 },
-          spread_by_step: [1],
-          totals: { replies: 1 },
-        }),
-      };
-    }),
-  );
-
+test("retro renders professional analysis tabs and insight cards", async () => {  // review:P8-T7
+  stubFetch();
   mount();
 
-  expect(await screen.findByText("真实历史评论：CI 环境要说明")).toBeInTheDocument();
-  expect(screen.getByText("Marco")).toBeInTheDocument();
-  expect(screen.queryByText("缓存没清吧？")).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "时间轴视图" }));
-  expect(screen.getByText("发布正文")).toBeInTheDocument();
-});
-
-test("retro sidebar cleans profile prefixes and negative filter shows negative signals", async () => {  // review:UI-P17-AC1
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (url: string) => {
-      if (url.endsWith("/snapshot")) {
-        return {
-          ok: true,
-          json: async () => ({
-            platform: "twitter",
-            seed_post_id: 1,
-            actors: [
-              {
-                user_id: 1,
-                user_name: "财00_韭菜观察员",
-                name: "财00_韭菜观察员",
-                num_followers: 12,
-                num_followings: 3,
-              },
-              {
-                user_id: 2,
-                user_name: "财02_估值小刀",
-                name: "财02_估值小刀",
-                num_followers: 9,
-                num_followings: 3,
-              },
-            ],
-            posts: [
-              {
-                post_id: 1,
-                author_id: 1,
-                kind: "original",
-                content: "AI 发展这么快",
-                num_likes: 0,
-                num_dislikes: 0,
-                num_shares: 0,
-                num_reports: 0,
-              },
-            ],
-            replies: [
-              {
-                comment_id: 7,
-                post_id: 1,
-                author_id: 2,
-                content: "估值全靠故事，泡沫太明显了",
-                num_likes: 0,
-                num_dislikes: 0,
-              },
-            ],
-            reactions: [],
-            follows: [],
-            reports: [],
-            traces: [],
-          }),
-        };
-      }
-      return {
-        ok: true,
-        json: async () => ({
-          sentiment: { positive: 49, negative: 3, neutral: 16 },
-          spread_by_step: [1],
-          totals: { replies: 1, reports: 3 },
-        }),
-      };
-    }),
-  );
-
-  mount();
-
-  expect(await screen.findByText("韭菜观察员")).toBeInTheDocument();
-  expect(screen.queryByText("财00_韭菜观察员")).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "负向" }));
-  expect(screen.queryByText("没有符合条件的阶段。")).not.toBeInTheDocument();
-  expect(screen.getByText("估值全靠故事，泡沫太明显了")).toBeInTheDocument();
-  expect(screen.getByText("估值小刀")).toBeInTheDocument();
-});
-
-test("sentiment tabs classify stages by their dominant evidence", async () => {  // review:UI-P18-AC1
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (url: string) => {
-      if (url.endsWith("/snapshot")) {
-        return {
-          ok: true,
-          json: async () => ({
-            platform: "twitter",
-            seed_post_id: 1,
-            actors: [
-              {
-                user_id: 1,
-                user_name: "财00_韭菜观察员",
-                name: "财00_韭菜观察员",
-                num_followers: 12,
-                num_followings: 3,
-              },
-              {
-                user_id: 2,
-                user_name: "研报搬砖人",
-                name: "研报搬砖人",
-                num_followers: 9,
-                num_followings: 3,
-              },
-            ],
-            posts: [
-              {
-                post_id: 1,
-                author_id: 1,
-                kind: "original",
-                content: "AI 发展这么快",
-                num_likes: 0,
-                num_dislikes: 0,
-                num_shares: 0,
-                num_reports: 0,
-              },
-            ],
-            replies: [
-              {
-                comment_id: 6,
-                post_id: 1,
-                author_id: 2,
-                content: "这个方向挺靠谱，落地数据如果跟上就看好",
-                num_likes: 0,
-                num_dislikes: 0,
-              },
-              {
-                comment_id: 7,
-                post_id: 1,
-                author_id: 2,
-                content: "先看落地数据，泡沫风险也要说清楚",
-                num_likes: 0,
-                num_dislikes: 0,
-              },
-              {
-                comment_id: 8,
-                post_id: 1,
-                author_id: 2,
-                content: "我还在观望，政策怎么落地还不好说",
-                num_likes: 0,
-                num_dislikes: 0,
-              },
-              {
-                comment_id: 9,
-                post_id: 1,
-                author_id: 2,
-                content: "继续看后续披露，先不下结论",
-                num_likes: 0,
-                num_dislikes: 0,
-              },
-            ],
-            reactions: [],
-            follows: [],
-            reports: [],
-            traces: [],
-          }),
-        };
-      }
-      return {
-        ok: true,
-        json: async () => ({
-          sentiment: { positive: 2, negative: 1, neutral: 4 },
-          spread_by_step: [1, 2, 3, 4],
-          totals: { replies: 1, likes: 2, reports: 1 },
-        }),
-      };
-    }),
-  );
-
-  mount();
-  await screen.findByText(/第 1 波/);
-
-  fireEvent.click(screen.getByRole("button", { name: "正向" }));
-  expect(screen.getByText(/第 1 波/)).toBeInTheDocument();
-  expect(screen.queryByText(/第 2 波/)).not.toBeInTheDocument();
-
-  fireEvent.click(screen.getByRole("button", { name: "负向" }));
-  expect(screen.getByText(/第 2 波/)).toBeInTheDocument();
-  expect(screen.queryByText(/第 1 波/)).not.toBeInTheDocument();
-
-  fireEvent.click(screen.getByRole("button", { name: "中立" }));
-  expect(screen.getByText(/第 3 波/)).toBeInTheDocument();
-  expect(screen.getByText(/第 4 波/)).toBeInTheDocument();
+  expect(await screen.findByText("围观回放")).toBeInTheDocument();
+  expect(screen.getAllByText("传播树").length).toBeGreaterThan(0);
+  expect(screen.getAllByText("立场分化").length).toBeGreaterThan(0);
+  expect(screen.getAllByText("影响力榜").length).toBeGreaterThan(0);
+  expect(screen.getAllByText("情绪时间线").length).toBeGreaterThan(0);
+  expect(screen.getAllByText("数据趋势").length).toBeGreaterThan(0);
+  expect(screen.getByText("关键传播节点")).toBeInTheDocument();
+  expect(screen.getAllByText(/@20/).length).toBeGreaterThan(0);
   expect(screen.queryByText(/第 1 波/)).not.toBeInTheDocument();
 });
 
-test("generate insights shows verdict and suggestions", async () => {  // review:P5-T5-AC2
-  const fetchMock = vi
-    .fn()
-    .mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        sentiment: { positive: 1, negative: 0, neutral: 0 },
-        spread_by_step: [1],
-        totals: {},
-      }),
-    })
-    .mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        platform: "twitter",
-        seed_post_id: 1,
-        actors: [],
-        posts: [],
-        replies: [],
-        reactions: [],
-        follows: [],
-        reports: [],
-        traces: [],
-      }),
-    })
-    .mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        verdict: "偏正向但有暗线",
-        suggestions: ["加冷启动实测", "盯硬核用户"],
-      }),
-    });
-  vi.stubGlobal("fetch", fetchMock);
+test("retro switches method-family views", async () => {  // review:P8-T7
+  stubFetch();
   mount();
-  await screen.findAllByText(/^正向$/);
-  fireEvent.click(screen.getByText(/生成建议/));
-  expect(await screen.findByText("偏正向但有暗线")).toBeInTheDocument();
-  expect(screen.getByText("加冷启动实测")).toBeInTheDocument();
+
+  await screen.findByText("原帖 @1");
+  fireEvent.click(screen.getAllByRole("button", { name: "立场分化" })[0]);
+  expect(screen.getByText("负向 2")).toBeInTheDocument();
+
+  fireEvent.click(screen.getAllByRole("button", { name: "影响力榜" })[0]);
+  expect(screen.getByText("入度 5 · 核心层 2")).toBeInTheDocument();
+
+  fireEvent.click(screen.getAllByRole("button", { name: "情绪时间线" })[0]);
+  expect(screen.getByText(/正向 → 负向/)).toBeInTheDocument();
 });
 
-test("loads persisted insights and offers regeneration", async () => {  // review:UI-P16-AC3
-  const fetchMock = vi
-    .fn()
-    .mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        sentiment: { positive: 1, negative: 0, neutral: 0 },
-        spread_by_step: [1],
-        totals: {},
-      }),
-    })
-    .mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        platform: "twitter",
-        seed_post_id: 1,
-        actors: [],
-        posts: [],
-        replies: [],
-        reactions: [],
-        follows: [],
-        reports: [],
-        traces: [],
-      }),
-    })
-    .mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        verdict: "刷新后还在",
-        suggestions: ["这是持久化建议"],
-      }),
-    });
-  vi.stubGlobal("fetch", fetchMock);
-
+test("loads persisted insights and offers regeneration", async () => {  // review:P8-T7
+  stubFetch({ verdict: "刷新后还在", suggestions: ["这是持久化建议"] });
   mount();
 
   expect(await screen.findByText("刷新后还在")).toBeInTheDocument();

@@ -233,6 +233,60 @@ export interface Insights {
   suggestions: string[];
 }
 
+export interface CascadeNode {
+  post_id: number;
+  author_id: number;
+  depth: number;
+  children: number[];
+}
+
+export interface DiffusionMetrics {
+  tree: CascadeNode[];
+  max_depth: number;
+  breadth: number;
+  cascade_size: number;
+  key_rebroadcasters: number[];
+}
+
+export interface OpinionMetrics {
+  stance_by_tick: Array<{ tick: string; stance_counts: Record<string, number> }>;
+  convergence_trend: "converging" | "diverging" | "stable" | string;
+  polarization_index: number;
+  homophily: number;
+  cross_stance_ratio: number;
+  echo_chamber_risk: "low" | "medium" | "high" | string;
+}
+
+export interface InfluenceMetrics {
+  ranking: Array<{
+    actor_id: number;
+    in_degree: number;
+    centrality: number;
+    structural_influence?: number;
+    kcore: number;
+  }>;
+  top_leaders: number[];
+  iterations?: number;
+}
+
+export interface TemporalMetrics {
+  fermentation_curve: Array<{
+    tick: string;
+    volume: number;
+    sentiment: "positive" | "negative" | "neutral" | string;
+  }>;
+  peak_tick: number;
+  half_life_ticks: number;
+  sentiment_reversals: Array<{ tick: string; from: string; to: string }>;
+}
+
+export interface AnalysisProjection {
+  diffusion: DiffusionMetrics;
+  opinion: OpinionMetrics;
+  influence: InfluenceMetrics;
+  temporal: TemporalMetrics;
+}
+
 function isInsights(value: unknown): value is Insights {
   if (!value || typeof value !== "object") {
     return false;
@@ -269,6 +323,14 @@ export async function fetchRetro(runId: string): Promise<RetroMetrics> {
   const response = await fetch(`/api/runs/${runId}/retro`);
   if (!response.ok) {
     throw new Error("failed to load retro");
+  }
+  return response.json();
+}
+
+export async function getAnalysis(runId: string): Promise<AnalysisProjection> {  // review:P8-T7
+  const response = await fetch(`/api/runs/${runId}/analysis`);
+  if (!response.ok) {
+    throw new Error("failed to load analysis");
   }
   return response.json();
 }

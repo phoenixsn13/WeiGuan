@@ -11,6 +11,7 @@ import {
   fetchRunSnapshot,
   fetchRuns,
   fetchSavedInsights,
+  getAnalysis,
   interviewActor,
 } from "./client";
 
@@ -315,4 +316,34 @@ test("getIdentities reads global persistent identity list", async () => {  // re
   expect(spy).toHaveBeenCalledWith("/api/identities");
   expect(identities[0].world_id).toBe("w_1");
   expect(identities[0].person_id).toBe("p_author");
+});
+
+test("getAnalysis reads professional social analysis projection", async () => {  // review:P8-T7
+  const spy = vi.fn(async () => ({
+    ok: true,
+    json: async () => ({
+      diffusion: { tree: [], max_depth: 0, breadth: 0, cascade_size: 0, key_rebroadcasters: [] },
+      opinion: {
+        stance_by_tick: [],
+        convergence_trend: "stable",
+        polarization_index: 0,
+        homophily: 0,
+        cross_stance_ratio: 0,
+        echo_chamber_risk: "low",
+      },
+      influence: { ranking: [], top_leaders: [], iterations: 0 },
+      temporal: {
+        fermentation_curve: [],
+        peak_tick: 0,
+        half_life_ticks: 0,
+        sentiment_reversals: [],
+      },
+    }),
+  }));
+  vi.stubGlobal("fetch", spy);
+
+  const analysis = await getAnalysis("r_1");
+
+  expect(spy).toHaveBeenCalledWith("/api/runs/r_1/analysis");
+  expect(analysis.opinion.echo_chamber_risk).toBe("low");
 });
