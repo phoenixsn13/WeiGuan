@@ -123,10 +123,86 @@ test("replay timeline uses saved snapshot replies instead of canned copy", async
   mount();
 
   expect(await screen.findByText("真实历史评论：CI 环境要说明")).toBeInTheDocument();
-  expect(screen.getByText("@dev_marco")).toBeInTheDocument();
+  expect(screen.getByText("Marco")).toBeInTheDocument();
   expect(screen.queryByText("缓存没清吧？")).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "时间轴视图" }));
   expect(screen.getByText("发布正文")).toBeInTheDocument();
+});
+
+test("retro sidebar cleans profile prefixes and negative filter shows negative signals", async () => {  // review:UI-P17-AC1
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.endsWith("/snapshot")) {
+        return {
+          ok: true,
+          json: async () => ({
+            platform: "twitter",
+            seed_post_id: 1,
+            actors: [
+              {
+                user_id: 1,
+                user_name: "财00_韭菜观察员",
+                name: "财00_韭菜观察员",
+                num_followers: 12,
+                num_followings: 3,
+              },
+              {
+                user_id: 2,
+                user_name: "财02_估值小刀",
+                name: "财02_估值小刀",
+                num_followers: 9,
+                num_followings: 3,
+              },
+            ],
+            posts: [
+              {
+                post_id: 1,
+                author_id: 1,
+                kind: "original",
+                content: "AI 发展这么快",
+                num_likes: 0,
+                num_dislikes: 0,
+                num_shares: 0,
+                num_reports: 0,
+              },
+            ],
+            replies: [
+              {
+                comment_id: 7,
+                post_id: 1,
+                author_id: 2,
+                content: "估值全靠故事，泡沫太明显了",
+                num_likes: 0,
+                num_dislikes: 0,
+              },
+            ],
+            reactions: [],
+            follows: [],
+            reports: [],
+            traces: [],
+          }),
+        };
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          sentiment: { positive: 49, negative: 3, neutral: 16 },
+          spread_by_step: [1],
+          totals: { replies: 1, reports: 3 },
+        }),
+      };
+    }),
+  );
+
+  mount();
+
+  expect(await screen.findByText("韭菜观察员")).toBeInTheDocument();
+  expect(screen.queryByText("财00_韭菜观察员")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "负向" }));
+  expect(screen.queryByText("没有符合条件的阶段。")).not.toBeInTheDocument();
+  expect(screen.getByText("估值全靠故事，泡沫太明显了")).toBeInTheDocument();
+  expect(screen.getByText("估值小刀")).toBeInTheDocument();
 });
 
 test("generate insights shows verdict and suggestions", async () => {  // review:P5-T5-AC2

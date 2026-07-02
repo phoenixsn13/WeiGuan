@@ -15,6 +15,7 @@ import { SentimentTag } from "../components/SentimentTag";
 import { emptySnapshot } from "../model/accumulate";
 import type { Reply, RunSnapshot } from "../model/canonical";
 import { keyEvents, timelineRows, trendRows } from "../pov/social";
+import { displayName } from "../skins/x/identity";
 
 interface Wave {
   title: string;
@@ -22,6 +23,7 @@ interface Wave {
   representative: string;
   discussion: string;
   mood: string;
+  sentiment: "positive" | "negative" | "neutral";
   spread: number;
 }
 
@@ -37,7 +39,7 @@ const WAVE_COPY = [
 
 function actorLabel(snapshot: RunSnapshot | null, actorId: number): string {
   const actor = snapshot?.actors.find((item) => item.user_id === actorId);
-  return actor?.user_name ? `@${actor.user_name}` : `用户 ${actorId}`;
+  return actor ? displayName(actor) : `用户 ${actorId}`;
 }
 
 function seedPost(snapshot: RunSnapshot | null) {
@@ -55,12 +57,45 @@ function replyBucket(replies: Reply[], index: number, count: number): Reply[] {
   return replies.slice(index * size, index * size + size);
 }
 
-function moodLabel(metrics: RetroMetrics, index: number): string {
-  const { positive, negative, neutral } = metrics.sentiment;
-  if (negative > positive && index >= 1) return "质疑较多";
-  if (positive > negative && index !== 2) return "正向占优";
-  if (neutral >= positive && neutral >= negative) return "观望为主";
-  return "观点分化";
+const NEGATIVE_REPLY_WORDS = [
+  "质疑",
+  "不靠谱",
+  "泡沫",
+  "崩盘",
+  "割韭菜",
+  "忽悠",
+  "别逗",
+  "没用",
+  "虚",
+  "骗",
+  "风险",
+] as const;
+
+function looksNegative(reply: Reply): boolean {
+  return NEGATIVE_REPLY_WORDS.some((word) => reply.content.includes(word));
+}
+
+function waveSentiment(
+  metrics: RetroMetrics,
+  bucket: Reply[],
+  index: number,
+): "positive" | "negative" | "neutral" {
+  const bucketHasNegativeReply = bucket.some(looksNegative);
+  const finalBucketGetsAggregateNegativeSignal =
+    index === WAVE_COPY.length - 1 && metrics.sentiment.negative > 0;
+  if (bucketHasNegativeReply || finalBucketGetsAggregateNegativeSignal) {
+    return "negative";
+  }
+  if (metrics.sentiment.positive > metrics.sentiment.negative && index !== 2) {
+    return "positive";
+  }
+  return "neutral";
+}
+
+function moodLabel(sentiment: Wave["sentiment"]): string {
+  if (sentiment === "negative") return "负向信号";
+  if (sentiment === "positive") return "正向占优";
+  return "观望为主";
 }
 
 function buildWaves(metrics: RetroMetrics, snapshot: RunSnapshot | null): Wave[] {
@@ -69,13 +104,24 @@ function buildWaves(metrics: RetroMetrics, snapshot: RunSnapshot | null): Wave[]
   const fallbackContent = seed?.content ?? "暂无保存评论";
   return WAVE_COPY.map(([title, description], index) => {
     const bucket = replyBucket(replies, index, WAVE_COPY.length);
-    const reply = bucket[0];
+    const sentiment = waveSentiment(metrics, bucket, index);
+    const reply =
+      sentiment === "negative" ? bucket.find(looksNegative) ?? bucket[0] : bucket[0];
+    const negativeFallback =
+      sentiment === "negative" && !reply && metrics.sentiment.negative > 0;
     return {
       title,
       description,
-      representative: reply?.content ?? (index === 0 ? fallbackContent : "这一波暂无新增评论"),
-      discussion: reply ? actorLabel(snapshot, reply.author_id) : "等待更多讨论",
-      mood: moodLabel(metrics, index),
+      representative:
+        reply?.content ??
+        (negativeFallback
+          ? `收到 ${metrics.sentiment.negative} 个踩、举报等负向反馈`
+          : index === 0
+            ? fallbackContent
+            : "这一波暂无新增评论"),
+      discussion: reply ? actorLabel(snapshot, reply.author_id) : negativeFallback ? "负向反馈" : "等待更多讨论",
+      mood: moodLabel(sentiment),
+      sentiment,
       spread:
         metrics.spread_by_step[index] ??
         metrics.spread_by_step[metrics.spread_by_step.length - 1] ??
@@ -87,9 +133,9 @@ function buildWaves(metrics: RetroMetrics, snapshot: RunSnapshot | null): Wave[]
 function filterWaves(waves: Wave[], filter: SentimentFilter): Wave[] {
   if (filter === "全部") return waves;
   const matcher: Record<Exclude<SentimentFilter, "全部">, (wave: Wave) => boolean> = {
-    正向: (wave) => wave.mood.includes("正向"),
-    中立: (wave) => wave.mood.includes("观望") || wave.mood.includes("分化"),
-    负向: (wave) => wave.mood.includes("质疑"),
+    正向: (wave) => wave.sentiment === "positive",
+    中立: (wave) => wave.sentiment === "neutral",
+    负向: (wave) => wave.sentiment === "negative",
   };
   return waves.filter(matcher[filter]);
 }
@@ -185,10 +231,10 @@ export default function RetroScreen() {
       <aside className="hidden bg-slate-950 p-6 text-white lg:block">
         <div className="mb-8 flex items-center gap-3">
           <div className="grid h-11 w-11 place-items-center rounded-full bg-brand text-lg font-black text-slate-950">
-            {firstActor?.name?.slice(0, 1) ?? "我"}
+            {firstActor ? displayName(firstActor).slice(0, 1) : "我"}
           </div>
           <div>
-            <div className="text-sm font-bold">{firstActor?.name ?? "技术宅小明"}</div>
+            <div className="text-sm font-bold">{firstActor ? displayName(firstActor) : "技术宅小明"}</div>
             <div className="mt-0.5 text-xs text-white/50">来自 Web</div>
           </div>
         </div>
@@ -302,7 +348,7 @@ export default function RetroScreen() {
                   <div className="flex flex-wrap items-center gap-3">
                     <h2 className="text-lg font-black">{wave.title}</h2>
                     <SentimentTag
-                      kind={wave.mood.includes("质疑") ? "negative" : wave.mood.includes("观望") ? "neutral" : "positive"}
+                      kind={wave.sentiment}
                       label={wave.mood}
                     />
                   </div>
