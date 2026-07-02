@@ -16,6 +16,7 @@ class AttentionContextConfig:
     comment_chars: int = 160
     seed_chars: int = 220
     audience_instruction: str = "你是中文社交平台上的普通用户。"
+    actor_labels: dict[int, str] | None = None
 
 
 @dataclass(frozen=True)
@@ -132,11 +133,21 @@ def build_attention_context(
         stance_counts[stance] = stance_counts.get(stance, 0) + 1
 
     seed = posts[0] if posts else {}
+    actor_labels = config.actor_labels or {}
+
+    def actor_label(actor: Any) -> str:
+        try:
+            actor_id = int(actor)
+        except (TypeError, ValueError):
+            return "一位用户"
+        return actor_labels.get(actor_id, "一位用户")
+
     return AttentionContext(
         self_memory=(
-            f"你是用户 {actor_id}。{config.audience_instruction}"
+            f"你是{actor_label(actor_id)}。{config.audience_instruction}"
             "你只能看到平台推荐给你的少量公开内容和自己参与过的讨论。"
             "请像真实社交媒体用户一样自然发言；所有发帖、评论、转发理由和访谈回答都必须使用简体中文。"
+            "不要编造 @用户数字 这类内部编号提及。"
         ),
         seed_post={
             "post_id": seed.get("post_id"),
@@ -151,7 +162,7 @@ def build_attention_context(
         visible_comments=[
             {
                 "comment_id": comment.get("comment_id"),
-                "user_id": comment.get("user_id"),
+                "author": actor_label(comment.get("user_id")),
                 "stance": classify_stance(comment.get("content")),
                 "content": shorten(comment.get("content"), config.comment_chars),
             }

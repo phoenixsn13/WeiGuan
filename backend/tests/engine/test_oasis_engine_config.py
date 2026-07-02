@@ -383,6 +383,24 @@ def test_llm_agent_ids_respect_budgeted_agent_cap(tmp_path):  # review:PA-T8-AC6
     assert config.effective_steps == 15
 
 
+def test_actor_labels_load_from_profile_row_names(tmp_path):  # review:UI-P10-AC3
+    profile = tmp_path / "profile.csv"
+    profile.write_text(
+        "\n".join(
+            [
+                ",user_id,name,username,following_agentid_list,previous_tweets,user_char,description",
+                "0,100,韭菜观察员,cai00,[],[],嘴碎,财经用户",
+                "1,101,龙虎榜阿飞,cai01,[],[],较真,财经用户",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    engine = OasisEngine(profile_path=str(profile), db_dir=str(tmp_path))
+
+    assert engine._actor_labels() == {0: "韭菜观察员", 1: "龙虎榜阿飞"}
+
+
 async def test_run_breaks_circuit_when_llm_step_fails(monkeypatch, tmp_path):  # review:PA-T6-AC2
     class ActionType:
         CREATE_POST = "create_post"

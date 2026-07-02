@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import os
 import sqlite3
 import sys
@@ -26,6 +27,18 @@ class OasisEngine:
         self.last_snapshot = RunSnapshot()
         self._db_path: str | None = None
         self._env = None
+
+    def _actor_labels(self) -> dict[int, str]:
+        labels: dict[int, str] = {}
+        try:
+            with open(self.profile_path, newline="", encoding="utf-8") as file:
+                for index, row in enumerate(csv.DictReader(file)):
+                    raw = (row.get("name") or row.get("username") or "").strip()
+                    if raw:
+                        labels[index] = raw
+        except OSError:
+            return labels
+        return labels
 
     def _repo_root(self) -> Path:
         return Path(__file__).resolve().parents[3]
@@ -196,6 +209,7 @@ class OasisEngine:
             return
         context_config = AttentionContextConfig(
             comment_budget=config.attention_comment_budget,
+            actor_labels=self._actor_labels(),
             audience_instruction=(
                 crowd_instruction(config.audience.crowd_id)
                 if config.audience.crowd_id

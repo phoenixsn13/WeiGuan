@@ -1,5 +1,6 @@
 import type { Actor, Reply } from "../../model/canonical";
 import { displayHandle, displayName } from "./identity";
+import { RichText } from "./RichText";
 import { XAvatar } from "./XAvatar";
 
 // review:P3-T3
@@ -44,7 +45,7 @@ export function XReply({
           )}
         </div>
         <div className="mt-1 whitespace-pre-wrap break-words text-[15px] leading-6 text-slate-900">
-          {reply.content}
+          <RichText text={reply.content} />
         </div>
         <div className="mt-3 flex gap-7 text-[13px] text-slate-400">
           <span>回复</span>

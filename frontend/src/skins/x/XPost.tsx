@@ -1,5 +1,6 @@
 import type { Actor, Post } from "../../model/canonical";
 import { displayHandle, displayName } from "./identity";
+import { RichText } from "./RichText";
 import { topicTags } from "./topics";
 import { XActionBar } from "./XActionBar";
 import { XAvatar } from "./XAvatar";
@@ -36,7 +37,7 @@ export function XPost({
           <span className="text-slate-500">来自 围观推演</span>
         </div>
         <div className="mt-4 whitespace-pre-wrap break-words text-[18px] font-semibold leading-8 text-slate-950">
-          {post.content}
+          <RichText text={post.content} />
         </div>
         {tags.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-2 text-[14px] font-medium text-accent">

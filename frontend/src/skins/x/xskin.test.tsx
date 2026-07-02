@@ -111,6 +111,23 @@ test("feed derives topic tags from content instead of fixed engineering tags", (
   expect(screen.queryByText("#性能优化")).not.toBeInTheDocument();
 });
 
+test("feed styles mentions and hashtags inside post text", () => {  // review:UI-P10-AC2
+  render(
+    <XFeed
+      vm={{
+        ...vm,
+        seedPost: {
+          ...vm.seedPost!,
+          content: "@港股夜猫 看看这个 #大模型",
+        },
+      }}
+    />,
+  );
+
+  expect(screen.getByText("@港股夜猫")).toHaveClass("text-accent");
+  expect(screen.getAllByText("#大模型")[0]).toHaveClass("text-accent");
+});
+
 test("action bar counts use tabular numerals", () => {  // review:P3-T3-AC2
   render(<XActionBar replies={12} reposts={5} likes={48} />);
   const like = screen.getByText("48");
