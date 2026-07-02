@@ -37,6 +37,7 @@ class RunConfig(BaseModel):
     llm_model: str = "gpt-4o-mini"
     llm_base_url: str | None = None
     llm_reasoning_effort: str | None = None
+    llm_thinking: str | None = None
     llm_thinking_enabled: bool = False
     llm_max_agents: int = 8
     llm_max_steps: int = 2

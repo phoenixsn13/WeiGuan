@@ -80,6 +80,15 @@ class OasisEngine:
             model_config["reasoning_effort"] = config.llm_reasoning_effort
         if config.llm_thinking_enabled:
             model_config["extra_body"] = {"thinking": {"type": "enabled"}}
+        elif (config.llm_thinking or "").strip().lower() in {
+            "disabled",
+            "off",
+            "false",
+            "0",
+        }:
+            model_config["extra_body"] = {
+                "chat_template_kwargs": {"enable_thinking": False}
+            }
         model_config["max_tokens"] = config.llm_max_tokens
         try:
             return deps["ModelFactory"].create(

@@ -53,6 +53,52 @@ def test_oasis_engine_uses_openai_compatible_model_options(monkeypatch, tmp_path
     assert captured["max_retries"] == 0
 
 
+def test_oasis_engine_disables_vllm_template_thinking_when_requested(monkeypatch, tmp_path):  # review:UI-P6-AC2
+    captured = {}
+
+    class Platform:
+        OPENAI = "openai"
+        OPENAI_COMPATIBLE_MODEL = "openai-compatible-model"
+
+    class ModelType:
+        GPT_4O_MINI = "gpt-4o-mini"
+
+    class Factory:
+        @staticmethod
+        def create(**kwargs):
+            captured.update(kwargs)
+            return object()
+
+    engine = OasisEngine(profile_path="profile.csv", db_dir=str(tmp_path))
+    monkeypatch.setattr(
+        engine,
+        "_deps",
+        lambda: {
+            "ModelFactory": Factory,
+            "ModelPlatformType": Platform,
+            "ModelType": ModelType,
+        },
+    )
+    config = RunConfig(
+        audience=Audience(crowd_id="tech_devs"),
+        content="hi",
+        steps=6,
+        llm_key="default",
+        llm_model="zbnsec-default",
+        llm_base_url="http://10.70.70.75:65400/v1",
+        llm_thinking="disabled",
+        llm_thinking_enabled=False,
+        llm_max_tokens=128,
+    )
+
+    engine._model(config)
+
+    assert captured["model_config_dict"] == {
+        "extra_body": {"chat_template_kwargs": {"enable_thinking": False}},
+        "max_tokens": 128,
+    }
+
+
 def _cfg() -> RunConfig:
     return RunConfig(
         audience=Audience(crowd_id="tech_devs"),

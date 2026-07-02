@@ -43,9 +43,10 @@ def _config_from_backend_env(monkeypatch: pytest.MonkeyPatch) -> RunConfig:
         llm_model=defaults.model,
         llm_base_url=defaults.base_url,
         llm_reasoning_effort=defaults.reasoning_effort,
+        llm_thinking=defaults.thinking,
         llm_thinking_enabled=(defaults.thinking or "").lower()
         in {"1", "true", "yes", "enabled", "on"},
-        llm_max_tokens=16,
+        llm_max_tokens=defaults.max_tokens or 256,
     )
 
 
@@ -107,7 +108,7 @@ def test_env_llm_plain_chat_returns_content(monkeypatch):
         response = client.chat.completions.create(
             model=config.llm_model,
             messages=[{"role": "user", "content": "Reply with exactly: ok"}],
-            max_tokens=64,
+            max_tokens=config.llm_max_tokens,
             temperature=0,
         )
     except NotFoundError as exc:
@@ -134,7 +135,7 @@ def test_env_llm_accepts_project_chat_options(monkeypatch):
     )
     options = completion_options(config)
     options["messages"] = [{"role": "user", "content": "Reply with exactly: ok"}]
-    options["max_tokens"] = 64
+    options["max_tokens"] = config.llm_max_tokens
     options["temperature"] = 0
 
     try:

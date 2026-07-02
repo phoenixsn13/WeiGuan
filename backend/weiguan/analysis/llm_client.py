@@ -15,9 +15,19 @@ def make_openai_client(config: RunConfig) -> OpenAI:
 
 
 def completion_options(config: RunConfig) -> dict[str, Any]:
-    options: dict[str, Any] = {"model": config.llm_model}
+    options: dict[str, Any] = {
+        "model": config.llm_model,
+        "max_tokens": config.llm_max_tokens,
+    }
     if config.llm_reasoning_effort:
         options["reasoning_effort"] = config.llm_reasoning_effort
     if config.llm_thinking_enabled:
         options["extra_body"] = {"thinking": {"type": "enabled"}}
+    elif (config.llm_thinking or "").strip().lower() in {
+        "disabled",
+        "off",
+        "false",
+        "0",
+    }:
+        options["extra_body"] = {"chat_template_kwargs": {"enable_thinking": False}}
     return options

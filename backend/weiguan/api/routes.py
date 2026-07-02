@@ -73,6 +73,7 @@ def _llm_update(
         "llm_model": model,
         "llm_base_url": base_url,
         "llm_reasoning_effort": reasoning_effort,
+        "llm_thinking": _nonblank(thinking),
         "llm_thinking_enabled": _thinking_enabled(thinking),
     }
     if max_agents is not None:
