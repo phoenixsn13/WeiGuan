@@ -140,6 +140,11 @@ function filterWaves(waves: Wave[], filter: SentimentFilter): Wave[] {
   return waves.filter(matcher[filter]);
 }
 
+function waveMatchesFilter(wave: Wave, filter: SentimentFilter): boolean {
+  if (filter === "全部") return true;
+  return filterWaves([wave], filter).length > 0;
+}
+
 function sectionTitle(section: RetroSection): string {
   return {
     waves: "发酵时间线",
@@ -214,7 +219,6 @@ export default function RetroScreen() {
     ["负向", "negative", metrics.sentiment.negative],
   ];
   const waves = buildWaves(metrics, snapshot);
-  const filteredWaves = filterWaves(waves, sentimentFilter);
   const displaySnapshot = snapshot ?? emptySnapshot();
   const timeline = timelineRows(displaySnapshot);
   const events = keyEvents(displaySnapshot);
@@ -335,59 +339,64 @@ export default function RetroScreen() {
 
         {section === "waves" && (
           <div className="relative grid gap-4 border-l-4 border-slate-200 pl-6">
-            {filteredWaves.length === 0 && (
-              <div className="rounded-card border border-dashed border-line bg-white p-8 text-center text-sm text-slate-400">
-                没有符合条件的阶段。
-              </div>
-            )}
-            {filteredWaves.map((wave) => (
-              <article key={wave.title} className="relative rounded-card border border-line bg-white p-5 shadow-sm">
-              <span className="absolute -left-[38px] top-7 h-5 w-5 rounded-full border-4 border-brand bg-white" />
-              <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_230px]">
-                <div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <h2 className="text-lg font-black">{wave.title}</h2>
-                    <SentimentTag
-                      kind={wave.sentiment}
-                      label={wave.mood}
-                    />
-                  </div>
-                  <p className="mt-1 text-sm text-slate-500">{wave.description}</p>
+            {waves.map((wave) => {
+              const highlighted = waveMatchesFilter(wave, sentimentFilter);
+              return (
+                <article
+                  key={wave.title}
+                  className={[
+                    "relative rounded-card border bg-white p-5 shadow-sm transition",
+                    highlighted ? "border-line" : "border-line/70 opacity-60",
+                    sentimentFilter !== "全部" && highlighted ? "ring-2 ring-brand/30" : "",
+                  ].join(" ")}
+                >
+                  <span className="absolute -left-[38px] top-7 h-5 w-5 rounded-full border-4 border-brand bg-white" />
+                  <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_230px]">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <h2 className="text-lg font-black">{wave.title}</h2>
+                        <SentimentTag
+                          kind={wave.sentiment}
+                          label={wave.mood}
+                        />
+                      </div>
+                      <p className="mt-1 text-sm text-slate-500">{wave.description}</p>
 
-                  <div className="mt-4 grid gap-3 md:grid-cols-3">
-                    <div className="rounded-card border border-line bg-slate-50 p-3">
-                      <div className="text-xs font-semibold text-slate-500">代表评论</div>
-                      <div className="mt-2 line-clamp-2 text-sm font-semibold text-slate-900">
-                        {wave.representative}
+                      <div className="mt-4 grid gap-3 md:grid-cols-3">
+                        <div className="rounded-card border border-line bg-slate-50 p-3">
+                          <div className="text-xs font-semibold text-slate-500">代表评论</div>
+                          <div className="mt-2 line-clamp-2 text-sm font-semibold text-slate-900">
+                            {wave.representative}
+                          </div>
+                        </div>
+                        <div className="rounded-card border border-line bg-slate-50 p-3">
+                          <div className="text-xs font-semibold text-slate-500">发言者</div>
+                          <div className="mt-2 text-sm font-semibold text-slate-900">{wave.discussion}</div>
+                        </div>
+                        <div className="rounded-card border border-line bg-slate-50 p-3">
+                          <div className="text-xs font-semibold text-slate-500">参与用户</div>
+                          <div className="mt-2 tabular text-sm font-semibold text-slate-900">
+                            {wave.spread}
+                          </div>
+                        </div>
                       </div>
                     </div>
-                    <div className="rounded-card border border-line bg-slate-50 p-3">
-                      <div className="text-xs font-semibold text-slate-500">发言者</div>
-                      <div className="mt-2 text-sm font-semibold text-slate-900">{wave.discussion}</div>
-                    </div>
-                    <div className="rounded-card border border-line bg-slate-50 p-3">
-                      <div className="text-xs font-semibold text-slate-500">参与用户</div>
-                      <div className="mt-2 tabular text-sm font-semibold text-slate-900">
-                        {wave.spread}
+
+                    <div className="hidden items-center gap-2 xl:flex">
+                      <div className="flex h-16 flex-1 items-end gap-1">
+                        {[28, 42, 34, 54, 45, 72, 38, 31].map((height, index) => (
+                          <span
+                            key={`${wave.title}-${index}`}
+                            className="w-full rounded-t bg-brand"
+                            style={{ height: `${height}%` }}
+                          />
+                        ))}
                       </div>
                     </div>
                   </div>
-                </div>
-
-                <div className="hidden items-center gap-2 xl:flex">
-                  <div className="flex h-16 flex-1 items-end gap-1">
-                    {[28, 42, 34, 54, 45, 72, 38, 31].map((height, index) => (
-                      <span
-                        key={`${wave.title}-${index}`}
-                        className="w-full rounded-t bg-brand"
-                        style={{ height: `${height}%` }}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </article>
-            ))}
+                </article>
+              );
+            })}
           </div>
         )}
 

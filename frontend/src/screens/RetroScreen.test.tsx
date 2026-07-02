@@ -205,6 +205,85 @@ test("retro sidebar cleans profile prefixes and negative filter shows negative s
   expect(screen.getByText("估值小刀")).toBeInTheDocument();
 });
 
+test("sentiment tabs preserve the full timeline while changing the highlight", async () => {  // review:UI-P18-AC1
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.endsWith("/snapshot")) {
+        return {
+          ok: true,
+          json: async () => ({
+            platform: "twitter",
+            seed_post_id: 1,
+            actors: [
+              {
+                user_id: 1,
+                user_name: "财00_韭菜观察员",
+                name: "财00_韭菜观察员",
+                num_followers: 12,
+                num_followings: 3,
+              },
+              {
+                user_id: 2,
+                user_name: "研报搬砖人",
+                name: "研报搬砖人",
+                num_followers: 9,
+                num_followings: 3,
+              },
+            ],
+            posts: [
+              {
+                post_id: 1,
+                author_id: 1,
+                kind: "original",
+                content: "AI 发展这么快",
+                num_likes: 0,
+                num_dislikes: 0,
+                num_shares: 0,
+                num_reports: 0,
+              },
+            ],
+            replies: [
+              {
+                comment_id: 7,
+                post_id: 1,
+                author_id: 2,
+                content: "先看落地数据，泡沫风险也要说清楚",
+                num_likes: 0,
+                num_dislikes: 0,
+              },
+            ],
+            reactions: [],
+            follows: [],
+            reports: [],
+            traces: [],
+          }),
+        };
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          sentiment: { positive: 2, negative: 1, neutral: 4 },
+          spread_by_step: [1, 2, 3, 4],
+          totals: { replies: 1, likes: 2, reports: 1 },
+        }),
+      };
+    }),
+  );
+
+  mount();
+  await screen.findByText(/第 1 波/);
+
+  for (const label of ["正向", "中立", "负向"]) {
+    fireEvent.click(screen.getByRole("button", { name: label }));
+    expect(screen.queryByText("没有符合条件的阶段。")).not.toBeInTheDocument();
+    expect(screen.getByText(/第 1 波/)).toBeInTheDocument();
+    expect(screen.getByText(/第 2 波/)).toBeInTheDocument();
+    expect(screen.getByText(/第 3 波/)).toBeInTheDocument();
+    expect(screen.getByText(/第 4 波/)).toBeInTheDocument();
+  }
+});
+
 test("generate insights shows verdict and suggestions", async () => {  // review:P5-T5-AC2
   const fetchMock = vi
     .fn()
