@@ -1,0 +1,170 @@
+import { useEffect, useMemo, useState } from "react";
+import { useParams, useSearchParams } from "react-router-dom";
+
+import {
+  fetchPerson,
+  fetchRuns,
+  type PersonView,
+  type RunSummary,
+} from "../api/client";
+import { influenceSeries, stanceDriftSeries } from "../pov/identity";
+
+function personaLabel(kind: PersonView["person"]["persona_kind"]): string {
+  if (kind === "kol") return "KOL";
+  if (kind === "verified") return "大V";
+  return "普通人";
+}
+
+function stanceLabel(dominant: string): string {
+  if (dominant === "positive") return "偏正向";
+  if (dominant === "negative") return "偏负向";
+  if (dominant === "neutral") return "中立";
+  return "未定";
+}
+
+// review:P7-T7
+export default function IdentityScreen() {
+  const { personId = "" } = useParams();
+  const [searchParams] = useSearchParams();
+  const worldId = searchParams.get("world_id") ?? "";
+  const [person, setPerson] = useState<PersonView | null>(null);
+  const [runs, setRuns] = useState<RunSummary[]>([]);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!worldId || !personId) {
+      setLoaded(true);
+      return;
+    }
+    Promise.all([fetchPerson(personId, worldId), fetchRuns()])
+      .then(([nextPerson, nextRuns]) => {
+        setPerson(nextPerson);
+        setRuns(nextRuns);
+      })
+      .catch(() => {
+        setPerson(null);
+      })
+      .finally(() => setLoaded(true));
+  }, [personId, worldId]);
+
+  const stancePoints = useMemo(
+    () => (person ? stanceDriftSeries(person, runs) : []),
+    [person, runs],
+  );
+  const influencePoints = useMemo(
+    () => (person ? influenceSeries(person, runs) : []),
+    [person, runs],
+  );
+  const account = person?.person.accounts[0];
+  const identityRuns = person
+    ? runs.filter((run) => person.run_ids.includes(run.run_id))
+    : [];
+
+  if (!loaded) {
+    return <div className="text-sm text-ink/50">正在读取身份…</div>;
+  }
+
+  if (!worldId) {
+    return (
+      <section className="mx-auto max-w-5xl rounded-card border border-line bg-white p-8 shadow-spotlight">
+        <h1 className="text-2xl font-black tracking-normal">缺少世界信息</h1>
+        <p className="mt-2 text-sm text-slate-500">无法确认这个身份属于哪个世界。</p>
+      </section>
+    );
+  }
+
+  if (!person) {
+    return (
+      <section className="mx-auto max-w-5xl rounded-card border border-line bg-white p-8 shadow-spotlight">
+        <h1 className="text-2xl font-black tracking-normal">没有找到这个身份</h1>
+        <p className="mt-2 text-sm text-slate-500">可能已经被移除，或链接里的世界不匹配。</p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="mx-auto grid max-w-6xl gap-5 lg:grid-cols-[320px_minmax(0,1fr)]">
+      <aside className="rounded-card border border-line bg-slate-950 p-5 text-white shadow-spotlight">
+        <div className="flex items-center gap-3">
+          <div className="grid h-14 w-14 place-items-center rounded-full bg-brand text-xl font-black text-slate-950">
+            {person.person.display_name.slice(0, 1)}
+          </div>
+          <div>
+            <h1 className="text-xl font-black tracking-normal">{person.person.display_name}</h1>
+            <div className="mt-1 text-sm text-white/60">{personaLabel(person.person.persona_kind)}</div>
+          </div>
+        </div>
+        <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
+          <div className="rounded-card border border-white/10 bg-white/5 p-3">
+            <div className="text-white/50">影响力</div>
+            <div className="mt-2 text-2xl font-black">{Math.round(person.total_influence)}</div>
+          </div>
+          <div className="rounded-card border border-white/10 bg-white/5 p-3">
+            <div className="text-white/50">立场</div>
+            <div className="mt-2 text-2xl font-black">{stanceLabel(person.stance.dominant)}</div>
+          </div>
+        </div>
+        {account && (
+          <div className="mt-5 rounded-card border border-white/10 bg-white/5 p-4">
+            <div className="text-sm font-bold">名下账户</div>
+            <div className="mt-3 text-sm text-white/70">@{account.handle}</div>
+            <div className="mt-1 text-sm text-white/70">
+              {account.num_followers.toLocaleString()} 粉丝
+            </div>
+          </div>
+        )}
+      </aside>
+
+      <div className="grid gap-5">
+        <section className="rounded-card border border-line bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-black tracking-normal">立场时间线</h2>
+              <p className="mt-1 text-sm text-slate-500">按这个身份历次发起的内容排序。</p>
+            </div>
+            <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">
+              {person.run_ids.length} 次围观
+            </span>
+          </div>
+          <div className="mt-4 grid gap-3">
+            {stancePoints.length === 0 && (
+              <div className="rounded-card border border-dashed border-line p-5 text-sm text-slate-500">
+                还没有足够记录形成时间线。
+              </div>
+            )}
+            {stancePoints.map((point) => {
+              const run = identityRuns.find((item) => item.run_id === point.run_id);
+              return (
+                <div key={point.run_id} className="rounded-card border border-line p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="text-sm font-bold text-slate-500">{point.label}</div>
+                    <div className="text-xs font-bold text-amber-700">
+                      {stanceLabel(point.dominant)} · 分值 {point.score}
+                    </div>
+                  </div>
+                  {run && <div className="mt-2 line-clamp-2 font-bold">{run.content}</div>}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="rounded-card border border-line bg-white p-5 shadow-sm">
+          <h2 className="text-xl font-black tracking-normal">影响力曲线</h2>
+          <div className="mt-4 flex h-28 items-end gap-2">
+            {influencePoints.map((point) => (
+              <div key={point.run_id} className="flex flex-1 flex-col items-center gap-2">
+                <div
+                  className="w-full rounded-t bg-brand"
+                  style={{ height: `${Math.max(12, Math.min(100, point.value))}%` }}
+                  aria-label={`${point.label} 影响力 ${point.value}`}
+                />
+                <div className="text-xs font-semibold text-slate-400">{point.label}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+    </section>
+  );
+}

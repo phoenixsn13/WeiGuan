@@ -1,5 +1,10 @@
 import type { PersonView, RunSummary } from "../api/client";
-import { groupRunsByIdentity, TEMPORARY_PERSON_ID } from "./identity";
+import {
+  groupRunsByIdentity,
+  influenceSeries,
+  stanceDriftSeries,
+  TEMPORARY_PERSON_ID,
+} from "./identity";
 
 function person(person_id: string, display_name: string, run_ids: string[]): PersonView {
   return {
@@ -81,4 +86,21 @@ test("returns deterministic identity group order by latest run", () => {  // rev
     "p_c",
     "p_a",
   ]);
+});
+
+test("derives stance drift and influence series from PersonView run ids", () => {  // review:P7-T7-AC1
+  const view = person("p_1", "财经大号", ["r_old", "r_new"]);
+  view.stance = { dominant: "positive", stance_counts: { positive: 3, negative: 1 } };
+  view.total_influence = 20;
+  const runs = [
+    run("r_new", "2026-07-02T08:00:00Z"),
+    run("r_old", "2026-07-01T08:00:00Z"),
+  ];
+
+  expect(stanceDriftSeries(view, runs).map((point) => point.run_id)).toEqual([
+    "r_old",
+    "r_new",
+  ]);
+  expect(stanceDriftSeries(view, runs)[0].score).toBe(2);
+  expect(influenceSeries(view, runs).map((point) => point.value)).toEqual([10, 20]);
 });

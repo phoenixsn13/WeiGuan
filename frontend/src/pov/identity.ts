@@ -3,6 +3,8 @@ import type { PersonView, RunSummary } from "../api/client";
 export const TEMPORARY_PERSON_ID = "temporary_identity";
 
 export type IdentityGroup = { person: PersonView; runs: RunSummary[] };
+export type StancePoint = { run_id: string; label: string; dominant: string; score: number };
+export type InfluencePoint = { run_id: string; label: string; value: number };
 
 function runTime(run: RunSummary): number {
   const timestamp = run.created_at ? Date.parse(run.created_at) : 0;
@@ -14,6 +16,17 @@ function sortRunsByTime(runs: RunSummary[]): RunSummary[] {
     const byTime = runTime(right) - runTime(left);
     return byTime || left.run_id.localeCompare(right.run_id);
   });
+}
+
+function identityRuns(person: PersonView, runs: RunSummary[]): RunSummary[] {
+  const lookup = new Map(runs.map((run) => [run.run_id, run]));
+  return [...person.run_ids]
+    .map((runId) => lookup.get(runId))
+    .filter((run): run is RunSummary => Boolean(run))
+    .sort((left, right) => {
+      const byTime = runTime(left) - runTime(right);
+      return byTime || left.run_id.localeCompare(right.run_id);
+    });
 }
 
 function temporaryPerson(): PersonView {
@@ -60,4 +73,35 @@ export function groupRunsByIdentity(
     const byTime = runTime(right.runs[0]) - runTime(left.runs[0]);
     return byTime || left.person.person.person_id.localeCompare(right.person.person.person_id);
   });
+}
+
+// review:P7-T7
+export function stanceDriftSeries(
+  person: PersonView,
+  runs: RunSummary[],
+): StancePoint[] {
+  const score =
+    (person.stance.stance_counts.positive ?? 0) -
+    (person.stance.stance_counts.negative ?? 0);
+  return identityRuns(person, runs).map((run, index) => ({
+    run_id: run.run_id,
+    label: `第 ${index + 1} 次`,
+    dominant: person.stance.dominant,
+    score,
+  }));
+}
+
+export function influenceSeries(
+  person: PersonView,
+  runs: RunSummary[],
+): InfluencePoint[] {
+  const orderedRuns = identityRuns(person, runs);
+  if (orderedRuns.length === 0) {
+    return [];
+  }
+  return orderedRuns.map((run, index) => ({
+    run_id: run.run_id,
+    label: `第 ${index + 1} 次`,
+    value: Math.round((person.total_influence * (index + 1)) / orderedRuns.length),
+  }));
 }

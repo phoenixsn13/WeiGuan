@@ -166,6 +166,15 @@ export async function listPersons(worldId: string): Promise<PersonView[]> {
   return data.persons;
 }
 
+export async function fetchPerson(personId: string, worldId: string): Promise<PersonView> {
+  const query = new URLSearchParams({ world_id: worldId });
+  const response = await fetch(`/api/persons/${personId}?${query.toString()}`);
+  if (!response.ok) {
+    throw new Error("failed to load person");
+  }
+  return response.json();
+}
+
 export async function previewCost(params: PreviewCostParams): Promise<PreviewCost> {
   const query = new URLSearchParams({
     steps: String(params.steps),

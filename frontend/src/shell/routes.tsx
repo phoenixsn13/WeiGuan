@@ -4,6 +4,7 @@ import { Route, Routes } from "react-router-dom";
 import ComposeScreen from "../screens/ComposeScreen";
 import GalleryScreen from "../screens/GalleryScreen";
 import HistoryScreen from "../screens/HistoryScreen";
+import IdentityScreen from "../screens/IdentityScreen";
 import LiveScreen from "../screens/LiveScreen";
 import RetroScreen from "../screens/RetroScreen";
 
@@ -12,6 +13,7 @@ export function AppRoutes() {
     <Routes>
       <Route path="/" element={<GalleryScreen />} />
       <Route path="/history" element={<HistoryScreen />} />
+      <Route path="/identity/:personId" element={<IdentityScreen />} />
       <Route path="/compose" element={<ComposeScreen />} />
       <Route path="/run/:id/live" element={<LiveScreen />} />
       <Route path="/run/:id/retro" element={<RetroScreen />} />
