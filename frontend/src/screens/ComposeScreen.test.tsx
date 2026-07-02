@@ -33,10 +33,30 @@ function runPostBody(spy: ReturnType<typeof vi.fn>) {
   return JSON.parse(call[1].body as string);
 }
 
+function personPostBody(spy: ReturnType<typeof vi.fn>) {
+  const call = spy.mock.calls.find(
+    ([url, init]) =>
+      url === "/api/persons" && (init as RequestInit | undefined)?.method === "POST",
+  ) as [string, RequestInit] | undefined;
+  if (!call) throw new Error("missing create person request");
+  return JSON.parse(call[1].body as string);
+}
+
 test("submits content and navigates to live", async () => {  // review:P4-T6-AC1
-  const spy = vi.fn(async () => ({
+  const spy = vi.fn(async (url: string) => ({
     ok: true,
-    json: async () => ({ run_id: "r_9" }),
+    json: async () =>
+      url === "/api/persons"
+        ? {
+            world_id: "w_new",
+            person: {
+              person_id: "p_new",
+              display_name: "普通人test",
+              persona_kind: "ordinary",
+              accounts: [],
+            },
+          }
+        : { run_id: "r_9" },
   }));
   vi.stubGlobal("fetch", spy);
   mount();
@@ -51,9 +71,20 @@ test("submits content and navigates to live", async () => {  // review:P4-T6-AC1
 });
 
 test("explains rounds and submits a custom long run", async () => {  // review:UI-P11-AC2
-  const spy = vi.fn(async () => ({
+  const spy = vi.fn(async (url: string) => ({
     ok: true,
-    json: async () => ({ run_id: "r_1000" }),
+    json: async () =>
+      url === "/api/persons"
+        ? {
+            world_id: "w_new",
+            person: {
+              person_id: "p_new",
+              display_name: "普通人test",
+              persona_kind: "ordinary",
+              accounts: [],
+            },
+          }
+        : { run_id: "r_1000" },
   }));
   vi.stubGlobal("fetch", spy);
   mount();
@@ -89,9 +120,20 @@ test("shows error when create fails", async () => {  // review:P4-T6-AC2
 });
 
 test("saves provider settings locally and sends them when starting", async () => {  // review:PA-T3-AC1
-  const spy = vi.fn(async () => ({
+  const spy = vi.fn(async (url: string) => ({
     ok: true,
-    json: async () => ({ run_id: "r_9" }),
+    json: async () =>
+      url === "/api/persons"
+        ? {
+            world_id: "w_new",
+            person: {
+              person_id: "p_new",
+              display_name: "普通人test",
+              persona_kind: "ordinary",
+              accounts: [],
+            },
+          }
+        : { run_id: "r_9" },
   }));
   vi.stubGlobal("fetch", spy);
   localStorage.clear();
@@ -146,7 +188,17 @@ test("selecting KOL persona sends poster_persona", async () => {  // review:P7-T
     json: async () =>
       url.includes("preview-cost")
         ? { estimated_rmb: 1.8, budgeted_agents: 8, decision_steps: 9 }
-        : { run_id: "r_kol" },
+        : url === "/api/persons"
+          ? {
+              world_id: "w_kol",
+              person: {
+                person_id: "p_kol",
+                display_name: "KOLtest",
+                persona_kind: "kol",
+                accounts: [],
+              },
+            }
+          : { run_id: "r_kol" },
   }));
   vi.stubGlobal("fetch", spy);
   mount();
@@ -168,6 +220,20 @@ test("continuing an identity sends poster_person_id", async () => {  // review:P
       if (url.includes("preview-cost")) {
         return { estimated_rmb: 1.8, budgeted_agents: 8, decision_steps: 9 };
       }
+      if (url === "/api/identities") {
+        return {
+          identities: [
+            {
+              world_id: "w_1",
+              person_id: "p_author",
+              display_name: "财经大号",
+              persona_kind: "kol",
+              total_influence: 56,
+              run_count: 2,
+            },
+          ],
+        };
+      }
       return { run_id: "r_identity" };
     },
   }));
@@ -175,7 +241,7 @@ test("continuing an identity sends poster_person_id", async () => {  // review:P
   mount();
 
   fireEvent.click(screen.getByLabelText(/继续身份/));
-  fireEvent.change(screen.getByLabelText("身份 ID"), { target: { value: "p_author" } });
+  expect(await screen.findByText("财经大号")).toBeInTheDocument();
   fireEvent.change(screen.getByPlaceholderText(/有什么新鲜事/), {
     target: { value: "继续发帖" },
   });
@@ -183,7 +249,106 @@ test("continuing an identity sends poster_person_id", async () => {  // review:P
 
   await waitFor(() => expect(screen.getByText("进行时页")).toBeInTheDocument());
   expect(runPostBody(spy).poster_person_id).toBe("p_author");
+  expect(runPostBody(spy).world_id).toBe("w_1");
   expect(localStorage.getItem("wg_current_person_id")).toBe("p_author");
+});
+
+test("new identity creates a persistent person before starting run", async () => {  // review:P7-T12-AC2
+  const spy = vi.fn(async (url: string) => ({
+    ok: true,
+    json: async () => {
+      if (url.includes("preview-cost")) {
+        return { estimated_rmb: 1.8, budgeted_agents: 8, decision_steps: 9 };
+      }
+      if (url === "/api/persons") {
+        return {
+          world_id: "w_new",
+          person: {
+            person_id: "p_new",
+            display_name: "财经观察员",
+            persona_kind: "verified",
+            accounts: [],
+          },
+        };
+      }
+      return { run_id: "r_new_identity" };
+    },
+  }));
+  vi.stubGlobal("fetch", spy);
+  mount();
+
+  fireEvent.click(screen.getByLabelText(/大V/));
+  fireEvent.change(screen.getByLabelText("身份昵称"), { target: { value: "财经观察员" } });
+  fireEvent.change(screen.getByPlaceholderText(/有什么新鲜事/), {
+    target: { value: "新身份发帖" },
+  });
+  fireEvent.click(screen.getByText(/开始围观/));
+
+  await waitFor(() => expect(screen.getByText("进行时页")).toBeInTheDocument());
+  const calls = spy.mock.calls as unknown as Array<[string, RequestInit | undefined]>;
+  const personIndex = calls.findIndex(([url]) => url === "/api/persons");
+  const runIndex = calls.findIndex(
+    ([url, init]) => url === "/api/runs" && (init as RequestInit | undefined)?.method === "POST",
+  );
+  expect(personIndex).toBeGreaterThanOrEqual(0);
+  expect(runIndex).toBeGreaterThan(personIndex);
+  expect(personPostBody(spy)).toMatchObject({
+    display_name: "财经观察员",
+    persona_kind: "verified",
+    platform: "twitter",
+  });
+  expect(runPostBody(spy)).toMatchObject({
+    world_id: "w_new",
+    poster_person_id: "p_new",
+    poster_persona: "verified",
+  });
+  expect(localStorage.getItem("wg_current_person_id")).toBe("p_new");
+  expect(localStorage.getItem("wg_current_world_id")).toBe("w_new");
+});
+
+test("continuing an identity uses picker world and person ids", async () => {  // review:P7-T12-AC3
+  const spy = vi.fn(async (url: string) => ({
+    ok: true,
+    json: async () => {
+      if (url.includes("preview-cost")) {
+        return { estimated_rmb: 1.8, budgeted_agents: 8, decision_steps: 9 };
+      }
+      if (url === "/api/identities") {
+        return {
+          identities: [
+            {
+              world_id: "w_1",
+              person_id: "p_author",
+              display_name: "财经大号",
+              persona_kind: "kol",
+              total_influence: 56,
+              run_count: 2,
+            },
+          ],
+        };
+      }
+      return { run_id: "r_continue_identity" };
+    },
+  }));
+  vi.stubGlobal("fetch", spy);
+  mount();
+
+  fireEvent.click(screen.getByLabelText(/继续身份/));
+  expect(await screen.findByText("财经大号")).toBeInTheDocument();
+  expect(screen.queryByLabelText("身份 ID")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByLabelText(/财经大号/));
+  fireEvent.change(screen.getByPlaceholderText(/有什么新鲜事/), {
+    target: { value: "继续发帖" },
+  });
+  fireEvent.click(screen.getByText(/开始围观/));
+
+  await waitFor(() => expect(screen.getByText("进行时页")).toBeInTheDocument());
+  expect(runPostBody(spy)).toMatchObject({
+    world_id: "w_1",
+    poster_person_id: "p_author",
+  });
+  expect(localStorage.getItem("wg_current_person_id")).toBe("p_author");
+  expect(localStorage.getItem("wg_current_world_id")).toBe("w_1");
 });
 
 test("cost preview renders RMB and changes with steps", async () => {  // review:P7-T5-AC5

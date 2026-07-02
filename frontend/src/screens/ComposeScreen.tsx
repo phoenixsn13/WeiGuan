@@ -1,7 +1,15 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
-import { createRun, previewCost, type PersonaKind, type PreviewCost } from "../api/client";
+import {
+  createPerson,
+  createRun,
+  getIdentities,
+  previewCost,
+  type IdentitySummary,
+  type PersonaKind,
+  type PreviewCost,
+} from "../api/client";
 import { saveCurrentIdentity, useApiKey } from "../api/useApiKey";
 import { Button } from "../components/Button";
 
@@ -26,6 +34,18 @@ const PERSONAS: Array<{
   { value: "verified", label: "大V", hint: "自带基础扩散", standing: "约 2,000 粉丝" },
   { value: "kol", label: "KOL", hint: "头部意见领袖", standing: "约 50,000 粉丝" },
 ];
+
+function personaLabel(kind: PersonaKind): string {
+  return PERSONAS.find((persona) => persona.value === kind)?.label ?? "普通人";
+}
+
+function defaultIdentityName(kind: PersonaKind): string {
+  return `${personaLabel(kind)}${Math.random().toString(36).slice(2, 6)}`;
+}
+
+function defaultHandle(name: string): string {
+  return name.trim().replace(/\s+/g, "_") || `user_${Math.random().toString(36).slice(2, 6)}`;
+}
 
 function clampSteps(value: number): number {
   if (Number.isNaN(value)) return 1;
@@ -55,7 +75,9 @@ export default function ComposeScreen() {
   const [customMode, setCustomMode] = useState(false);
   const [posterPersona, setPosterPersona] = useState<PersonaKind>("ordinary");
   const [identityMode, setIdentityMode] = useState<"new" | "continue">("new");
-  const [posterPersonId, setPosterPersonId] = useState("");
+  const [identityName, setIdentityName] = useState("");
+  const [identities, setIdentities] = useState<IdentitySummary[]>([]);
+  const [selectedIdentityId, setSelectedIdentityId] = useState("");
   const [cost, setCost] = useState<PreviewCost | null>(null);
   const [error, setError] = useState("");
   const navigate = useNavigate();
@@ -87,26 +109,63 @@ export default function ComposeScreen() {
     };
   }, [selectedSteps]);
 
+  useEffect(() => {
+    if (identityMode !== "continue") {
+      return;
+    }
+    let active = true;
+    getIdentities()
+      .then((items) => {
+        if (!active) return;
+        setIdentities(items);
+        setSelectedIdentityId((current) => current || items[0]?.person_id || "");
+      })
+      .catch(() => {
+        if (active) setIdentities([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [identityMode]);
+
   async function startRun() {
     setError("");
     try {
-      const continuingPersonId =
-        identityMode === "continue" ? posterPersonId.trim() : "";
+      let worldId: string | undefined;
+      let personId: string | undefined;
+      if (identityMode === "new") {  // review:P7-T12
+        const displayName = identityName.trim() || defaultIdentityName(posterPersona);
+        const created = await createPerson({
+          display_name: displayName,
+          persona_kind: posterPersona,
+          platform: "twitter",
+          handle: defaultHandle(displayName),
+        });
+        worldId = created.world_id;
+        personId = created.person.person_id;
+        saveCurrentIdentity(personId, worldId);
+      } else {
+        const selected = identities.find((item) => item.person_id === selectedIdentityId);
+        if (!selected) {
+          throw new Error("请选择要继续的身份");
+        }
+        worldId = selected.world_id;
+        personId = selected.person_id;
+        saveCurrentIdentity(personId, worldId);
+      }
       const { run_id } = await createRun(
         {
           audience,
           content,
           steps: selectedSteps,
           platform: "twitter",
+          world_id: worldId,
           poster_persona: posterPersona,
-          poster_person_id: continuingPersonId || undefined,
+          poster_person_id: personId,
           person_memory_budget: DEFAULT_MEMORY_BUDGET,
         },
         { key, model, baseUrl, reasoningEffort, thinking },
       );
-      if (continuingPersonId) {
-        saveCurrentIdentity(continuingPersonId, localStorage.getItem("wg_current_world_id") ?? "");
-      }
       navigate(`/run/${run_id}/live`);
     } catch (err) {
       setError((err as Error).message);
@@ -202,16 +261,54 @@ export default function ComposeScreen() {
               <span className="mt-1 block text-xs text-slate-400">沿用已经保存的人物身份</span>
             </label>
           </div>
-          {identityMode === "continue" && (
+          {identityMode === "new" && (
             <label className="mt-3 grid max-w-sm gap-2 text-sm font-semibold text-slate-700">
-              身份 ID
+              身份昵称
               <input
-                value={posterPersonId}
-                onChange={(event) => setPosterPersonId(event.target.value)}
-                placeholder="例如 p_author"
+                value={identityName}
+                onChange={(event) => setIdentityName(event.target.value)}
+                placeholder={`${personaLabel(posterPersona)}昵称，可不填`}
                 className="rounded-card border border-line px-3 py-2 text-base text-slate-950 focus:border-accent focus:outline-none"
               />
             </label>
+          )}
+          {identityMode === "continue" && (
+            <div className="mt-3 grid gap-2"> {/* review:P7-T12 */}
+              {identities.length === 0 && (
+                <div className="rounded-card border border-dashed border-line p-3 text-sm text-slate-500">
+                  还没有保存的身份。先用新身份发一条内容。
+                </div>
+              )}
+              {identities.map((identity) => (
+                <label
+                  key={`${identity.world_id}:${identity.person_id}`}
+                  className={[
+                    "cursor-pointer rounded-card border p-3 text-sm",
+                    selectedIdentityId === identity.person_id
+                      ? "border-accent bg-blue-50 text-accent"
+                      : "border-line text-slate-600",
+                  ].join(" ")}
+                >
+                  <span className="flex items-center justify-between gap-3">
+                    <span>
+                      <span className="block font-bold">{identity.display_name}</span>
+                      <span className="mt-1 block text-xs text-slate-500">
+                        {personaLabel(identity.persona_kind)} · 影响力 {Math.round(identity.total_influence)} · {identity.run_count} 次
+                      </span>
+                    </span>
+                    <input
+                      type="radio"
+                      name="identity_picker"
+                      checked={selectedIdentityId === identity.person_id}
+                      onChange={() => {
+                        setSelectedIdentityId(identity.person_id);
+                        setPosterPersona(identity.persona_kind);
+                      }}
+                    />
+                  </span>
+                </label>
+              ))}
+            </div>
           )}
         </div>
         <div className="mt-4 rounded-card border border-line bg-slate-50 p-4">

@@ -134,3 +134,121 @@ test("shows honest empty state when standing timeline is unavailable", async () 
   expect(screen.getByText("影响力曲线")).toBeInTheDocument();
   expect(screen.getByText("还没有足够记录形成影响力曲线。")).toBeInTheDocument();
 });
+
+test("normalizes influence bars by the series maximum", async () => {  // review:P7-T12-AC4
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => ({
+      ok: true,
+      json: async () => {
+        if (url === "/api/runs") {
+          return [
+            {
+              run_id: "r_1",
+              world_id: "w_1",
+              content: "第一条",
+              steps: 10,
+              platform: "twitter",
+              status: "done",
+              created_at: "2026-07-01T08:00:00Z",
+              totals: {},
+            },
+            {
+              run_id: "r_2",
+              world_id: "w_1",
+              content: "第二条",
+              steps: 10,
+              platform: "twitter",
+              status: "done",
+              created_at: "2026-07-02T08:00:00Z",
+              totals: {},
+            },
+          ];
+        }
+        return {
+          person: {
+            person_id: "p_author",
+            display_name: "财经大号",
+            persona_kind: "kol",
+            accounts: [],
+          },
+          stance: { stance_counts: {}, dominant: "other" },
+          total_influence: 30,
+          run_ids: ["r_1", "r_2"],
+          standing_timeline: [
+            {
+              run_id: "r_1",
+              influence: 10,
+              followers: 100,
+              stance_dominant: "neutral",
+              stance_score: 0,
+            },
+            {
+              run_id: "r_2",
+              influence: 30,
+              followers: 120,
+              stance_dominant: "positive",
+              stance_score: 1,
+            },
+          ],
+        };
+      },
+    })),
+  );
+
+  mount();
+
+  const first = await screen.findByLabelText("第 1 次 影响力 10");
+  const second = screen.getByLabelText("第 2 次 影响力 30");
+  expect(first).toHaveStyle({ height: "33.33333333333333%" });
+  expect(second).toHaveStyle({ height: "100%" });
+});
+
+test("shows influence empty state when timeline influence maximum is zero", async () => {  // review:P7-T12-AC5
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => ({
+      ok: true,
+      json: async () => {
+        if (url === "/api/runs") {
+          return [
+            {
+              run_id: "r_1",
+              world_id: "w_1",
+              content: "第一条",
+              steps: 10,
+              platform: "twitter",
+              status: "done",
+              created_at: "2026-07-01T08:00:00Z",
+              totals: {},
+            },
+          ];
+        }
+        return {
+          person: {
+            person_id: "p_author",
+            display_name: "财经大号",
+            persona_kind: "kol",
+            accounts: [],
+          },
+          stance: { stance_counts: {}, dominant: "other" },
+          total_influence: 0,
+          run_ids: ["r_1"],
+          standing_timeline: [
+            {
+              run_id: "r_1",
+              influence: 0,
+              followers: 0,
+              stance_dominant: "other",
+              stance_score: 0,
+            },
+          ],
+        };
+      },
+    })),
+  );
+
+  mount();
+
+  expect(await screen.findByText("还没有足够记录形成影响力曲线。")).toBeInTheDocument();
+});

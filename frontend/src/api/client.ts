@@ -77,6 +77,15 @@ export interface PersonView {
   standing_timeline: StandingPoint[];
 }
 
+export interface IdentitySummary {
+  world_id: string;
+  person_id: string;
+  display_name: string;
+  persona_kind: PersonaKind;
+  total_influence: number;
+  run_count: number;
+}
+
 export interface CreatePersonBody {
   world_id?: string;
   display_name: string;
@@ -169,6 +178,15 @@ export async function createPerson(
     saveCurrentIdentity(data.person.person_id, data.world_id);
   }
   return data;
+}
+
+export async function getIdentities(): Promise<IdentitySummary[]> {  // review:P7-T12
+  const response = await fetch("/api/identities");
+  if (!response.ok) {
+    throw new Error("failed to load identities");
+  }
+  const data = await response.json();
+  return data.identities ?? [];
 }
 
 export async function listPersons(worldId: string): Promise<PersonView[]> {

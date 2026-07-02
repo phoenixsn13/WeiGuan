@@ -3,6 +3,7 @@ import {
   fetchCrowds,
   fetchInsights,
   createPerson,
+  getIdentities,
   listPersons,
   previewCost,
   fetchRetro,
@@ -289,4 +290,29 @@ test("listPersons and previewCost hit backend contracts", async () => {  // revi
   expect(spy.mock.calls[0][0]).toBe("/api/worlds/w_1/persons");
   expect(String(spy.mock.calls[1][0])).toContain("/api/runs/preview-cost?");
   expect(cost.estimated_rmb).toBe(1.23);
+});
+
+test("getIdentities reads global persistent identity list", async () => {  // review:P7-T12-AC1
+  const spy = vi.fn(async () => ({
+    ok: true,
+    json: async () => ({
+      identities: [
+        {
+          world_id: "w_1",
+          person_id: "p_author",
+          display_name: "财经大号",
+          persona_kind: "kol",
+          total_influence: 56,
+          run_count: 2,
+        },
+      ],
+    }),
+  }));
+  vi.stubGlobal("fetch", spy);
+
+  const identities = await getIdentities();
+
+  expect(spy).toHaveBeenCalledWith("/api/identities");
+  expect(identities[0].world_id).toBe("w_1");
+  expect(identities[0].person_id).toBe("p_author");
 });
