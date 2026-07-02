@@ -162,7 +162,7 @@ export default function LiveScreen({
     : stream.snapshot.seed_post_id
       ? stream.snapshot
       : pendingSnapshot ?? stream.snapshot;
-  const step = replay ? 0 : stream.step;
+  const step = replay ? 0 : stream.step || runSummary?.current_step || 0;
   const total = replay ? 0 : stream.total || runSummary?.steps || 0;
   const status = replay ? "done" : stream.status;
   const vm = posterView(snapshot);

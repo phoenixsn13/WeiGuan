@@ -47,26 +47,34 @@ export function useRunStream(
       })),
     );
     on("step_started", (data) =>
-      setState((current) => ({ ...current, step: data.step, total: data.total })),
-    );
-    on("delta", (data) =>
       setState((current) => ({
         ...current,
-        step: data.step,
-        snapshot: applyDelta(current.snapshot, data.snapshot),
+        step: Math.max(current.step, data.step),
+        total: data.total,
       })),
+    );
+    on("delta", (data) =>
+      setState((current) => {
+        if (data.step < current.step) return current;
+        return {
+          ...current,
+          step: data.step,
+          snapshot: applyDelta(current.snapshot, data.snapshot),
+        };
+      }),
     );
     on("run_done", () => {
       setState((current) => ({ ...current, status: "done" }));
       es.close();
     });
-    on("error", (data) =>
+    on("error", (data) => {
       setState((current) => ({
         ...current,
         status: "error",
         error: data?.message,
-      })),
-    );
+      }));
+      es.close();
+    });
 
     return () => es.close();
   }, [enabled, factory, runId]);

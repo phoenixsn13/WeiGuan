@@ -188,6 +188,31 @@ async def test_sse_reports_effective_step_total_when_llm_steps_are_capped():  # 
     assert '"total": 15' not in text
 
 
+async def test_running_run_events_do_not_start_engine_again():  # review:UI-P13-AC1
+    class CountingEngine:
+        def __init__(self):
+            self.calls = 0
+
+        async def run(self, config):
+            self.calls += 1
+            yield RunDelta(step=1, snapshot=RunSnapshot())
+
+    engine = CountingEngine()
+    app = create_app(engine)
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://test",
+    ) as client:
+        run_id = (await client.post("/api/runs", json=_body(500), headers=HDR)).json()[
+            "run_id"
+        ]
+        app.state.store.get(run_id).status = "running"
+        text = (await client.get(f"/api/runs/{run_id}/events")).text
+
+    assert engine.calls == 0
+    assert "run already streaming" in text
+
+
 async def test_list_runs_returns_history_summaries():  # review:UI-P1-AC1
     async with _client() as client:
         run_id = (await client.post("/api/runs", json=_body(6), headers=HDR)).json()[

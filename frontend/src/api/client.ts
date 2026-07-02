@@ -29,6 +29,7 @@ export interface RunSummary {
   steps: number;
   platform: "twitter" | "reddit";
   status: "created" | "running" | "done" | "error" | string;
+  current_step?: number;
   created_at?: string;
   totals: Record<string, number>;
 }

@@ -142,6 +142,7 @@ def _run_summary(record) -> dict:
         "steps": record.config.steps,
         "platform": record.config.platform.value,
         "status": record.status,
+        "current_step": record.current_step,
         "created_at": record.created_at,
         "totals": metrics.totals,
     }
@@ -202,6 +203,54 @@ async def stream_events(run_id: str, request: Request):
     if record is None:
         raise HTTPException(status_code=404, detail="run not found")
 
+    if record.status == "running":
+        async def busy_gen():
+            yield _sse(
+                "run_started",
+                {
+                    "run_id": run_id,
+                    "steps": record.config.effective_steps,
+                    "platform": record.config.platform.value,
+                    "seed_post_id": record.snapshot.seed_post_id,
+                },
+            )
+            yield _sse(
+                "step_started",
+                {
+                    "step": record.current_step,
+                    "total": record.config.effective_steps,
+                },
+            )
+            yield _sse("error", {"message": "run already streaming"})
+
+        return StreamingResponse(busy_gen(), media_type="text/event-stream")
+
+    if record.status == "done":
+        async def replay_gen():
+            yield _sse(
+                "run_started",
+                {
+                    "run_id": run_id,
+                    "steps": record.config.effective_steps,
+                    "platform": record.config.platform.value,
+                    "seed_post_id": record.snapshot.seed_post_id,
+                },
+            )
+            yield _sse(
+                "delta",
+                {
+                    "step": record.current_step or record.config.effective_steps,
+                    "snapshot": record.snapshot.model_dump(mode="json"),
+                },
+            )
+            yield _sse("run_done", {"run_id": run_id})
+
+        return StreamingResponse(replay_gen(), media_type="text/event-stream")
+
+    record.status = "running"
+    record.current_step = 0
+    store.save()
+
     async def gen():
         effective_steps = record.config.effective_steps
         yield _sse(
@@ -214,14 +263,13 @@ async def stream_events(run_id: str, request: Request):
             },
         )
         try:
-            record.status = "running"
-            store.save()
             async for delta in engine.run(record.config):
                 yield _sse(
                     "step_started",
                     {"step": delta.step, "total": effective_steps},
                 )
                 record.accumulate(delta.snapshot)
+                record.current_step = delta.step
                 store.save()
                 yield _sse(
                     "delta",
@@ -232,6 +280,7 @@ async def stream_events(run_id: str, request: Request):
                 )
                 yield _sse("step_done", {"step": delta.step})
             record.status = "done"
+            record.current_step = effective_steps
             store.save()
             yield _sse("run_done", {"run_id": run_id})
         except Exception as exc:  # noqa: BLE001
