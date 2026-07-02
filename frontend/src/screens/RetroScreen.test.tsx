@@ -168,3 +168,44 @@ test("generate insights shows verdict and suggestions", async () => {  // review
   expect(await screen.findByText("偏正向但有暗线")).toBeInTheDocument();
   expect(screen.getByText("加冷启动实测")).toBeInTheDocument();
 });
+
+test("loads persisted insights and offers regeneration", async () => {  // review:UI-P16-AC3
+  const fetchMock = vi
+    .fn()
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        sentiment: { positive: 1, negative: 0, neutral: 0 },
+        spread_by_step: [1],
+        totals: {},
+      }),
+    })
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        platform: "twitter",
+        seed_post_id: 1,
+        actors: [],
+        posts: [],
+        replies: [],
+        reactions: [],
+        follows: [],
+        reports: [],
+        traces: [],
+      }),
+    })
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        verdict: "刷新后还在",
+        suggestions: ["这是持久化建议"],
+      }),
+    });
+  vi.stubGlobal("fetch", fetchMock);
+
+  mount();
+
+  expect(await screen.findByText("刷新后还在")).toBeInTheDocument();
+  expect(screen.getByText("这是持久化建议")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "重新生成建议" })).toBeInTheDocument();
+});

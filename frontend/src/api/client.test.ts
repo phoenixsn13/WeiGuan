@@ -6,6 +6,7 @@ import {
   fetchRunSummary,
   fetchRunSnapshot,
   fetchRuns,
+  fetchSavedInsights,
   interviewActor,
 } from "./client";
 
@@ -227,4 +228,16 @@ test("fetchInsights posts with key", async () => {  // review:P5-T3-AC3
   vi.stubGlobal("fetch", spy);
   const insights = await fetchInsights("r_1", { key: "sk", model: "m" });
   expect(insights.verdict).toBe("偏正向");
+});
+
+test("fetchSavedInsights reads persisted suggestions", async () => {  // review:UI-P16-AC2
+  const spy = vi.fn(async () => ({
+    ok: true,
+    json: async () => ({ verdict: "已保存", suggestions: ["继续观察"] }),
+  }));
+  vi.stubGlobal("fetch", spy);
+  const insights = await fetchSavedInsights("r_1");
+  expect(insights).not.toBeNull();
+  expect(insights?.verdict).toBe("已保存");
+  expect(spy).toHaveBeenCalledWith("/api/runs/r_1/insights");
 });

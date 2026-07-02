@@ -291,6 +291,16 @@ async def retro(run_id: str, request: Request):  # review:P5-T1
     return compute_metrics(record.snapshot).model_dump()
 
 
+@router.get("/runs/{run_id}/insights")
+async def saved_insights(run_id: str, request: Request):  # review:UI-P16
+    record = request.app.state.store.get(run_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="run not found")
+    if record.insights is None:
+        raise HTTPException(status_code=404, detail="insights not found")
+    return record.insights
+
+
 @router.post("/runs/{run_id}/insights")
 async def insights(
     run_id: str,
@@ -314,4 +324,7 @@ async def insights(
             x_llm_thinking,
         )
     )
-    return generate_insights(record.snapshot, config).model_dump()
+    generated = generate_insights(record.snapshot, config).model_dump()
+    record.insights = generated
+    request.app.state.store.save()
+    return generated

@@ -99,6 +99,18 @@ export interface Insights {
   suggestions: string[];
 }
 
+function isInsights(value: unknown): value is Insights {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const candidate = value as { verdict?: unknown; suggestions?: unknown };
+  return (
+    typeof candidate.verdict === "string" &&
+    Array.isArray(candidate.suggestions) &&
+    candidate.suggestions.every((suggestion) => typeof suggestion === "string")
+  );
+}
+
 export async function interviewActor(
   runId: string,
   actorId: number,
@@ -148,4 +160,16 @@ export async function fetchInsights(runId: string, creds: Creds): Promise<Insigh
     throw new Error("failed to load insights");
   }
   return response.json();
+}
+
+export async function fetchSavedInsights(runId: string): Promise<Insights | null> {
+  const response = await fetch(`/api/runs/${runId}/insights`);
+  if (response.status === 404) {
+    return null;
+  }
+  if (!response.ok) {
+    throw new Error("failed to load insights");
+  }
+  const data = await response.json();
+  return isInsights(data) ? data : null;
 }

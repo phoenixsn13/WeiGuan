@@ -15,6 +15,7 @@ class RunRecord(BaseModel):
     run_id: str
     config: RunConfig
     snapshot: RunSnapshot = Field(default_factory=RunSnapshot)
+    insights: dict | None = None
     status: str = "created"
     current_step: int = 0
     error: str | None = None

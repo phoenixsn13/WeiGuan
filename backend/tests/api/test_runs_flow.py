@@ -272,3 +272,41 @@ async def test_run_history_survives_app_restart(tmp_path):  # review:UI-P4-AC1
     assert runs[0]["status"] == "done"
     assert snap["posts"][0]["content"] == "构建砍到3秒"
     assert len(snap["replies"]) >= 1
+
+
+async def test_insights_are_persisted_and_read_after_restart(tmp_path, monkeypatch):  # review:UI-P16-AC1
+    from weiguan.analysis.insights import Insights
+    from weiguan.api import routes
+
+    store_path = tmp_path / "runs.json"
+    app1 = create_app(FakeEngine(), store_path=store_path)
+
+    def fake_generate_insights(snapshot, config):
+        return Insights(verdict="建议已保存", suggestions=["补充上下文", "降低重复表达"])
+
+    monkeypatch.setattr(routes, "generate_insights", fake_generate_insights)
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app1),
+        base_url="http://test",
+    ) as client:
+        run_id = (await client.post("/api/runs", json=_body(6), headers=HDR)).json()[
+            "run_id"
+        ]
+        generated = await client.post(f"/api/runs/{run_id}/insights", headers=HDR)
+
+    assert generated.status_code == 200
+    assert generated.json()["verdict"] == "建议已保存"
+
+    app2 = create_app(FakeEngine(), store_path=store_path)
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app2),
+        base_url="http://test",
+    ) as client:
+        saved = await client.get(f"/api/runs/{run_id}/insights")
+
+    assert saved.status_code == 200
+    assert saved.json() == {
+        "verdict": "建议已保存",
+        "suggestions": ["补充上下文", "降低重复表达"],
+    }

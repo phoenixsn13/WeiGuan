@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 
 import {
   fetchInsights,
+  fetchSavedInsights,
   fetchRetro,
   fetchRunSnapshot,
   type Insights,
@@ -136,6 +137,7 @@ export default function RetroScreen() {
   const [metrics, setMetrics] = useState<RetroMetrics | null>(null);
   const [snapshot, setSnapshot] = useState<RunSnapshot | null>(null);
   const [insights, setInsights] = useState<Insights | null>(null);
+  const [loadingInsights, setLoadingInsights] = useState(false);
   const [section, setSection] = useState<RetroSection>("waves");
   const [sentimentFilter, setSentimentFilter] = useState<SentimentFilter>("全部");
 
@@ -146,6 +148,9 @@ export default function RetroScreen() {
     fetchRunSnapshot(id)
       .then(setSnapshot)
       .catch(() => setSnapshot(null));
+    fetchSavedInsights(id)
+      .then(setInsights)
+      .catch(() => setInsights(null));
   }, [id]);
 
   if (!metrics) {
@@ -437,13 +442,15 @@ export default function RetroScreen() {
         </div>
 
         <Button
-          onClick={() =>
+          onClick={() => {
+            setLoadingInsights(true);
             fetchInsights(id, { key, model, baseUrl, reasoningEffort, thinking })
               .then(setInsights)
               .catch(() => {})
-          }
+              .finally(() => setLoadingInsights(false));
+          }}
         >
-          生成建议
+          {loadingInsights ? "生成中..." : insights ? "重新生成建议" : "生成建议"}
         </Button>
 
         {insights && (
