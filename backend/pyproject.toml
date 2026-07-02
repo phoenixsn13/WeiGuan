@@ -21,4 +21,5 @@ asyncio_mode = "auto"
 markers = [
   "llm: 需要真实 LLM key 的端到端测试",
   "llm_effect: 需要真实 LLM key 的效果验收测试",
+  "llm_connectivity: 只验证 OpenAI-compatible 配置、模型列表和最小 chat，不跑 OASIS",
 ]
