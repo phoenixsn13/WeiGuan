@@ -6,6 +6,7 @@ import GalleryScreen from "../screens/GalleryScreen";
 import HistoryScreen from "../screens/HistoryScreen";
 import IdentityScreen from "../screens/IdentityScreen";
 import LiveScreen from "../screens/LiveScreen";
+import MultiPlatformLiveScreen from "../screens/MultiPlatformLiveScreen";
 import RetroScreen from "../screens/RetroScreen";
 
 export function AppRoutes() {
@@ -17,6 +18,7 @@ export function AppRoutes() {
       <Route path="/compose" element={<ComposeScreen />} />
       <Route path="/run/:id/live" element={<LiveScreen />} />
       <Route path="/run/:id/retro" element={<RetroScreen />} />
+      <Route path="/world/:id/live" element={<MultiPlatformLiveScreen />} />
     </Routes>
   );
 }

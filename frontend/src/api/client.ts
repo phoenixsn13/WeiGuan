@@ -107,6 +107,33 @@ export interface PreviewCost {
   decision_steps: number;
 }
 
+export type WorldEventKind =
+  | "seed"
+  | "post"
+  | "reply"
+  | "reaction"
+  | "follow"
+  | "report"
+  | "bridge_inject";
+
+export interface WorldEvent {
+  event_id: string;
+  world_id: string;
+  tick: number;
+  created_at: string;
+  platform: "twitter" | "reddit";
+  actor_account_id?: string | null;
+  kind: WorldEventKind;
+  payload: Record<string, unknown>;
+  run_id?: string | null;
+}
+
+export interface PlatformRunSpec {
+  platform: "twitter" | "reddit";
+  poster_account_id: string;
+  config: CreateRunBody & { llm_key?: string; llm_model?: string };
+}
+
 function llmHeaders(creds: Creds): Record<string, string> {
   const headers: Record<string, string> = {};
   if (creds.key) headers["X-LLM-Key"] = creds.key;
@@ -217,6 +244,22 @@ export async function previewCost(params: PreviewCostParams): Promise<PreviewCos
   const response = await fetch(`/api/runs/preview-cost?${query.toString()}`);
   if (!response.ok) {
     throw new Error("failed to preview cost");
+  }
+  return response.json();
+}
+
+export async function orchestrateWorld(  // review:P9-T6
+  worldId: string,
+  specs: PlatformRunSpec[],
+): Promise<{ events: Array<Record<string, unknown>>; frames: WorldEvent[] }> {
+  const response = await fetch(`/api/worlds/${worldId}/orchestrate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ specs }),
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.detail ?? "orchestrate world failed");
   }
   return response.json();
 }
