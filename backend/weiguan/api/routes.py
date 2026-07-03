@@ -8,8 +8,8 @@ from pydantic import BaseModel, ValidationError
 
 from weiguan.api.llm_defaults import LlmDefaults
 from weiguan.analysis.insights import generate_insights
+from weiguan.analysis.provider import default_analysis_provider
 from weiguan.analysis.retro import compute_metrics, seed_engaged_actor_ids
-from weiguan.analysis.social_metrics.projection import analyze
 from weiguan.canonical import Platform
 from weiguan.engine.config import Audience, RunConfig
 from weiguan.engine.crowds import list_crowds
@@ -443,7 +443,7 @@ async def analysis(run_id: str, request: Request):  # review:P8-T5
     record = request.app.state.store.get(run_id)
     if record is None:
         raise HTTPException(status_code=404, detail="run not found")
-    return analyze(record.snapshot).model_dump(mode="json")
+    return default_analysis_provider().analyze(record.snapshot).model_dump(mode="json")  # review:P10-T1
 
 
 @router.get("/runs/{run_id}/insights")
