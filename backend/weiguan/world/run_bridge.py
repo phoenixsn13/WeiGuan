@@ -35,6 +35,25 @@ def poster_account_id(world_id: str, platform: Platform, person_id: str) -> str:
     return f"acct_{world_id}_{platform.value}_{person_id}"
 
 
+def _poster_account(
+    *,
+    world_id: str,
+    platform: Platform,
+    person_id: str,
+    followers: int,
+    influence: float,
+) -> Account:
+    return Account(
+        account_id=poster_account_id(world_id, platform, person_id),
+        person_id=person_id,
+        platform=platform,
+        handle=person_id,
+        avatar_seed=person_id,
+        num_followers=followers,
+        influence_score=influence,
+    )
+
+
 def ensure_world_for_run(store: WorldStore, config: RunConfig) -> tuple[World, Person]:
     """Create or reuse a world and ensure the posting person exists."""
 
@@ -47,22 +66,24 @@ def ensure_world_for_run(store: WorldStore, config: RunConfig) -> tuple[World, P
 
     person_id = config.poster_person_id or f"p_{uuid4().hex}"
     followers, influence = persona_starting_standing(config.poster_persona)
-    person = Person(
+    existing = store.get_person(world.world_id, person_id)
+    account = _poster_account(
+        world_id=world.world_id,
+        platform=config.platform,
         person_id=person_id,
-        display_name="我" if config.poster_person_id is None else person_id,
-        persona_kind=config.poster_persona,
-        accounts=[
-            Account(
-                account_id=poster_account_id(world.world_id, config.platform, person_id),
-                person_id=person_id,
-                platform=config.platform,
-                handle=person_id,
-                avatar_seed=person_id,
-                num_followers=followers,
-                influence_score=influence,
-            )
-        ],
+        followers=followers,
+        influence=influence,
     )
+    if existing is None:
+        person = Person(
+            person_id=person_id,
+            display_name="我" if config.poster_person_id is None else person_id,
+            persona_kind=config.poster_persona,
+            accounts=[account],
+        )
+    else:
+        accounts = [item for item in existing.accounts if item.account_id != account.account_id]
+        person = existing.model_copy(update={"accounts": [*accounts, account]})
     store.upsert_person(world.world_id, person)
     return world, person
 

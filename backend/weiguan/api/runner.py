@@ -83,14 +83,29 @@ class RunRunner:
         if record is None:
             return
         world = None
+        poster_account_id = None
         account_of: dict[int, str] = {}
         if self._world_store is not None:  # review:P6-T6
             world, poster = ensure_world_for_run(self._world_store, record.config)
-            if poster.accounts:
-                account_of[1] = poster.accounts[0].account_id
+            poster_account = next(
+                (
+                    account
+                    for account in poster.accounts
+                    if account.platform == record.config.platform
+                ),
+                None,
+            )
+            poster_account_id = poster_account.account_id if poster_account else None
         try:
             async for delta in self._engine.run(record.config):
                 if self._world_store is not None and world is not None:
+                    if poster_account_id is not None:  # review:P9-T7
+                        for post in delta.snapshot.posts:
+                            if (
+                                delta.snapshot.seed_post_id is not None
+                                and post.post_id == delta.snapshot.seed_post_id
+                            ):
+                                account_of[post.author_id] = poster_account_id
                     for actor in delta.snapshot.actors:
                         if actor.user_id not in account_of:
                             account_of[actor.user_id] = ensure_account_for_actor(

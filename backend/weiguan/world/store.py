@@ -60,6 +60,12 @@ class WorldStore:
         ordered = [by_id[key].model_dump(mode="json") for key in sorted(by_id)]
         self._write_json(self._persons_path(world_id), ordered)
 
+    def get_person(self, world_id: str, person_id: str) -> Person | None:  # review:P9-T7
+        for person in self._read_persons(world_id):
+            if person.person_id == person_id:
+                return person
+        return None
+
     def create_person(
         self,
         world_id: str,

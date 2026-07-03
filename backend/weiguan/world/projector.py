@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import Counter
+from collections.abc import Sequence
 
 from weiguan.analysis.attention_context import classify_stance
 from weiguan.analysis.stance import stance_polarity
@@ -30,10 +31,19 @@ def _event_text(event: WorldEvent) -> str:
     return ""
 
 
-def project_stance(events: list[WorldEvent], account_id: str) -> StanceState:  # review:P6-T3
+def _account_id_set(account_ids: str | Sequence[str]) -> set[str]:
+    if isinstance(account_ids, str):
+        return {account_ids}
+    return set(account_ids)
+
+
+def project_stance(  # review:P6-T3  # review:P9-T7
+    events: list[WorldEvent], account_ids: str | Sequence[str]
+) -> StanceState:
+    account_id_set = _account_id_set(account_ids)
     counts: Counter[str] = Counter()
     for event in sorted(events, key=_event_sort_key):
-        if event.actor_account_id != account_id:
+        if event.actor_account_id not in account_id_set:
             continue
         text = _event_text(event)
         if text:
@@ -46,19 +56,20 @@ def project_stance(events: list[WorldEvent], account_id: str) -> StanceState:  #
 
 
 def project_bounded_memory(
-    events: list[WorldEvent], account_id: str, budget: int
+    events: list[WorldEvent], account_ids: str | Sequence[str], budget: int
 ) -> BoundedMemory:
     if budget < 1:
         raise ValueError("budget must be >= 1")
 
+    account_id_set = _account_id_set(account_ids)
     utterances = [
         text
         for event in sorted(events, key=_event_sort_key)
-        if event.actor_account_id == account_id
+        if event.actor_account_id in account_id_set
         for text in [_event_text(event)]
         if text
     ]
-    stance = project_stance(events, account_id)
+    stance = project_stance(events, account_ids)
     return BoundedMemory(
         stance_line=f"立场:{stance.dominant}",
         recent_utterances=utterances[-budget:],
@@ -70,11 +81,12 @@ def _target_account_id(event: WorldEvent) -> str | None:
     return str(value) if value is not None else None
 
 
-def _stance_score(events: list[WorldEvent], account_id: str) -> tuple[str, int]:
+def _stance_score(events: list[WorldEvent], account_ids: list[str]) -> tuple[str, int]:
+    account_id_set = set(account_ids)
     positive = 0
     negative = 0
     for event in sorted(events, key=_event_sort_key):
-        if event.actor_account_id != account_id:
+        if event.actor_account_id not in account_id_set:
             continue
         text = _event_text(event)
         if not text:
@@ -159,7 +171,7 @@ def project_standing_timeline(  # review:P7-T9
     if not person.accounts:
         return timeline
 
-    account_id = person.accounts[0].account_id
+    account_ids = [account.account_id for account in person.accounts]
     for index, run_id in enumerate(run_order):
         prefix_run_ids = set(run_order[: index + 1])
         prefix_events = [event for event in events if event.run_id in prefix_run_ids]
@@ -167,7 +179,7 @@ def project_standing_timeline(  # review:P7-T9
         folded_person = folded_people.get(person.person_id, person)
         influence = sum(account.influence_score for account in folded_person.accounts)
         followers = sum(account.num_followers for account in folded_person.accounts)
-        stance_dominant, stance_score = _stance_score(prefix_events, account_id)
+        stance_dominant, stance_score = _stance_score(prefix_events, account_ids)
         timeline.append(
             StandingPoint(
                 run_id=run_id,
@@ -192,8 +204,10 @@ def fold_world(
     return {
         person_id: PersonView(
             person=person,
-            stance=project_stance(ordered_events, account.account_id)
-            if (account := person.accounts[0] if person.accounts else None)
+            stance=project_stance(
+                ordered_events, [account.account_id for account in person.accounts]
+            )
+            if person.accounts
             else StanceState(),
             total_influence=sum(account.influence_score for account in person.accounts),
             run_ids=run_ids_by_person.get(person_id, []),
