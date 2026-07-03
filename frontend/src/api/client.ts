@@ -201,7 +201,7 @@ export async function createRun(
 export async function createMultiRun(
   body: CreateMultiRunBody,
   creds: Creds,
-): Promise<{ world_id: string }> {  // review:P11-T5
+): Promise<{ world_id: string; run_ids: string[] }> {  // review:P11-T5
   const response = await fetch("/api/multi-runs", {
     method: "POST",
     headers: {
@@ -294,8 +294,13 @@ export async function orchestrateWorld(  // review:P9-T6
   return response.json();
 }
 
-export async function getWorldEvents(worldId: string): Promise<WorldEvent[]> {  // review:P11-T4
-  const response = await fetch(`/api/worlds/${worldId}/events`);
+export async function getWorldEvents(worldId: string, runIds: string[] = []): Promise<WorldEvent[]> {  // review:P11-T4
+  const query = new URLSearchParams();
+  for (const runId of runIds) {
+    query.append("run_id", runId);
+  }
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  const response = await fetch(`/api/worlds/${worldId}/events${suffix}`);
   if (!response.ok) {
     throw new Error("failed to load world events");
   }

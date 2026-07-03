@@ -16,7 +16,7 @@ def _client(tmp_path):
     )
 
 
-def _event(world_id: str, event_id: str, tick: int) -> WorldEvent:
+def _event(world_id: str, event_id: str, tick: int, run_id: str = "r_1") -> WorldEvent:
     return WorldEvent(
         event_id=event_id,
         world_id=world_id,
@@ -26,7 +26,7 @@ def _event(world_id: str, event_id: str, tick: int) -> WorldEvent:
         actor_account_id="acct_1",
         kind=WorldEventKind.REPLY,
         payload={"content": f"event {event_id}"},
-        run_id="r_1",
+        run_id=run_id,
     )
 
 
@@ -55,6 +55,24 @@ async def test_world_events_returns_empty_frames_for_empty_world(tmp_path):  # r
 
     assert response.status_code == 200
     assert response.json() == {"frames": []}
+
+
+async def test_world_events_can_filter_to_current_run_group(tmp_path):  # review:P11-T9-AC1
+    app, client = _client(tmp_path)
+    async with client:
+        world = (await client.post("/api/worlds", json={"persistent": True})).json()
+        world_id = world["world_id"]
+        app.state.world_store.append_event(_event(world_id, "old", 1, run_id="old-twitter"))
+        app.state.world_store.append_event(_event(world_id, "new-rd", 2, run_id="new-reddit"))
+        app.state.world_store.append_event(_event(world_id, "new-tw", 1, run_id="new-twitter"))
+
+        response = await client.get(
+            f"/api/worlds/{world_id}/events",
+            params=[("run_id", "new-twitter"), ("run_id", "new-reddit")],
+        )
+
+    assert response.status_code == 200
+    assert [frame["event_id"] for frame in response.json()["frames"]] == ["new-tw", "new-rd"]
 
 
 async def test_world_events_unknown_world_returns_404(tmp_path):  # review:P11-T1-AC3

@@ -180,7 +180,7 @@ test("createRun throws on error", async () => {  // review:P4-T4-AC3
 test("createMultiRun posts UI-friendly multi-platform body", async () => {  // review:P11-T5-AC1
   const spy = vi.fn(async () => ({
     ok: true,
-    json: async () => ({ world_id: "w_multi" }),
+    json: async () => ({ world_id: "w_multi", run_ids: ["run-twitter", "run-reddit"] }),
   }));
   vi.stubGlobal("fetch", spy);
 
@@ -199,6 +199,7 @@ test("createMultiRun posts UI-friendly multi-platform body", async () => {  // r
   );
 
   expect(result.world_id).toBe("w_multi");
+  expect(result.run_ids).toEqual(["run-twitter", "run-reddit"]);
   const [url, init] = spy.mock.calls[0] as unknown as [string, RequestInit];
   expect(url).toBe("/api/multi-runs");
   expect((init.headers as Record<string, string>)["X-LLM-Key"]).toBe("sk-x");
@@ -379,6 +380,20 @@ test("getWorldEvents reads persisted world timeline frames", async () => {  // r
 
   expect(spy).toHaveBeenCalledWith("/api/worlds/w_1/events");
   expect(events[0].event_id).toBe("e_1");
+});
+
+test("getWorldEvents can filter by launched run ids", async () => {  // review:P11-T9-AC4
+  const spy = vi.fn(async () => ({
+    ok: true,
+    json: async () => ({ frames: [] }),
+  }));
+  vi.stubGlobal("fetch", spy);
+
+  await getWorldEvents("w_1", ["run-twitter", "run-reddit"]);
+
+  expect(spy).toHaveBeenCalledWith(
+    "/api/worlds/w_1/events?run_id=run-twitter&run_id=run-reddit",
+  );
 });
 
 test("getAnalysis reads professional social analysis projection", async () => {  // review:P8-T7

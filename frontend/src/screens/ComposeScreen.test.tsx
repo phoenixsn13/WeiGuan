@@ -96,7 +96,7 @@ test("selecting two platforms creates a multi-platform world run", async () => {
             },
           }
         : url === "/api/multi-runs"
-          ? { world_id: "w_multi" }
+          ? { world_id: "w_multi", run_ids: ["run-twitter", "run-reddit"] }
           : { run_id: "r_ignored" },
   }));
   vi.stubGlobal("fetch", spy);
@@ -142,7 +142,9 @@ test("continuing an identity sends world and person ids to multi-platform run", 
           ],
         };
       }
-      return url === "/api/multi-runs" ? { world_id: "w_1" } : { run_id: "r_ignored" };
+      return url === "/api/multi-runs"
+        ? { world_id: "w_1", run_ids: ["run-twitter", "run-reddit"] }
+        : { run_id: "r_ignored" };
     },
   }));
   vi.stubGlobal("fetch", spy);

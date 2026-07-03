@@ -190,7 +190,7 @@ export default function ComposeScreen() {
         saveCurrentIdentity(personId, worldId);
       }
       if (selectedPlatforms.length >= 2) {  // review:P11-T5
-        const { world_id } = await createMultiRun(
+        const { world_id, run_ids } = await createMultiRun(
           {
             audience,
             content,
@@ -203,7 +203,11 @@ export default function ComposeScreen() {
           },
           { key, model, baseUrl, reasoningEffort, thinking },
         );
-        navigate(`/world/${world_id}/live`);
+        const query = new URLSearchParams();
+        for (const runId of run_ids) {
+          query.append("run_id", runId);
+        }
+        navigate(`/world/${world_id}/live?${query.toString()}`);
         return;
       }
       const { run_id } = await createRun(

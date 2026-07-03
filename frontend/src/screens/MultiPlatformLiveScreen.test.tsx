@@ -1,4 +1,5 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import type { ReactElement } from "react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 import type { WorldEvent } from "../api/client";
@@ -77,8 +78,12 @@ const events: WorldEvent[] = [
   },
 ];
 
+function renderWorldLive(node: ReactElement, initialEntry = "/world/w_1/live") {
+  return render(<MemoryRouter initialEntries={[initialEntry]}>{node}</MemoryRouter>);
+}
+
 test("multi-platform live renders columns clock and bridge links", () => {  // review:P9-T6-AC3
-  render(<MultiPlatformLiveScreen events={events} />);
+  renderWorldLive(<MultiPlatformLiveScreen events={events} />);
 
   expect(screen.getByText("世界时钟 · 第 2 拍")).toBeInTheDocument();
   expect(screen.getAllByText("微博").length).toBeGreaterThan(0);
@@ -101,8 +106,23 @@ test("multi-platform route fetches world events and renders data", async () => {
 
   expect(screen.getByText("正在进入多平台现场...")).toBeInTheDocument();
   expect(await screen.findByText("世界时钟 · 第 2 拍")).toBeInTheDocument();
-  expect(getWorldEvents).toHaveBeenCalledWith("w_1");
+  expect(getWorldEvents).toHaveBeenCalledWith("w_1", []);
   expect(screen.getByText("同一条内容到了 Reddit")).toBeInTheDocument();
+});
+
+test("multi-platform route filters replay to the launched run ids", async () => {  // review:P11-T9-AC2
+  vi.mocked(getWorldEvents).mockResolvedValueOnce(events);
+
+  render(
+    <MemoryRouter initialEntries={["/world/w_1/live?run_id=run-twitter&run_id=run-reddit"]}>
+      <Routes>
+        <Route path="/world/:id/live" element={<MultiPlatformLiveScreen />} />
+      </Routes>
+    </MemoryRouter>,
+  );
+
+  expect(await screen.findByText("世界时钟 · 第 2 拍")).toBeInTheDocument();
+  expect(getWorldEvents).toHaveBeenCalledWith("w_1", ["run-twitter", "run-reddit"]);
 });
 
 test("multi-platform route renders honest empty state for empty worlds", async () => {  // review:P11-T4-AC3
@@ -168,7 +188,7 @@ test("multi-platform route shows retry when world events fail", async () => {  /
 });
 
 test("single platform live falls back to one column without bridges", () => {  // review:P9-T6-AC4
-  render(<MultiPlatformLiveScreen events={[events[0]]} />);
+  renderWorldLive(<MultiPlatformLiveScreen events={[events[0]]} />);
 
   expect(screen.getByText("世界时钟 · 第 1 拍")).toBeInTheDocument();
   expect(screen.getByText("微博")).toBeInTheDocument();
@@ -176,7 +196,7 @@ test("single platform live falls back to one column without bridges", () => {  /
 });
 
 test("high-fidelity world stage uses tokenized bridge color and desktop three columns", () => {  // review:P9-T8-AC1
-  const { container } = render(<MultiPlatformLiveScreen events={events} />);
+  const { container } = renderWorldLive(<MultiPlatformLiveScreen events={events} />);
   const stage = screen.getByTestId("world-live-stage");
   const bridge = screen.getByLabelText("跨平台桥 twitter 到 reddit");
 
@@ -187,4 +207,15 @@ test("high-fidelity world stage uses tokenized bridge color and desktop three co
   expect(bridge).toHaveStyle({ borderColor: "#2C4A7C" });
   expect(container.querySelector("[class*='indigo-']")).toBeNull();
   expect(container.querySelector(".lg\\:grid-cols-3")).not.toBeNull();
+});
+
+test("platform columns use bounded scroll viewports instead of stretching the page", () => {  // review:P11-T9-AC3
+  renderWorldLive(<MultiPlatformLiveScreen events={events} />);
+
+  const viewports = screen.getAllByTestId("platform-scroll-viewport");
+  expect(viewports).toHaveLength(2);
+  for (const viewport of viewports) {
+    expect(viewport.className).toContain("max-h-[760px]");
+    expect(viewport.className).toContain("overflow-y-auto");
+  }
 });

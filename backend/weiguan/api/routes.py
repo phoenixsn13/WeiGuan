@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from uuid import uuid4
 
 from fastapi import APIRouter, Header, HTTPException, Request
 from fastapi.responses import StreamingResponse
@@ -269,8 +270,13 @@ async def get_world(world_id: str, request: Request):
 async def world_events(world_id: str, request: Request):  # review:P11-T1
     if request.app.state.world_store.get_world(world_id) is None:
         raise HTTPException(status_code=404, detail="world not found")
+    run_ids = set(request.query_params.getlist("run_id"))
     frames = sorted(
-        request.app.state.world_store.read_world_events(world_id),
+        [
+            event
+            for event in request.app.state.world_store.read_world_events(world_id)
+            if not run_ids or event.run_id in run_ids
+        ],
         key=lambda event: (event.tick, event.created_at, event.event_id),
     )
     return {"frames": [event.model_dump(mode="json") for event in frames]}
@@ -325,6 +331,7 @@ async def create_multi_run(  # review:P11-T2
         world = store.create_world(persistent=True)
 
     specs: list[PlatformRunSpec] = []
+    run_ids: list[str] = []
     person_id = body.poster_person_id
     try:
         llm_update = _resolve_llm_update(
@@ -337,6 +344,7 @@ async def create_multi_run(  # review:P11-T2
             x_llm_max_steps,
         )
         for platform in platforms:
+            run_id = f"{world.world_id}:{platform.value}:{uuid4().hex}"
             config = RunConfig(
                 audience=body.audience,
                 content=body.content,
@@ -369,8 +377,10 @@ async def create_multi_run(  # review:P11-T2
                         }
                     ),
                     poster_account_id=poster_account.account_id,
+                    run_id=run_id,
                 )
             )
+            run_ids.append(run_id)
     except ValidationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -380,7 +390,7 @@ async def create_multi_run(  # review:P11-T2
         lambda spec: request.app.state.engine,
     )
     _schedule_world_orchestration(request, world.world_id, specs, engine_builder)  # review:P11-T7
-    return {"world_id": world.world_id}
+    return {"world_id": world.world_id, "run_ids": run_ids}
 
 
 @router.get("/worlds/{world_id}/persons")

@@ -22,6 +22,7 @@ class PlatformRunSpec(BaseModel):  # review:P9-T2
     platform: Platform
     config: RunConfig
     poster_account_id: str
+    run_id: str | None = None
 
 
 @dataclass
@@ -54,7 +55,7 @@ class WorldOrchestrator:  # review:P9-T2
         runs = [
             _RunningPlatform(
                 spec=spec,
-                run_id=f"{world_id}:{spec.platform.value}:{uuid4().hex}",
+                run_id=spec.run_id or f"{world_id}:{spec.platform.value}:{uuid4().hex}",
             )
             for spec in specs
         ]

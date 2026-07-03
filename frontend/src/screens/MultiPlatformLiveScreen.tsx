@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 
 import { getWorldEvents, type WorldEvent } from "../api/client";
 import { world } from "../design/tokens";
@@ -54,8 +54,10 @@ const WORLD_EVENT_POLL_MS = 1500;
 // review:P9-T6
 export default function MultiPlatformLiveScreen({ events }: { events?: WorldEvent[] }) {
   const params = useParams();
+  const [searchParams] = useSearchParams();
   const [loadedEvents, setLoadedEvents] = useState<WorldEvent[]>([]);
   const [loadState, setLoadState] = useState<LoadState>(events ? "idle" : "loading");
+  const runIds = useMemo(() => searchParams.getAll("run_id"), [searchParams]);
 
   const loadWorldEvents = useCallback(async (options: { silent?: boolean } = {}) => {
     if (events !== undefined) return;
@@ -70,12 +72,12 @@ export default function MultiPlatformLiveScreen({ events }: { events?: WorldEven
     }
     try {
       // review:P11-T4
-      setLoadedEvents(await getWorldEvents(worldId));
+      setLoadedEvents(await getWorldEvents(worldId, runIds));
       setLoadState("idle");
     } catch {
       setLoadState("error");
     }
-  }, [events, params.id]);
+  }, [events, params.id, runIds]);
 
   useEffect(() => {
     void loadWorldEvents();
@@ -205,7 +207,12 @@ export default function MultiPlatformLiveScreen({ events }: { events?: WorldEven
                   </div>
                   <div className="text-xs font-semibold text-slate-500">{platformName(column.platform)} 现场</div>
                 </div>
-                <PlatformSkinFeed skin={skin.id} vm={column.view} />
+                <div
+                  data-testid="platform-scroll-viewport"
+                  className="max-h-[760px] overflow-y-auto overscroll-contain rounded-card"
+                >
+                  <PlatformSkinFeed skin={skin.id} vm={column.view} />
+                </div>
               </article>
             );
           })}

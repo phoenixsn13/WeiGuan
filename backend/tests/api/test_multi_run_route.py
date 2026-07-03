@@ -74,12 +74,16 @@ def test_multi_run_creates_world_specs_accounts_and_bridge(tmp_path):  # review:
 
     assert response.status_code == 200
     world_id = response.json()["world_id"]
+    run_ids = response.json()["run_ids"]
+    assert len(run_ids) == 2
+    assert all(run_id.startswith(f"{world_id}:") for run_id in run_ids)
     _drain_world_tasks(app)
     world = app.state.world_store.get_world(world_id)
     assert world is not None
     assert world.persistent is True
 
     events = app.state.world_store.read_world_events(world_id)
+    assert {event.run_id for event in events if event.run_id} == set(run_ids)
     assert {event.platform for event in events} >= {Platform.TWITTER, Platform.REDDIT}
     assert any(event.kind == WorldEventKind.BRIDGE_INJECT for event in events)
 
@@ -155,6 +159,7 @@ def test_multi_run_returns_before_world_orchestration_finishes(tmp_path):  # rev
 
     assert response.status_code == 200
     assert response.json()["world_id"]
+    assert response.json()["run_ids"]
     assert len(scheduled) == 1
     assert app.state.world_store.read_world_events(response.json()["world_id"]) == []
 
