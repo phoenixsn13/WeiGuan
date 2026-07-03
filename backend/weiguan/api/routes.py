@@ -17,6 +17,7 @@ from weiguan.engine.crowds import list_crowds
 from weiguan.obs.collect import collect
 from weiguan.world.models import PersonaKind
 from weiguan.world.orchestrator import PlatformRunSpec, WorldOrchestrator
+from weiguan.world.run_bridge import ensure_world_for_run
 
 router = APIRouter(prefix="/api")
 
@@ -43,6 +44,17 @@ class _CreateWorldBody(BaseModel):
 
 class _OrchestrateBody(BaseModel):
     specs: list[PlatformRunSpec]
+
+
+class _MultiRunBody(BaseModel):
+    content: str
+    audience: Audience
+    persona: PersonaKind = PersonaKind.ORDINARY
+    platforms: list[Platform]
+    steps: int
+    world_id: str | None = None
+    poster_person_id: str | None = None
+    person_memory_budget: int = 4
 
 
 class _CreatePersonBody(BaseModel):
@@ -254,6 +266,94 @@ async def orchestrate_world(  # review:P9-T3
         "events": events,
         "frames": [event.model_dump(mode="json") for event in frames],
     }
+
+
+@router.post("/multi-runs")
+async def create_multi_run(  # review:P11-T2
+    body: _MultiRunBody,
+    request: Request,
+    x_llm_key: str | None = Header(default=None),
+    x_llm_model: str | None = Header(default=None),
+    x_llm_base_url: str | None = Header(default=None),
+    x_llm_reasoning_effort: str | None = Header(default=None),
+    x_llm_thinking: str | None = Header(default=None),
+    x_llm_max_steps: int | None = Header(default=None),
+):
+    platforms = list(dict.fromkeys(body.platforms))
+    if not platforms:
+        raise HTTPException(status_code=400, detail="platforms must not be empty")
+
+    store = request.app.state.world_store
+    if body.world_id is not None:
+        world = store.get_world(body.world_id)
+        if world is None:
+            raise HTTPException(status_code=404, detail="world not found")
+        world = store.persist_world(world.world_id) or world
+    else:
+        world = store.create_world(persistent=True)
+
+    specs: list[PlatformRunSpec] = []
+    person_id = body.poster_person_id
+    try:
+        llm_update = _resolve_llm_update(
+            request,
+            x_llm_key,
+            x_llm_model,
+            x_llm_base_url,
+            x_llm_reasoning_effort,
+            x_llm_thinking,
+            x_llm_max_steps,
+        )
+        for platform in platforms:
+            config = RunConfig(
+                audience=body.audience,
+                content=body.content,
+                steps=body.steps,
+                platform=platform,
+                world_id=world.world_id,
+                poster_persona=body.persona,
+                poster_person_id=person_id,
+                person_memory_budget=body.person_memory_budget,
+                **llm_update,
+            )
+            world, person = ensure_world_for_run(store, config)
+            person_id = person.person_id
+            poster_account = next(
+                (account for account in person.accounts if account.platform == platform),
+                None,
+            )
+            if poster_account is None:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"poster account missing for {platform.value}",
+                )
+            specs.append(
+                PlatformRunSpec(
+                    platform=platform,
+                    config=config.model_copy(
+                        update={
+                            "world_id": world.world_id,
+                            "poster_person_id": person.person_id,
+                        }
+                    ),
+                    poster_account_id=poster_account.account_id,
+                )
+            )
+    except ValidationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    engine_builder = getattr(
+        request.app.state,
+        "orchestrator_engine_builder",
+        lambda spec: request.app.state.engine,
+    )
+    orchestrator = WorldOrchestrator(
+        store,
+        engine_builder,
+        metric_sink=getattr(request.app.state, "metric_sink", None),
+    )
+    [event async for event in orchestrator.orchestrate(world.world_id, specs)]
+    return {"world_id": world.world_id}
 
 
 @router.get("/worlds/{world_id}/persons")
