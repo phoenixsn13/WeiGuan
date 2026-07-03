@@ -7,6 +7,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ValidationError
 
 from weiguan.api.llm_defaults import LlmDefaults
+from weiguan.analysis.flavor import FlavorDigest, PlatformFlavor, flavor_digest
 from weiguan.analysis.insights import generate_insights
 from weiguan.analysis.provider import default_analysis_provider
 from weiguan.analysis.retro import compute_metrics, seed_engaged_actor_ids
@@ -172,6 +173,36 @@ def _run_summary(record) -> dict:
         "created_at": record.created_at,
         "totals": metrics.totals,
     }
+
+
+def _bridge_notes(request: Request, world_id: str | None) -> list[str]:
+    if world_id is None or request.app.state.world_store.get_world(world_id) is None:
+        return []
+    notes: list[str] = []
+    for event in request.app.state.world_store.read_world_events(world_id):
+        if event.kind.value != "bridge_inject":
+            continue
+        source = event.payload.get("source_platform")
+        content = str(event.payload.get("content") or "").strip()
+        notes.append(
+            f"第 {event.tick} 拍：{source or 'unknown'} 的讨论被转述到 {event.platform.value}"
+            + (f"：{content}" if content else "")
+        )
+    return notes
+
+
+def _flavor_for_records(records, *, world_id: str | None, request: Request) -> FlavorDigest:
+    platforms: list[PlatformFlavor] = []
+    run_ids: list[str] = []
+    for record in records:
+        run_ids.append(record.run_id)
+        platforms.extend(flavor_digest(record.snapshot).platforms)
+    return FlavorDigest(
+        world_id=world_id,
+        run_ids=run_ids,
+        platforms=platforms,
+        cross_platform_notes=_bridge_notes(request, world_id),
+    )
 
 
 @router.post("/worlds")
@@ -444,6 +475,25 @@ async def analysis(run_id: str, request: Request):  # review:P8-T5
     if record is None:
         raise HTTPException(status_code=404, detail="run not found")
     return default_analysis_provider().analyze(record.snapshot).model_dump(mode="json")  # review:P10-T1
+
+
+@router.get("/runs/{run_id}/flavor")
+async def flavor(run_id: str, request: Request, world_id: str | None = None):  # review:P10-T3
+    record = request.app.state.store.get(run_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="run not found")
+    if world_id:
+        records = [
+            item
+            for item in request.app.state.store.list()
+            if item.config.world_id == world_id
+        ]
+        return _flavor_for_records(records, world_id=world_id, request=request).model_dump(
+            mode="json"
+        )
+    return _flavor_for_records([record], world_id=record.config.world_id, request=request).model_dump(
+        mode="json"
+    )
 
 
 @router.get("/runs/{run_id}/insights")
