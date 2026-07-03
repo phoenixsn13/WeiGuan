@@ -221,6 +221,17 @@ async def get_world(world_id: str, request: Request):
     return world.model_dump(mode="json")
 
 
+@router.get("/worlds/{world_id}/events")
+async def world_events(world_id: str, request: Request):  # review:P11-T1
+    if request.app.state.world_store.get_world(world_id) is None:
+        raise HTTPException(status_code=404, detail="world not found")
+    frames = sorted(
+        request.app.state.world_store.read_world_events(world_id),
+        key=lambda event: (event.tick, event.created_at, event.event_id),
+    )
+    return {"frames": [event.model_dump(mode="json") for event in frames]}
+
+
 @router.post("/worlds/{world_id}/orchestrate")
 async def orchestrate_world(  # review:P9-T3
     world_id: str, body: _OrchestrateBody, request: Request
