@@ -463,6 +463,52 @@ test("continuing an identity uses picker world and person ids", async () => {  /
   expect(localStorage.getItem("wg_current_world_id")).toBe("w_1");
 });
 
+test("continuing many identities uses a bounded searchable picker", async () => {  // review:P11-T8-AC1
+  const identities = Array.from({ length: 100 }, (_, index) => ({
+    world_id: `w_${index}`,
+    person_id: `p_${index}`,
+    display_name: index === 87 ? "长列表目标身份" : `测试身份${index}`,
+    persona_kind: "ordinary" as const,
+    total_influence: 100 - index,
+    run_count: index + 1,
+  }));
+  const spy = vi.fn(async (url: string) => ({
+    ok: true,
+    json: async () => {
+      if (url.includes("preview-cost")) {
+        return { estimated_rmb: 1.8, budgeted_agents: 8, decision_steps: 9 };
+      }
+      if (url === "/api/identities") {
+        return { identities };
+      }
+      return { run_id: "r_continue_large_identity" };
+    },
+  }));
+  vi.stubGlobal("fetch", spy);
+  mount();
+
+  fireEvent.click(screen.getByLabelText(/继续身份/));
+  expect(await screen.findByText(/已保存 100 个身份/)).toBeInTheDocument();
+  expect(screen.getByTestId("identity-picker-list").className).toContain("max-h-80");
+  expect(screen.getByText("测试身份0")).toBeInTheDocument();
+  expect(screen.queryByText("长列表目标身份")).not.toBeInTheDocument();
+
+  fireEvent.change(screen.getByLabelText("搜索身份"), {
+    target: { value: "目标" },
+  });
+  fireEvent.click(await screen.findByLabelText(/长列表目标身份/));
+  fireEvent.change(screen.getByPlaceholderText(/有什么新鲜事/), {
+    target: { value: "长列表身份继续发帖" },
+  });
+  fireEvent.click(screen.getByText(/开始围观/));
+
+  await waitFor(() => expect(screen.getByText("进行时页")).toBeInTheDocument());
+  expect(runPostBody(spy)).toMatchObject({
+    world_id: "w_87",
+    poster_person_id: "p_87",
+  });
+});
+
 test("cost preview renders RMB and changes with steps", async () => {  // review:P7-T5-AC5
   const spy = vi.fn(async (url: string) => ({
     ok: true,

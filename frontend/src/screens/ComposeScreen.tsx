@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import {
@@ -24,6 +24,7 @@ const ROUNDS = [
 ];
 
 const MAX_CUSTOM_STEPS = 1000;
+const IDENTITY_VISIBLE_LIMIT = 20;
 const DEFAULT_MEMORY_BUDGET = 4;
 const DEFAULT_VISIBLE_PEOPLE = 8;
 const DEFAULT_COMMENT_BUDGET = 12;
@@ -87,11 +88,31 @@ export default function ComposeScreen() {
   const [identityName, setIdentityName] = useState("");
   const [identities, setIdentities] = useState<IdentitySummary[]>([]);
   const [selectedIdentityId, setSelectedIdentityId] = useState("");
+  const [identitySearch, setIdentitySearch] = useState("");
   const [selectedPlatforms, setSelectedPlatforms] = useState<LaunchPlatform[]>(["twitter"]);
   const [cost, setCost] = useState<PreviewCost | null>(null);
   const [error, setError] = useState("");
   const navigate = useNavigate();
   const selectedSteps = customMode ? clampSteps(customSteps) : steps;
+  const selectedIdentity = identities.find((identity) => identity.person_id === selectedIdentityId);
+  const normalizedIdentitySearch = identitySearch.trim().toLowerCase();
+  const filteredIdentities = useMemo(
+    () =>
+      identities.filter((identity) => {
+        if (!normalizedIdentitySearch) return true;
+        return [
+          identity.display_name,
+          personaLabel(identity.persona_kind),
+          identity.person_id,
+          identity.world_id,
+        ]
+          .join(" ")
+          .toLowerCase()
+          .includes(normalizedIdentitySearch);
+      }),
+    [identities, normalizedIdentitySearch],
+  );
+  const visibleIdentities = filteredIdentities.slice(0, IDENTITY_VISIBLE_LIMIT);
 
   useEffect(() => {
     let active = true;
@@ -355,41 +376,88 @@ export default function ComposeScreen() {
             </label>
           )}
           {identityMode === "continue" && (
-            <div className="mt-3 grid gap-2"> {/* review:P7-T12 */}
+            <div className="mt-3 rounded-card border border-line bg-slate-50 p-3"> {/* review:P7-T12 */}
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <div className="text-sm font-bold text-slate-950">
+                    {selectedIdentity ? "当前选择" : "选择一个保存身份"}
+                  </div>
+                  <div className="mt-1 text-xs text-slate-500">
+                    已保存 {identities.length} 个身份
+                    {selectedIdentity && (
+                      <>
+                        {" · 当前 "}
+                        {personaLabel(selectedIdentity.persona_kind)}
+                        {" · 影响力 "}
+                        {Math.round(selectedIdentity.total_influence)}
+                        {" · "}
+                        {selectedIdentity.run_count}
+                        {" 次"}
+                      </>
+                    )}
+                  </div>
+                </div>
+                {filteredIdentities.length > IDENTITY_VISIBLE_LIMIT && (
+                  <div className="rounded-full bg-white px-2 py-1 text-xs font-semibold text-slate-500">
+                    显示前 {IDENTITY_VISIBLE_LIMIT} 个，搜索可定位更多
+                  </div>
+                )}
+              </div>
+              <label className="mt-3 grid gap-2 text-sm font-semibold text-slate-700">
+                搜索身份
+                <input
+                  value={identitySearch}
+                  onChange={(event) => setIdentitySearch(event.target.value)}
+                  placeholder="输入昵称、身份类型或 ID"
+                  className="rounded-card border border-line px-3 py-2 text-base text-slate-950 focus:border-accent focus:outline-none"
+                />
+              </label>
               {identities.length === 0 && (
-                <div className="rounded-card border border-dashed border-line p-3 text-sm text-slate-500">
+                <div className="mt-3 rounded-card border border-dashed border-line p-3 text-sm text-slate-500">
                   还没有保存的身份。先用新身份发一条内容。
                 </div>
               )}
-              {identities.map((identity) => (
-                <label
-                  key={`${identity.world_id}:${identity.person_id}`}
-                  className={[
-                    "cursor-pointer rounded-card border p-3 text-sm",
-                    selectedIdentityId === identity.person_id
-                      ? "border-accent bg-blue-50 text-accent"
-                      : "border-line text-slate-600",
-                  ].join(" ")}
+              {identities.length > 0 && filteredIdentities.length === 0 && (
+                <div className="mt-3 rounded-card border border-dashed border-line p-3 text-sm text-slate-500">
+                  没有匹配的身份。
+                </div>
+              )}
+              {filteredIdentities.length > 0 && (
+                <div
+                  data-testid="identity-picker-list"
+                  className="mt-3 grid max-h-80 gap-2 overflow-y-auto pr-1"
                 >
-                  <span className="flex items-center justify-between gap-3">
-                    <span>
-                      <span className="block font-bold">{identity.display_name}</span>
-                      <span className="mt-1 block text-xs text-slate-500">
-                        {personaLabel(identity.persona_kind)} · 影响力 {Math.round(identity.total_influence)} · {identity.run_count} 次
+                  {visibleIdentities.map((identity) => (
+                    <label
+                      key={`${identity.world_id}:${identity.person_id}`}
+                      className={[
+                        "cursor-pointer rounded-card border bg-white p-3 text-sm",
+                        selectedIdentityId === identity.person_id
+                          ? "border-accent bg-blue-50 text-accent"
+                          : "border-line text-slate-600",
+                      ].join(" ")}
+                    >
+                      <span className="flex items-center justify-between gap-3">
+                        <span>
+                          <span className="block font-bold">{identity.display_name}</span>
+                          <span className="mt-1 block text-xs text-slate-500">
+                            {personaLabel(identity.persona_kind)} · 影响力 {Math.round(identity.total_influence)} · {identity.run_count} 次
+                          </span>
+                        </span>
+                        <input
+                          type="radio"
+                          name="identity_picker"
+                          checked={selectedIdentityId === identity.person_id}
+                          onChange={() => {
+                            setSelectedIdentityId(identity.person_id);
+                            setPosterPersona(identity.persona_kind);
+                          }}
+                        />
                       </span>
-                    </span>
-                    <input
-                      type="radio"
-                      name="identity_picker"
-                      checked={selectedIdentityId === identity.person_id}
-                      onChange={() => {
-                        setSelectedIdentityId(identity.person_id);
-                        setPosterPersona(identity.persona_kind);
-                      }}
-                    />
-                  </span>
-                </label>
-              ))}
+                    </label>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
