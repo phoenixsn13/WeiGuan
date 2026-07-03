@@ -264,6 +264,15 @@ export async function orchestrateWorld(  // review:P9-T6
   return response.json();
 }
 
+export async function getWorldEvents(worldId: string): Promise<WorldEvent[]> {  // review:P11-T4
+  const response = await fetch(`/api/worlds/${worldId}/events`);
+  if (!response.ok) {
+    throw new Error("failed to load world events");
+  }
+  const data = await response.json();
+  return data.frames ?? [];
+}
+
 // review:P5-T3
 export interface RetroMetrics {
   sentiment: { positive: number; negative: number; neutral: number };

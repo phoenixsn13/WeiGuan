@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useParams } from "react-router-dom";
 
-import type { WorldEvent } from "../api/client";
+import { getWorldEvents, type WorldEvent } from "../api/client";
 import { world } from "../design/tokens";
 import { multiPlatformView } from "../pov/multiplatform";
 import { PlatformSkinFeed, skinForPlatform } from "../skins/skin";
@@ -47,9 +48,38 @@ function BridgePathPanel({ bridges }: { bridges: ReturnType<typeof multiPlatform
   );
 }
 
+type LoadState = "idle" | "loading" | "error";
+
 // review:P9-T6
-export default function MultiPlatformLiveScreen({ events = [] }: { events?: WorldEvent[] }) {
-  const view = useMemo(() => multiPlatformView(events), [events]);
+export default function MultiPlatformLiveScreen({ events }: { events?: WorldEvent[] }) {
+  const params = useParams();
+  const [loadedEvents, setLoadedEvents] = useState<WorldEvent[]>([]);
+  const [loadState, setLoadState] = useState<LoadState>(events ? "idle" : "loading");
+
+  const loadWorldEvents = useCallback(async () => {
+    if (events !== undefined) return;
+    const worldId = params.id;
+    if (!worldId) {
+      setLoadedEvents([]);
+      setLoadState("idle");
+      return;
+    }
+    setLoadState("loading");
+    try {
+      // review:P11-T4
+      setLoadedEvents(await getWorldEvents(worldId));
+      setLoadState("idle");
+    } catch {
+      setLoadState("error");
+    }
+  }, [events, params.id]);
+
+  useEffect(() => {
+    void loadWorldEvents();
+  }, [loadWorldEvents]);
+
+  const activeEvents = events ?? loadedEvents;
+  const view = useMemo(() => multiPlatformView(activeEvents), [activeEvents]);
   const hasBridges = view.bridges.length > 0;
   const columnIndex = new Map(view.columns.map((column, index) => [column.platform, index]));
 
@@ -75,7 +105,27 @@ export default function MultiPlatformLiveScreen({ events = [] }: { events?: Worl
         </div>
       </section>
 
-      {hasBridges && (
+      {loadState === "loading" && (
+        <div className="rounded-card border border-dashed border-white/10 bg-white/[0.04] p-10 text-center text-sm text-white/55">
+          正在进入多平台现场...
+        </div>
+      )}
+
+      {loadState === "error" && (
+        <div className="rounded-card border border-dashed border-white/10 bg-white/[0.04] p-10 text-center text-sm text-white/65">
+          <div className="font-bold text-white">多平台现场加载失败</div>
+          <button
+            type="button"
+            className="mt-4 rounded-card px-4 py-2 text-sm font-bold text-slate-950 shadow-sm"
+            style={{ backgroundColor: world.identity }}
+            onClick={() => void loadWorldEvents()}
+          >
+            重试
+          </button>
+        </div>
+      )}
+
+      {loadState === "idle" && hasBridges && (
         <div className="mb-4 flex flex-wrap gap-2 lg:hidden">
           {view.bridges.map((bridge, index) => (
             <div
@@ -91,68 +141,70 @@ export default function MultiPlatformLiveScreen({ events = [] }: { events?: Worl
         </div>
       )}
 
-      <div
-        className={[
-          "relative grid gap-3",
-          view.columns.length > 1 ? "lg:grid-cols-3" : "max-w-4xl",
-        ].join(" ")}
-      >
-        {hasBridges && view.columns.length > 1 && (
-          <div className="pointer-events-none absolute inset-x-0 top-[74px] z-10 hidden h-14 lg:block">
-            {view.bridges.map((bridge, index) => {
-              const fromIndex = columnIndex.get(bridge.fromPlatform) ?? 0;
-              const toIndex = columnIndex.get(bridge.toPlatform) ?? fromIndex + 1;
-              const left = `${Math.min(fromIndex, toIndex) * 33.333 + 28}%`;
-              const width = `${Math.max(18, Math.abs(toIndex - fromIndex) * 33.333 - 22)}%`;
-              return (
-                <div
-                  key={`line-${bridge.fromPlatform}-${bridge.toPlatform}-${bridge.tick}-${index}`}
-                  aria-label={`跨平台桥 ${bridge.fromPlatform} 到 ${bridge.toPlatform}`}
-                  data-from-platform={bridge.fromPlatform}
-                  data-to-platform={bridge.toPlatform}
-                  className="absolute top-3 flex items-center justify-center"
-                  style={{
-                    left,
-                    width,
-                    borderColor: world.line,
-                    color: world.line,
-                  }}
-                >
-                  <span className="h-3 w-3 rounded-full border-2 bg-white shadow-sm" style={{ borderColor: world.line }} />
-                  <span className="h-0.5 flex-1" style={{ backgroundColor: world.line }} />
-                  <span className="rounded-card border bg-white px-2 py-1 text-[11px] font-bold shadow-sm" style={{ borderColor: world.line }}>
-                    {platformName(bridge.fromPlatform)} → {platformName(bridge.toPlatform)}
-                  </span>
-                  <span className="h-0.5 flex-1" style={{ backgroundColor: world.line }} />
-                  <span className="h-3 w-3 rounded-full border-2 bg-white shadow-sm" style={{ borderColor: world.line }} />
+      {loadState === "idle" && (
+        <div
+          className={[
+            "relative grid gap-3",
+            view.columns.length > 1 ? "lg:grid-cols-3" : "max-w-4xl",
+          ].join(" ")}
+        >
+          {hasBridges && view.columns.length > 1 && (
+            <div className="pointer-events-none absolute inset-x-0 top-[74px] z-10 hidden h-14 lg:block">
+              {view.bridges.map((bridge, index) => {
+                const fromIndex = columnIndex.get(bridge.fromPlatform) ?? 0;
+                const toIndex = columnIndex.get(bridge.toPlatform) ?? fromIndex + 1;
+                const left = `${Math.min(fromIndex, toIndex) * 33.333 + 28}%`;
+                const width = `${Math.max(18, Math.abs(toIndex - fromIndex) * 33.333 - 22)}%`;
+                return (
+                  <div
+                    key={`line-${bridge.fromPlatform}-${bridge.toPlatform}-${bridge.tick}-${index}`}
+                    aria-label={`跨平台桥 ${bridge.fromPlatform} 到 ${bridge.toPlatform}`}
+                    data-from-platform={bridge.fromPlatform}
+                    data-to-platform={bridge.toPlatform}
+                    className="absolute top-3 flex items-center justify-center"
+                    style={{
+                      left,
+                      width,
+                      borderColor: world.line,
+                      color: world.line,
+                    }}
+                  >
+                    <span className="h-3 w-3 rounded-full border-2 bg-white shadow-sm" style={{ borderColor: world.line }} />
+                    <span className="h-0.5 flex-1" style={{ backgroundColor: world.line }} />
+                    <span className="rounded-card border bg-white px-2 py-1 text-[11px] font-bold shadow-sm" style={{ borderColor: world.line }}>
+                      {platformName(bridge.fromPlatform)} → {platformName(bridge.toPlatform)}
+                    </span>
+                    <span className="h-0.5 flex-1" style={{ backgroundColor: world.line }} />
+                    <span className="h-3 w-3 rounded-full border-2 bg-white shadow-sm" style={{ borderColor: world.line }} />
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {view.columns.map((column) => {
+            const skin = skinForPlatform(column.platform);
+            return (
+              <article key={column.platform} className="min-w-0">
+                <div className="mb-2 flex items-center justify-between rounded-card border border-white/10 bg-white px-3 py-2 shadow-sm">
+                  <div className="flex items-center gap-2 text-lg font-black">
+                    <span className="grid h-7 w-7 place-items-center rounded-full bg-brand text-xs text-slate-950">
+                      {skin.label.slice(0, 1)}
+                    </span>
+                    {skin.label}
+                  </div>
+                  <div className="text-xs font-semibold text-slate-500">{platformName(column.platform)} 现场</div>
                 </div>
-              );
-            })}
-          </div>
-        )}
-        {view.columns.map((column) => {
-          const skin = skinForPlatform(column.platform);
-          return (
-            <article key={column.platform} className="min-w-0">
-              <div className="mb-2 flex items-center justify-between rounded-card border border-white/10 bg-white px-3 py-2 shadow-sm">
-                <div className="flex items-center gap-2 text-lg font-black">
-                  <span className="grid h-7 w-7 place-items-center rounded-full bg-brand text-xs text-slate-950">
-                    {skin.label.slice(0, 1)}
-                  </span>
-                  {skin.label}
-                </div>
-                <div className="text-xs font-semibold text-slate-500">{platformName(column.platform)} 现场</div>
-              </div>
-              <PlatformSkinFeed skin={skin.id} vm={column.view} />
-            </article>
-          );
-        })}
-        {view.columns.length > 1 && <BridgePathPanel bridges={view.bridges} />}
-      </div>
+                <PlatformSkinFeed skin={skin.id} vm={column.view} />
+              </article>
+            );
+          })}
+          {view.columns.length > 1 && <BridgePathPanel bridges={view.bridges} />}
+        </div>
+      )}
 
-      {view.columns.length === 0 && (
+      {loadState === "idle" && view.columns.length === 0 && (
         <div className="rounded-card border border-dashed border-line bg-white p-10 text-center text-sm text-slate-400">
-          等待多平台内容出现...
+          该世界还没有多平台内容
         </div>
       )}
     </div>

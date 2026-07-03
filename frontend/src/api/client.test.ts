@@ -10,6 +10,7 @@ import {
   fetchRunSummary,
   fetchRunSnapshot,
   fetchRuns,
+  getWorldEvents,
   fetchSavedInsights,
   getAnalysis,
   interviewActor,
@@ -316,6 +317,33 @@ test("getIdentities reads global persistent identity list", async () => {  // re
   expect(spy).toHaveBeenCalledWith("/api/identities");
   expect(identities[0].world_id).toBe("w_1");
   expect(identities[0].person_id).toBe("p_author");
+});
+
+test("getWorldEvents reads persisted world timeline frames", async () => {  // review:P11-T4-AC1
+  const spy = vi.fn(async () => ({
+    ok: true,
+    json: async () => ({
+      frames: [
+        {
+          event_id: "e_1",
+          world_id: "w_1",
+          tick: 1,
+          created_at: "2026-07-03T01:00:00Z",
+          platform: "twitter",
+          actor_account_id: "acct-twitter-poster",
+          kind: "seed",
+          payload: { post_id: 1, author_id: 1, content: "微博主帖" },
+          run_id: "r_1",
+        },
+      ],
+    }),
+  }));
+  vi.stubGlobal("fetch", spy);
+
+  const events = await getWorldEvents("w_1");
+
+  expect(spy).toHaveBeenCalledWith("/api/worlds/w_1/events");
+  expect(events[0].event_id).toBe("e_1");
 });
 
 test("getAnalysis reads professional social analysis projection", async () => {  // review:P8-T7

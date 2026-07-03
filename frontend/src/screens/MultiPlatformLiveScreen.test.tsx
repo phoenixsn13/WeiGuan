@@ -1,7 +1,21 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 import type { WorldEvent } from "../api/client";
+import { getWorldEvents } from "../api/client";
 import MultiPlatformLiveScreen from "./MultiPlatformLiveScreen";
+
+vi.mock("../api/client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../api/client")>();
+  return {
+    ...actual,
+    getWorldEvents: vi.fn(),
+  };
+});
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 const events: WorldEvent[] = [
   {
@@ -66,6 +80,58 @@ test("multi-platform live renders columns clock and bridge links", () => {  // r
   expect(screen.getByText("同一条内容先在微博发酵")).toBeInTheDocument();
   expect(screen.getByText("同一条内容到了 Reddit")).toBeInTheDocument();
   expect(screen.getByLabelText("跨平台桥 twitter 到 reddit")).toBeInTheDocument();
+});
+
+test("multi-platform route fetches world events and renders data", async () => {  // review:P11-T4-AC2
+  vi.mocked(getWorldEvents).mockResolvedValueOnce(events);
+
+  render(
+    <MemoryRouter initialEntries={["/world/w_1/live"]}>
+      <Routes>
+        <Route path="/world/:id/live" element={<MultiPlatformLiveScreen />} />
+      </Routes>
+    </MemoryRouter>,
+  );
+
+  expect(screen.getByText("正在进入多平台现场...")).toBeInTheDocument();
+  expect(await screen.findByText("世界时钟 · 第 2 拍")).toBeInTheDocument();
+  expect(getWorldEvents).toHaveBeenCalledWith("w_1");
+  expect(screen.getByText("同一条内容到了 Reddit")).toBeInTheDocument();
+});
+
+test("multi-platform route renders honest empty state for empty worlds", async () => {  // review:P11-T4-AC3
+  vi.mocked(getWorldEvents).mockResolvedValueOnce([]);
+
+  render(
+    <MemoryRouter initialEntries={["/world/w_empty/live"]}>
+      <Routes>
+        <Route path="/world/:id/live" element={<MultiPlatformLiveScreen />} />
+      </Routes>
+    </MemoryRouter>,
+  );
+
+  expect(await screen.findByText("该世界还没有多平台内容")).toBeInTheDocument();
+});
+
+test("multi-platform route shows retry when world events fail", async () => {  // review:P11-T4-AC4
+  vi.mocked(getWorldEvents)
+    .mockRejectedValueOnce(new Error("network down"))
+    .mockResolvedValueOnce(events);
+
+  render(
+    <MemoryRouter initialEntries={["/world/w_retry/live"]}>
+      <Routes>
+        <Route path="/world/:id/live" element={<MultiPlatformLiveScreen />} />
+      </Routes>
+    </MemoryRouter>,
+  );
+
+  const retry = await screen.findByRole("button", { name: "重试" });
+  expect(screen.getByText("多平台现场加载失败")).toBeInTheDocument();
+  fireEvent.click(retry);
+
+  expect(await screen.findByText("世界时钟 · 第 2 拍")).toBeInTheDocument();
+  expect(getWorldEvents).toHaveBeenCalledTimes(2);
 });
 
 test("single platform live falls back to one column without bridges", () => {  // review:P9-T6-AC4
