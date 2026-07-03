@@ -156,6 +156,31 @@ export function multiPlatformView(events: WorldEvent[]): { columns: PlatformColu
 | P9-T4 | 原型图 | 并列 Live+皮肤对比+自审 |
 | P9-T5 | 皮肤抽象 | 三皮肤同数据契约、各记号；无禁用词 |
 | P9-T6 | 并列 Live | 列/桥/时钟；单平台降级 |
+| P9-T8 | Live 高保真补齐 | 冷靛蓝 token 化；世界层深色外框；三平台同屏；桥路径真连列；禁用词零 |
+
+---
+
+## 附录：P9-T8（收尾，补 T6 高保真欠账，2026-07-03）
+
+T6 二次核验为"功能闭环级"通过，但 codex 自审诚实披露**未达原型 `multiplatform-live.png` 的高密度三列质感**。**欠账当场清、不进 backlog。** 目标：`MultiPlatformLiveScreen` + 平台皮肤外壳追平原型与 spec §7.2/§7.3/§7.5 的世界层视觉语言。**只动表现层，不改 `PosterViewModel` 数据契约、不改 `pov/multiplatform.ts` 派生逻辑、不改后端。**
+
+### Task 8（前端，P9 收尾）：多平台 Live 高保真补齐
+
+**Files:** Modify `frontend/src/screens/MultiPlatformLiveScreen.tsx`（及必要的皮肤外壳/列头样式）；Test `MultiPlatformLiveScreen.test.tsx` 补断言
+
+五条可核验 delta（逐条闭合）：
+1. **冷靛蓝 token 化（同 P8-T7 教训）**：桥接线/桥接徽标当前用原生 `indigo-200/50/400/700`，**全部替换为设计 token `world.line`（`#2C4A7C`）**（经 `design/tokens.ts`，内联 `style` 或语义类）。杜绝任何图表/工具默认色；连接线冷靛蓝是 spec §7.2 硬约束。
+2. **世界层深色外框**：多平台舞台**包一层世界层深色容器**（`world.surface` `#0F172A`），使其读作"世界层"寄存器、与内部社交皮肤白卡形成层次；世界时钟与标题落在深色外框上。
+3. **三平台同屏为桌面主布局**：现状 `xl:grid-cols-2 2xl:grid-cols-3` 使三列仅在 2xl 出现→改为**桌面即三列同屏**（如 `lg:grid-cols-3` 或横向滚动舞台），提升密度（收紧间距、列头带平台记号）。
+4. **桥接路径真连列**：现状是居中悬浮的一根 `top-32` 横条 + 泛化"外溢"标签，**与具体 from→to 列无位置关系**。改为**桥接可视化锚定到具体来源/目标平台列**（列头出入向桥标记，或在两列位置间连线），确定性来自 `view.bridges`；移动端按自审收敛为桥接摘要。
+5. **世界时钟**：从 `slate-100` 灰药丸提升为世界层外框上的显著时钟表现。
+
+保持：`PosterViewModel` 契约不变、三皮肤仍只换表现；心智词表零禁用词（不得引入"配置中心/世界地图/后端/模型"等自审已标注的后台词）；`vitest run` + `tsc -b` 全绿。
+
+- [ ] **Step 1 — 对照 `multiplatform-live.png` 自审当前实现，列出 5 条 delta 的现状/目标**（写入 `P9-selfreview.md` 追加节）。
+- [ ] **Step 2 — 失败测试**：断言桥接元素不含 `indigo-` 默认类、存在世界层深色容器标识、桥标记引用具体 from/to 平台。
+- [ ] **Step 3 — 确认失败。Step 4 — 实现** `// review:P9-T8`。**Step 5 — 通过 + `tsc -b` + 全量 `vitest run` 绿。**
+- [ ] **Step 6 — commit** `feat(live): high-fidelity multiplatform stage with world-layer skin`（`Review-Anchor: P9-T8`）。
 
 ## 完成标准
 - 后端 `pytest -m "not llm and not llm_effect"` 全绿；前端 `vitest run`+`tsc -b` 绿。
@@ -175,7 +200,9 @@ P7 的投影按**单账户**实现：`fold_world` 的 `PersonView.stance` 取 `p
 **Files:** Modify `backend/weiguan/world/projector.py`、`world/run_bridge.py`、`world/store.py`、`world/models.py`（如需 per-platform 明细）；Test 追加 `backend/tests/world/test_projector_multiaccount.py`
 
 **Interfaces:**
-- `PersonView.stance`/`IdentitySummary.stance` 改为**跨该 person 所有账户聚合**（合并各账户 `stance_counts` 后按 `_stance_score` 定 dominant）；`total_influence` 保持各账户求和。
+- `PersonView.stance`/`IdentitySummary.stance` 改为**跨该 person 所有账户聚合**；`total_influence` 保持各账户求和。
+- 聚合实现方式（精确）：把 `_stance_score` 的签名从 `(events, account_id: str)` 泛化为 `(events, account_ids: list[str])`，过滤条件由 `event.actor_account_id == account_id` 改为 `event.actor_account_id in account_ids`；其余计数逻辑不变。**注意：`_stance_score` 返回 `(dominant, score)`，本就不存在 `stance_counts`——不要新造 "merge stance_counts" 路径。** 单账户调用（`account_ids=[acc]`）必须与 P7 逐字等价。
+- **护栏**：泛化 `_stance_score` 时**保留 P8 落的 `stance_polarity(...)` 调用，不得回退成内联 `if stance in {"question","skeptic"}`**（否则重新分裂极性约定，违 P8 附录）。极性单一真源恒为 `weiguan/analysis/stance.py::stance_polarity`。
 - `project_stance`/`project_bounded_memory`/`project_standing_timeline` 接受 `account_ids: list[str]`（或按 person 的全部账户）；`standing_timeline` 的 `influence`/`followers` 跨该 person 所有平台账户求和，另可选 `per_platform: dict[Platform, StandingPoint]` 明细。
 - `ensure_world_for_run`/orchestrator：发帖人 person 在参与的**每个平台各有一个 Account**，`poster_account_id` 按平台解析；run 缝 `account_of` 按 (platform, user_id) 建号，**替换硬编 `account_of[1]`**。
 

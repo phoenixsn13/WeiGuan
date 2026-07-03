@@ -187,6 +187,8 @@ FollowGraph / AnalysisProjection ...     # 均为 EventLog 的确定性投影
 2. **围观壳**（控制与洞察）：深墨 `#14140F`/`#0F172A`、暖琥珀 `brand`、冷靛蓝 `accent`。导航、控制条、洞察卡在此。
 3. **世界层**（宏观身份/时间/跨平台）：围观壳的延伸，用于表达持久身份、立场漂移时间线、跨平台并列。视觉上比围观壳更"星图/时间线"化——暖琥珀作为身份/影响力主色，冷靛蓝作为跨平台连接线，sentiment 色仅用于立场。**世界层禁止使用图表库默认配色**，一律走本寄存器。
 
+> **硬规则（配色单一真源，全站前端强制）**：世界层与围观壳的**连接线、桥接、情绪/立场、影响力**等语义色，**只准来自 `frontend/src/design/tokens.ts`**（`world.surface/line/influenceUp/influenceDown`、`sentimentColor(...)`、`colors.*`），**严禁**在组件里硬编 Tailwind 默认色阶（`bg-emerald-500`/`bg-rose-500`/`indigo-400`/`bg-*-[0-9]` 等）表达语义色。中性排版色（`text-slate-500`、`border-line`、`bg-white` 等结构性灰白）不受限。**审核者每次前端片必查此条**——历史两次欠账（P8-T7 情绪色、P9-T8 桥接色）皆此类，已列为回归项。
+
 字体：系统无衬线优先 `-apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif`；数字 `tabular-nums`；不用 emoji 作结构图标（用 SVG/文本，延续现状 `emoji` 字段仅作单字符字形）。
 
 ### 7.3 平台皮肤差异化规范（愿望3）
@@ -258,8 +260,9 @@ FollowGraph / AnalysisProjection ...     # 均为 EventLog 的确定性投影
 2. **P7 · 发帖人 persona 与累积**：persona 选择、起始盘、多次发起累积、历史页按人聚合、身份/世界主页。锚点 `P7-T*`。
 3. **P8 · 专业社媒分析**：§5.2 五方法族的确定性分析投影 + Retro 重构 + 洞察卡。锚点 `P8-T*`。
 4. **P9 · 多平台编排与皮肤**：编排器、跨平台桥、多平台并列 Live、平台皮肤差异化。锚点 `P9-T*`。
+5. **P10 · 效果评估与可扩展性收尾**（收尾片，P6–P9 后）：分析层 `AnalysisProvider` 接口化（embedded 默认、预留第三方/远程位）、LLM 可读风味摘要投影 `FlavorDigest`（X味/微博味/reddit味主观评估上游）、perf 旁路发射缝 + `PerfDigest` 聚合。全非破坏、非 LLM、无新依赖。锚点 `P10-T*`。计划见 `plans/2026-07-03-weiguan-P10-evaluation-and-extensibility.md`。
 
-依赖：P7/P8/P9 均依赖 P6；P9 依赖 P7 的身份模型落地。UI 原型图作为各 plan 首个前端 Task 的前置产物（先出图自审再实现）。
+依赖：P7/P8/P9 均依赖 P6；P9 依赖 P7 的身份模型落地；P10 依赖 P6–P9 全部落地。UI 原型图作为各 plan 首个前端 Task 的前置产物（先出图自审再实现）。
 
 ---
 

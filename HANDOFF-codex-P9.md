@@ -15,7 +15,7 @@
 4. **UI 工作流强制**：Task 4 先 imagegen 出多平台并列 Live + 三皮肤对比原型图+自审，合格后再实现 Task 5/6。
 5. 编排测试全部用 `weiguan/engine/fake.py::FakeEngine` 多实例，无需 LLM key。
 
-**先读计划末尾「附录：新增 P9-T7（起手，先于 T1）」**：P7 投影是单账户实现，P9 一人多平台账户必须先做 T7——投影多账户泛化（立场/记忆/`standing_timeline` 跨 person 全部账户聚合）+ 发帖人按平台建号（替换硬编 `account_of[1]`），且单账户退化与 P7 逐字一致（防回归）。
+**先读计划末尾「附录：新增 P9-T7（起手，先于 T1）」**：P7 投影是单账户实现，P9 一人多平台账户必须先做 T7——投影多账户泛化（立场/记忆/`standing_timeline` 跨 person 全部账户聚合）+ 发帖人按平台建号（替换硬编 `account_of[1]`），且单账户退化与 P7 逐字一致（防回归）。**T7 精确做法**：`_stance_score` 签名 `account_id: str`→`account_ids: list[str]`、过滤改 `in account_ids`（它返回 `(dominant, score)`，不存在 stance_counts，别造 merge 路径）；**保留 P8 落的 `stance_polarity(...)` 调用不回退**（极性单一真源恒为 `analysis/stance.py::stance_polarity`）。
 
 顺序 **T7（起手）→** T1 跨平台桥(纯函数) → T2 WorldOrchestrator(共享时钟+每拍调桥) → T3 编排 API → T4 原型图+自审 → T5 平台皮肤抽象+Reddit/微博 → T6 多平台并列 Live。精确文件/签名/断言见计划。
 
