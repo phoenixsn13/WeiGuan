@@ -1,15 +1,21 @@
-import { render, screen } from "@testing-library/react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 
 import IdentityScreen from "./IdentityScreen";
 
 afterEach(() => vi.restoreAllMocks());
+
+function WorldProbe() {
+  const location = useLocation();
+  return <div>{`世界现场${location.pathname}`}</div>;
+}
 
 function mount(path = "/identity/p_author?world_id=w_1") {
   render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="/identity/:personId" element={<IdentityScreen />} />
+        <Route path="/world/:id/live" element={<WorldProbe />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -95,6 +101,9 @@ test("renders identity card, stance timeline, influence curve, and accounts", as
   expect(screen.getByText("立场时间线")).toBeInTheDocument();
   expect(screen.getByText("影响力曲线")).toBeInTheDocument();
   expect(screen.getByText("第二条")).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "看这个世界" }));  // review:P11-T6-AC5
+  expect(screen.getByText("世界现场/world/w_1/live")).toBeInTheDocument();
 });
 
 test("shows empty state when world id is missing", async () => {  // review:P7-T7-AC3

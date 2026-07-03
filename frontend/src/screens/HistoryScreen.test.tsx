@@ -10,6 +10,11 @@ function LocationProbe() {
   return <div>{`评论区${location.search}`}</div>;
 }
 
+function WorldProbe() {
+  const location = useLocation();
+  return <div>{`世界现场${location.pathname}`}</div>;
+}
+
 function mount() {
   render(
     <MemoryRouter initialEntries={["/history"]}>
@@ -17,6 +22,7 @@ function mount() {
         <Route path="/history" element={<HistoryScreen />} />
         <Route path="/run/:id/live" element={<LocationProbe />} />
         <Route path="/run/:id/retro" element={<div>回放页</div>} />
+        <Route path="/world/:id/live" element={<WorldProbe />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -185,4 +191,50 @@ test("groups historical runs under persistent identities", async () => {  // rev
   expect(screen.getByText("2 次围观")).toBeInTheDocument();
   expect(screen.getByText("第二条")).toBeInTheDocument();
   expect(screen.getByText("第一条")).toBeInTheDocument();
+});
+
+test("links identity history groups to the multi-platform world", async () => {  // review:P11-T6-AC4
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => ({
+      ok: true,
+      json: async () => {
+        if (url === "/api/runs") {
+          return [
+            {
+              run_id: "r_1",
+              world_id: "w_1",
+              content: "跨平台内容",
+              steps: 15,
+              platform: "twitter",
+              status: "done",
+              created_at: "2026-07-01T08:00:00Z",
+              totals: { replies: 3, reposts: 1, likes: 8 },
+            },
+          ];
+        }
+        return {
+          persons: [
+            {
+              person: {
+                person_id: "p_author",
+                display_name: "财经大号",
+                persona_kind: "kol",
+                accounts: [],
+              },
+              stance: { stance_counts: {}, dominant: "other" },
+              total_influence: 56,
+              run_ids: ["r_1"],
+              standing_timeline: [],
+            },
+          ],
+        };
+      },
+    })),
+  );
+
+  mount();
+
+  fireEvent.click(await screen.findByRole("button", { name: "看多平台现场" }));
+  expect(screen.getByText("世界现场/world/w_1/live")).toBeInTheDocument();
 });

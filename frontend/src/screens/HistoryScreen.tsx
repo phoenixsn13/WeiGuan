@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { fetchRuns, listPersons, type PersonView, type RunSummary } from "../api/client";
 import { Button } from "../components/Button";
 import { TrendRail } from "../components/TrendRail";
-import { groupRunsByIdentity } from "../pov/identity";
+import { groupRunsByIdentity, TEMPORARY_PERSON_ID } from "../pov/identity";
 
 function statusLabel(status: RunSummary["status"]): string {
   if (status === "done") return "已完成";
@@ -86,6 +86,11 @@ export default function HistoryScreen() {
                     <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
                       {group.person.person.accounts[0].num_followers.toLocaleString()} 粉丝
                     </div>
+                  )}
+                  {group.runs[0]?.world_id && group.person.person.person_id !== TEMPORARY_PERSON_ID && (
+                    <Button variant="ghost" onClick={() => navigate(`/world/${group.runs[0].world_id}/live`)}>
+                      看多平台现场
+                    </Button>
                   )}
                 </div>
                 <div className="mt-4 grid gap-3">

@@ -48,7 +48,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {/* review:P7-T8 */}
           <nav className="hidden h-16 items-stretch gap-1 md:flex">
             <NavItem to="/compose">发起</NavItem>
-            <NavItem to="/">世界</NavItem>
+            <NavItem to="/worlds">世界</NavItem>
             <NavItem to="/history">历史</NavItem>
           </nav>
           <div className="flex items-center gap-3">

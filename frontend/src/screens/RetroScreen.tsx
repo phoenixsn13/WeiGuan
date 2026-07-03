@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 import {
   fetchInsights,
   fetchRunSnapshot,
+  fetchRunSummary,
   fetchSavedInsights,
   getAnalysis,
   type AnalysisProjection,
   type Insights,
+  type RunSummary,
 } from "../api/client";
 import { useApiKey } from "../api/useApiKey";
 import { Button } from "../components/Button";
@@ -72,9 +74,11 @@ function renderMain(tab: AnalysisTab, analysis: AnalysisProjection) {
 
 export default function RetroScreen() {  // review:P8-T7
   const { id = "" } = useParams();
+  const navigate = useNavigate();
   const { key, model, baseUrl, reasoningEffort, thinking } = useApiKey();
   const [analysis, setAnalysis] = useState<AnalysisProjection | null>(null);
   const [snapshot, setSnapshot] = useState<RunSnapshot | null>(null);
+  const [summary, setSummary] = useState<RunSummary | null>(null);
   const [insights, setInsights] = useState<Insights | null>(null);
   const [loadingInsights, setLoadingInsights] = useState(false);
   const [tab, setTab] = useState<AnalysisTab>("diffusion");
@@ -86,6 +90,9 @@ export default function RetroScreen() {  // review:P8-T7
     fetchRunSnapshot(id)
       .then(setSnapshot)
       .catch(() => setSnapshot(null));
+    fetchRunSummary(id)
+      .then(setSummary)
+      .catch(() => setSummary(null));
     fetchSavedInsights(id)
       .then(setInsights)
       .catch(() => setInsights(null));
@@ -144,6 +151,14 @@ export default function RetroScreen() {  // review:P8-T7
         >
           回到评论区
         </a>
+        {summary?.world_id && (
+          <button
+            className="mt-3 flex min-h-11 w-full items-center justify-center rounded-card bg-brand text-sm font-semibold text-slate-950 hover:brightness-105"
+            onClick={() => navigate(`/world/${summary.world_id}/live`)}
+          >
+            看世界现场
+          </button>
+        )}
       </aside>
 
       <section className="min-w-0 bg-[#f8fafc] p-5 lg:p-7">

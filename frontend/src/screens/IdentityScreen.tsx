@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import {
   fetchPerson,
@@ -27,6 +27,7 @@ export default function IdentityScreen() {
   const { personId = "" } = useParams();
   const [searchParams] = useSearchParams();
   const worldId = searchParams.get("world_id") ?? "";
+  const navigate = useNavigate();
   const [person, setPerson] = useState<PersonView | null>(null);
   const [runs, setRuns] = useState<RunSummary[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -114,6 +115,12 @@ export default function IdentityScreen() {
             </div>
           </div>
         )}
+        <button
+          className="mt-5 min-h-11 w-full rounded-card bg-brand text-sm font-semibold text-slate-950 hover:brightness-105"
+          onClick={() => navigate(`/world/${worldId}/live`)}
+        >
+          看这个世界
+        </button>
       </aside>
 
       <div className="grid gap-5">

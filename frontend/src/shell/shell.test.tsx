@@ -55,7 +55,7 @@ test("shell navigation uses world-mind labels and links identity entry", () => {
   at("/history");
 
   expect(screen.getByRole("link", { name: "发起" })).toHaveAttribute("href", "/compose");
-  expect(screen.getByRole("link", { name: "世界" })).toHaveAttribute("href", "/");
+  expect(screen.getByRole("link", { name: "世界" })).toHaveAttribute("href", "/worlds");  // review:P11-T6
   expect(screen.getByRole("link", { name: "历史" })).toHaveAttribute("href", "/history");
   expect(screen.queryByRole("link", { name: "选圈子" })).not.toBeInTheDocument();
   expect(screen.queryByRole("link", { name: "历史记录" })).not.toBeInTheDocument();

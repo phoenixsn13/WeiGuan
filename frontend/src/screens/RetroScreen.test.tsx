@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 
 import RetroScreen from "./RetroScreen";
 
@@ -56,11 +56,17 @@ const snapshot = {
   traces: [],
 };
 
+function WorldProbe() {
+  const location = useLocation();
+  return <div>{`世界现场${location.pathname}`}</div>;
+}
+
 function mount() {
   render(
     <MemoryRouter initialEntries={["/run/r_1/retro"]}>
       <Routes>
         <Route path="/run/:id/retro" element={<RetroScreen />} />
+        <Route path="/world/:id/live" element={<WorldProbe />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -70,6 +76,20 @@ function stubFetch(savedInsights: object | null = null) {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string) => {
+      if (url === "/api/runs/r_1") {
+        return {
+          ok: true,
+          json: async () => ({
+            run_id: "r_1",
+            world_id: "w_1",
+            content: "真实历史主帖",
+            steps: 15,
+            platform: "twitter",
+            status: "done",
+            totals: { replies: 2, reposts: 1, likes: 3 },
+          }),
+        };
+      }
       if (url.endsWith("/analysis")) return { ok: true, json: async () => analysis };
       if (url.endsWith("/snapshot")) return { ok: true, json: async () => snapshot };
       if (url.endsWith("/insights") && savedInsights) {
@@ -118,4 +138,12 @@ test("loads persisted insights and offers regeneration", async () => {  // revie
   expect(await screen.findByText("刷新后还在")).toBeInTheDocument();
   expect(screen.getByText("这是持久化建议")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "重新生成建议" })).toBeInTheDocument();
+});
+
+test("links retro back to the multi-platform world when available", async () => {  // review:P11-T6-AC6
+  stubFetch();
+  mount();
+
+  fireEvent.click(await screen.findByRole("button", { name: "看世界现场" }));
+  expect(screen.getByText("世界现场/world/w_1/live")).toBeInTheDocument();
 });
