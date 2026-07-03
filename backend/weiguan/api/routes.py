@@ -14,6 +14,7 @@ from weiguan.analysis.retro import compute_metrics, seed_engaged_actor_ids
 from weiguan.canonical import Platform
 from weiguan.engine.config import Audience, RunConfig
 from weiguan.engine.crowds import list_crowds
+from weiguan.obs.collect import collect
 from weiguan.world.models import PersonaKind
 from weiguan.world.orchestrator import PlatformRunSpec, WorldOrchestrator
 
@@ -231,7 +232,11 @@ async def orchestrate_world(  # review:P9-T3
         "orchestrator_engine_builder",
         lambda spec: request.app.state.engine,
     )
-    orchestrator = WorldOrchestrator(request.app.state.world_store, engine_builder)
+    orchestrator = WorldOrchestrator(
+        request.app.state.world_store,
+        engine_builder,
+        metric_sink=getattr(request.app.state, "metric_sink", None),
+    )
     events = [event async for event in orchestrator.orchestrate(world_id, body.specs)]
     frames = request.app.state.world_store.read_world_events(world_id)
     return {
@@ -494,6 +499,17 @@ async def flavor(run_id: str, request: Request, world_id: str | None = None):  #
     return _flavor_for_records([record], world_id=record.config.world_id, request=request).model_dump(
         mode="json"
     )
+
+
+@router.get("/runs/{run_id}/perf")
+async def perf(run_id: str, request: Request):  # review:P10-T5
+    sink = getattr(request.app.state, "metric_sink", None)
+    metrics = [
+        metric
+        for metric in getattr(sink, "metrics", [])
+        if metric.run_id == run_id
+    ]
+    return collect(metrics).model_dump(mode="json")
 
 
 @router.get("/runs/{run_id}/insights")

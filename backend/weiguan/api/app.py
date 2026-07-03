@@ -9,6 +9,7 @@ from weiguan.api.routes import router
 from weiguan.api.runner import RunRunner
 from weiguan.api.store import RunStore
 from weiguan.engine.base import Engine
+from weiguan.obs.emit import NullSink
 from weiguan.world.store import WorldStore
 
 
@@ -27,5 +28,6 @@ def create_app(
     app.state.world_store = world_store or WorldStore(str(workdir))
     app.state.runner = RunRunner(app.state.store, engine, world_store=app.state.world_store)
     app.state.llm_defaults = llm_defaults or LlmDefaults()
+    app.state.metric_sink = NullSink()
     app.include_router(router)
     return app
