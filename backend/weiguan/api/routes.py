@@ -14,6 +14,7 @@ from weiguan.canonical import Platform
 from weiguan.engine.config import Audience, RunConfig
 from weiguan.engine.crowds import list_crowds
 from weiguan.world.models import PersonaKind
+from weiguan.world.orchestrator import PlatformRunSpec, WorldOrchestrator
 
 router = APIRouter(prefix="/api")
 
@@ -36,6 +37,10 @@ class _CreateBody(BaseModel):
 
 class _CreateWorldBody(BaseModel):
     persistent: bool = False
+
+
+class _OrchestrateBody(BaseModel):
+    specs: list[PlatformRunSpec]
 
 
 class _CreatePersonBody(BaseModel):
@@ -182,6 +187,26 @@ async def get_world(world_id: str, request: Request):
     if world is None:
         raise HTTPException(status_code=404, detail="world not found")
     return world.model_dump(mode="json")
+
+
+@router.post("/worlds/{world_id}/orchestrate")
+async def orchestrate_world(  # review:P9-T3
+    world_id: str, body: _OrchestrateBody, request: Request
+):
+    if request.app.state.world_store.get_world(world_id) is None:
+        raise HTTPException(status_code=404, detail="world not found")
+    engine_builder = getattr(
+        request.app.state,
+        "orchestrator_engine_builder",
+        lambda spec: request.app.state.engine,
+    )
+    orchestrator = WorldOrchestrator(request.app.state.world_store, engine_builder)
+    events = [event async for event in orchestrator.orchestrate(world_id, body.specs)]
+    frames = request.app.state.world_store.read_world_events(world_id)
+    return {
+        "events": events,
+        "frames": [event.model_dump(mode="json") for event in frames],
+    }
 
 
 @router.get("/worlds/{world_id}/persons")
