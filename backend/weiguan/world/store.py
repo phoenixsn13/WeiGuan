@@ -66,6 +66,14 @@ class WorldStore:
                 return person
         return None
 
+    def set_clock_tick(self, world_id: str, tick: int) -> World | None:  # review:P9-T2
+        world = self.get_world(world_id)
+        if world is None:
+            return None
+        world = world.model_copy(update={"clock_tick": tick})
+        self._write_json(self._world_path(world.world_id), world.model_dump(mode="json"))
+        return world
+
     def create_person(
         self,
         world_id: str,
@@ -151,6 +159,9 @@ class WorldStore:
                 continue
             frames.extend(EventLog(str(world_dir / "events.jsonl")).read(run_id=run_id))
         return sorted(frames, key=lambda event: (event.tick, event.created_at, event.event_id))
+
+    def read_world_events(self, world_id: str) -> list[WorldEvent]:  # review:P9-T2
+        return self._eventlog(world_id).read()
 
     def _world_dir(self, world_id: str) -> Path:
         return self.root / world_id
