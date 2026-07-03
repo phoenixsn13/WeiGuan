@@ -1,4 +1,5 @@
 import {
+  createMultiRun,
   createRun,
   fetchCrowds,
   fetchInsights,
@@ -174,6 +175,40 @@ test("createRun throws on error", async () => {  // review:P4-T4-AC3
       { key: "k", model: "m" },
     ),
   ).rejects.toThrow(/steps/);
+});
+
+test("createMultiRun posts UI-friendly multi-platform body", async () => {  // review:P11-T5-AC1
+  const spy = vi.fn(async () => ({
+    ok: true,
+    json: async () => ({ world_id: "w_multi" }),
+  }));
+  vi.stubGlobal("fetch", spy);
+
+  const result = await createMultiRun(
+    {
+      audience: { crowd_id: "tech_devs" },
+      content: "多平台发酵",
+      steps: 10,
+      persona: "kol",
+      platforms: ["twitter", "reddit"],
+      world_id: "w_1",
+      poster_person_id: "p_author",
+      person_memory_budget: 4,
+    },
+    { key: "sk-x", model: "m" },
+  );
+
+  expect(result.world_id).toBe("w_multi");
+  const [url, init] = spy.mock.calls[0] as unknown as [string, RequestInit];
+  expect(url).toBe("/api/multi-runs");
+  expect((init.headers as Record<string, string>)["X-LLM-Key"]).toBe("sk-x");
+  expect(JSON.parse(init.body as string)).toMatchObject({
+    content: "多平台发酵",
+    persona: "kol",
+    platforms: ["twitter", "reddit"],
+    world_id: "w_1",
+    poster_person_id: "p_author",
+  });
 });
 
 test("interviewActor posts with key header", async () => {  // review:P5-T3-AC1

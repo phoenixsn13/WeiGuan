@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import {
+  createMultiRun,
   createPerson,
   createRun,
   getIdentities,
@@ -12,6 +13,9 @@ import {
 } from "../api/client";
 import { saveCurrentIdentity, useApiKey } from "../api/useApiKey";
 import { Button } from "../components/Button";
+import { world } from "../design/tokens";
+
+type LaunchPlatform = "twitter" | "reddit";
 
 const ROUNDS = [
   { value: 6, label: "快速围观", hint: "看第一波反应" },
@@ -33,6 +37,11 @@ const PERSONAS: Array<{
   { value: "ordinary", label: "普通人", hint: "普通网友视角", standing: "约 20 粉丝" },
   { value: "verified", label: "大V", hint: "自带基础扩散", standing: "约 2,000 粉丝" },
   { value: "kol", label: "KOL", hint: "头部意见领袖", standing: "约 50,000 粉丝" },
+];
+
+const PLATFORMS: Array<{ value: LaunchPlatform; label: string; hint: string }> = [
+  { value: "twitter", label: "微博", hint: "中文社交媒体" },
+  { value: "reddit", label: "Reddit", hint: "全球社区讨论" },
 ];
 
 function personaLabel(kind: PersonaKind): string {
@@ -78,6 +87,7 @@ export default function ComposeScreen() {
   const [identityName, setIdentityName] = useState("");
   const [identities, setIdentities] = useState<IdentitySummary[]>([]);
   const [selectedIdentityId, setSelectedIdentityId] = useState("");
+  const [selectedPlatforms, setSelectedPlatforms] = useState<LaunchPlatform[]>(["twitter"]);
   const [cost, setCost] = useState<PreviewCost | null>(null);
   const [error, setError] = useState("");
   const navigate = useNavigate();
@@ -131,14 +141,18 @@ export default function ComposeScreen() {
   async function startRun() {
     setError("");
     try {
+      if (selectedPlatforms.length === 0) {
+        throw new Error("至少选择一个平台");
+      }
       let worldId: string | undefined;
       let personId: string | undefined;
+      let runPersona = posterPersona;
       if (identityMode === "new") {  // review:P7-T12
         const displayName = identityName.trim() || defaultIdentityName(posterPersona);
         const created = await createPerson({
           display_name: displayName,
           persona_kind: posterPersona,
-          platform: "twitter",
+          platform: selectedPlatforms[0],
           handle: defaultHandle(displayName),
         });
         worldId = created.world_id;
@@ -151,16 +165,34 @@ export default function ComposeScreen() {
         }
         worldId = selected.world_id;
         personId = selected.person_id;
+        runPersona = selected.persona_kind;
         saveCurrentIdentity(personId, worldId);
+      }
+      if (selectedPlatforms.length >= 2) {  // review:P11-T5
+        const { world_id } = await createMultiRun(
+          {
+            audience,
+            content,
+            steps: selectedSteps,
+            persona: runPersona,
+            platforms: selectedPlatforms,
+            world_id: worldId,
+            poster_person_id: personId,
+            person_memory_budget: DEFAULT_MEMORY_BUDGET,
+          },
+          { key, model, baseUrl, reasoningEffort, thinking },
+        );
+        navigate(`/world/${world_id}/live`);
+        return;
       }
       const { run_id } = await createRun(
         {
           audience,
           content,
           steps: selectedSteps,
-          platform: "twitter",
+          platform: selectedPlatforms[0],
           world_id: worldId,
-          poster_persona: posterPersona,
+          poster_persona: runPersona,
           poster_person_id: personId,
           person_memory_budget: DEFAULT_MEMORY_BUDGET,
         },
@@ -184,6 +216,56 @@ export default function ComposeScreen() {
           rows={7}
           className="mt-5 w-full resize-none rounded-card border border-line p-4 text-[16px] leading-7 focus:border-accent focus:outline-none"
         />
+        <div className="mt-4 rounded-card border border-line bg-white p-4"> {/* review:P11-T5 */}
+          <div className="text-sm font-bold text-slate-950">平台</div>
+          <p className="mt-1 text-sm text-slate-500">选择这条内容会出现在哪些现场。</p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {PLATFORMS.map((platform) => {
+              const checked = selectedPlatforms.includes(platform.value);
+              return (
+                <label
+                  key={platform.value}
+                  className={[
+                    "cursor-pointer rounded-card border p-3 text-sm",
+                    checked ? "text-slate-950" : "border-line text-slate-600",
+                  ].join(" ")}
+                  style={checked ? { borderColor: world.line, backgroundColor: "#F8FAFC" } : undefined}
+                >
+                  <span className="flex items-center justify-between gap-3">
+                    <span>
+                      <span className="block font-bold">{platform.label}</span>
+                      <span className="mt-1 block text-xs text-slate-500">{platform.hint}</span>
+                    </span>
+                    <input
+                      aria-label={platform.label}
+                      type="checkbox"
+                      name="platforms"
+                      checked={checked}
+                      onChange={() =>
+                        setSelectedPlatforms((current) =>
+                          current.includes(platform.value)
+                            ? current.filter((item) => item !== platform.value)
+                            : [...current, platform.value],
+                        )
+                      }
+                    />
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+          {selectedPlatforms.length >= 2 && (
+            <div
+              className="mt-3 rounded-card border p-3 text-sm"
+              style={{ borderColor: world.line, backgroundColor: "#F8FAFC" }}
+            >
+              <div className="font-bold" style={{ color: world.line }}>多平台并发</div>
+              <p className="mt-1 leading-6 text-slate-500">
+                这条会同时在微博和 Reddit 发酵，热点会互相外溢。
+              </p>
+            </div>
+          )}
+        </div>
         <div className="mt-4 rounded-card border border-line bg-white p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>

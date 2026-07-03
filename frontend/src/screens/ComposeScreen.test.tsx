@@ -19,6 +19,7 @@ function mount() {
       <Routes>
         <Route path="/compose" element={<ComposeScreen />} />
         <Route path="/run/:id/live" element={<div>进行时页</div>} />
+        <Route path="/world/:id/live" element={<div>多平台现场页</div>} />
       </Routes>
     </MemoryRouter>,
   );
@@ -39,6 +40,15 @@ function personPostBody(spy: ReturnType<typeof vi.fn>) {
       url === "/api/persons" && (init as RequestInit | undefined)?.method === "POST",
   ) as [string, RequestInit] | undefined;
   if (!call) throw new Error("missing create person request");
+  return JSON.parse(call[1].body as string);
+}
+
+function multiRunPostBody(spy: ReturnType<typeof vi.fn>) {
+  const call = spy.mock.calls.find(
+    ([url, init]) =>
+      url === "/api/multi-runs" && (init as RequestInit | undefined)?.method === "POST",
+  ) as [string, RequestInit] | undefined;
+  if (!call) throw new Error("missing create multi run request");
   return JSON.parse(call[1].body as string);
 }
 
@@ -68,6 +78,108 @@ test("submits content and navigates to live", async () => {  // review:P4-T6-AC1
   const body = runPostBody(spy);
   expect(body.content).toBe("构建砍到3秒");
   expect(body.steps).toBe(10);
+  expect(spy.mock.calls.some(([url]) => url === "/api/multi-runs")).toBe(false);
+});
+
+test("selecting two platforms creates a multi-platform world run", async () => {  // review:P11-T5-AC2
+  const spy = vi.fn(async (url: string) => ({
+    ok: true,
+    json: async () =>
+      url === "/api/persons"
+        ? {
+            world_id: "w_new",
+            person: {
+              person_id: "p_new",
+              display_name: "普通人test",
+              persona_kind: "ordinary",
+              accounts: [],
+            },
+          }
+        : url === "/api/multi-runs"
+          ? { world_id: "w_multi" }
+          : { run_id: "r_ignored" },
+  }));
+  vi.stubGlobal("fetch", spy);
+  mount();
+
+  fireEvent.change(screen.getByPlaceholderText(/有什么新鲜事/), {
+    target: { value: "多平台同发" },
+  });
+  fireEvent.click(screen.getByLabelText("Reddit"));
+
+  expect(screen.getByText("多平台并发")).toBeInTheDocument();
+  expect(screen.getByText(/这条会同时在微博和 Reddit 发酵/)).toBeInTheDocument();
+  fireEvent.click(screen.getByText(/开始围观/));
+
+  await waitFor(() => expect(screen.getByText("多平台现场页")).toBeInTheDocument());
+  expect(spy.mock.calls.some(([url]) => url === "/api/runs")).toBe(false);
+  expect(multiRunPostBody(spy)).toMatchObject({
+    content: "多平台同发",
+    platforms: ["twitter", "reddit"],
+    world_id: "w_new",
+    poster_person_id: "p_new",
+  });
+});
+
+test("continuing an identity sends world and person ids to multi-platform run", async () => {  // review:P11-T5-AC3
+  const spy = vi.fn(async (url: string) => ({
+    ok: true,
+    json: async () => {
+      if (url.includes("preview-cost")) {
+        return { estimated_rmb: 1.8, budgeted_agents: 8, decision_steps: 9 };
+      }
+      if (url === "/api/identities") {
+        return {
+          identities: [
+            {
+              world_id: "w_1",
+              person_id: "p_author",
+              display_name: "财经大号",
+              persona_kind: "kol",
+              total_influence: 56,
+              run_count: 2,
+            },
+          ],
+        };
+      }
+      return url === "/api/multi-runs" ? { world_id: "w_1" } : { run_id: "r_ignored" };
+    },
+  }));
+  vi.stubGlobal("fetch", spy);
+  mount();
+
+  fireEvent.click(screen.getByLabelText(/继续身份/));
+  expect(await screen.findByText("财经大号")).toBeInTheDocument();
+  fireEvent.click(screen.getByLabelText("Reddit"));
+  fireEvent.change(screen.getByPlaceholderText(/有什么新鲜事/), {
+    target: { value: "继续身份多平台" },
+  });
+  fireEvent.click(screen.getByText(/开始围观/));
+
+  await waitFor(() => expect(screen.getByText("多平台现场页")).toBeInTheDocument());
+  expect(multiRunPostBody(spy)).toMatchObject({
+    world_id: "w_1",
+    poster_person_id: "p_author",
+    persona: "kol",
+  });
+});
+
+test("start is blocked when every platform is unchecked", async () => {  // review:P11-T5-AC4
+  const spy = vi.fn(async (_url: string) => ({
+    ok: true,
+    json: async () => ({ run_id: "r_should_not_create" }),
+  }));
+  vi.stubGlobal("fetch", spy);
+  mount();
+
+  fireEvent.click(screen.getByLabelText("微博"));
+  fireEvent.change(screen.getByPlaceholderText(/有什么新鲜事/), {
+    target: { value: "没有平台" },
+  });
+  fireEvent.click(screen.getByText(/开始围观/));
+
+  expect(await screen.findByText("至少选择一个平台")).toBeInTheDocument();
+  expect(spy.mock.calls.some(([url]) => url === "/api/runs" || url === "/api/multi-runs")).toBe(false);
 });
 
 test("explains rounds and submits a custom long run", async () => {  // review:UI-P11-AC2

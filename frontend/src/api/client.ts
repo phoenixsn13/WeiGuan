@@ -20,6 +20,17 @@ export interface CreateRunBody {
   person_memory_budget?: number;
 }
 
+export interface CreateMultiRunBody {
+  audience: { crowd_id?: string; custom?: string };
+  content: string;
+  steps: number;
+  persona: PersonaKind;
+  platforms: Array<"twitter" | "reddit">;
+  world_id?: string;
+  poster_person_id?: string;
+  person_memory_budget?: number;
+}
+
 export interface Creds {
   key?: string;
   model?: string;
@@ -183,6 +194,25 @@ export async function createRun(
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
     throw new Error(error.detail ?? "create run failed");
+  }
+  return response.json();
+}
+
+export async function createMultiRun(
+  body: CreateMultiRunBody,
+  creds: Creds,
+): Promise<{ world_id: string }> {  // review:P11-T5
+  const response = await fetch("/api/multi-runs", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...llmHeaders(creds),
+    },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.detail ?? "create multi run failed");
   }
   return response.json();
 }
