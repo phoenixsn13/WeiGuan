@@ -5,6 +5,7 @@ import os
 import sqlite3
 import sys
 from pathlib import Path
+from time import perf_counter
 from typing import AsyncIterator
 
 from weiguan.adapter.oasis_adapter import load_run_snapshot
@@ -17,16 +18,23 @@ from weiguan.engine.base import RunDelta
 from weiguan.engine.config import RunConfig
 from weiguan.engine.crowds import crowd_instruction
 from weiguan.engine.diff import diff_snapshots
+from weiguan.obs.emit import MetricSink, NullSink, RunMetric, emit
 
 
 # review:P2-T6  真实 OASIS+LLM 引擎
 class OasisEngine:
-    def __init__(self, profile_path: str, db_dir: str) -> None:
+    def __init__(
+        self,
+        profile_path: str,
+        db_dir: str,
+        metric_sink: MetricSink | None = None,
+    ) -> None:
         self.profile_path = profile_path
         self.db_dir = db_dir
         self.last_snapshot = RunSnapshot()
         self._db_path: str | None = None
         self._env = None
+        self._metric_sink = metric_sink or NullSink()
 
     def _actor_labels(self) -> dict[int, str]:
         labels: dict[int, str] = {}
@@ -293,8 +301,11 @@ class OasisEngine:
             safe_steps = config.effective_steps
             llm_errors = 0
             for step in range(1, safe_steps + 1):
+                started = perf_counter()
+                llm_calls = 0
                 if step > 1:
                     try:
+                        llm_calls = len(self._llm_agent_ids(env, config, step - 1))
                         await self._safe_llm_step(
                             env,
                             deps,
@@ -310,13 +321,41 @@ class OasisEngine:
                     platform=Platform.TWITTER,
                     seed_post_id=1,
                 )
-                yield RunDelta(step=step, snapshot=diff_snapshots(prev, curr))
+                delta = diff_snapshots(prev, curr)
+                emit(
+                    self._metric_sink,
+                    RunMetric(
+                        world_id=config.world_id,
+                        run_id=getattr(config, "run_id", "oasis-run"),
+                        tick=step,
+                        platform=config.platform.value,
+                        wall_ms=(perf_counter() - started) * 1000,
+                        active_accounts=len(delta.actors),
+                        llm_calls=llm_calls,
+                        snapshot_delta_size=self._snapshot_delta_size(delta),
+                    ),
+                )
+                yield RunDelta(step=step, snapshot=delta)
                 prev = curr
             self.last_snapshot = prev
             self._db_path = db_path
             self._env = env
         finally:
             await env.close()
+
+    def _snapshot_delta_size(self, snapshot: RunSnapshot) -> int:
+        return sum(
+            len(getattr(snapshot, field_name))
+            for field_name in (
+                "actors",
+                "posts",
+                "replies",
+                "reactions",
+                "follows",
+                "reports",
+                "traces",
+            )
+        )
 
     async def interview(
         self,

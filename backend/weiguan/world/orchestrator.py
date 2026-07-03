@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from collections.abc import AsyncIterator, Callable
+from time import perf_counter
 from uuid import uuid4
 
 from pydantic import BaseModel
@@ -9,6 +10,7 @@ from pydantic import BaseModel
 from weiguan.canonical import Platform
 from weiguan.engine.base import Engine, RunDelta
 from weiguan.engine.config import RunConfig
+from weiguan.obs.emit import MetricSink, NullSink, RunMetric, emit
 
 from .bridge import select_bridgeable, to_bridge_events
 from .models import WorldEvent
@@ -36,10 +38,12 @@ class WorldOrchestrator:  # review:P9-T2
         engine_builder: Callable[[PlatformRunSpec], Engine],
         *,
         bridge_min_engagement: int = 3,
+        metric_sink: MetricSink | None = None,
     ) -> None:
         self._store = store
         self._engine_builder = engine_builder
         self._bridge_min_engagement = bridge_min_engagement
+        self._metric_sink = metric_sink or NullSink()
 
     async def orchestrate(
         self, world_id: str, specs: list[PlatformRunSpec]
@@ -70,6 +74,7 @@ class WorldOrchestrator:  # review:P9-T2
                 if run.run_id not in active:
                     continue
                 try:
+                    started = perf_counter()
                     delta = await anext(iterators[run.run_id])
                 except StopAsyncIteration:
                     active.remove(run.run_id)
@@ -88,6 +93,19 @@ class WorldOrchestrator:  # review:P9-T2
                 for event in events:
                     self._store.append_event(event)
                 emitted_events.extend(events)
+                emit(
+                    self._metric_sink,
+                    RunMetric(
+                        world_id=world_id,
+                        run_id=run.run_id,
+                        tick=tick,
+                        platform=run.spec.platform.value,
+                        wall_ms=(perf_counter() - started) * 1000,
+                        active_accounts=len(shared_delta.snapshot.actors),
+                        llm_calls=0,
+                        snapshot_delta_size=self._snapshot_delta_size(shared_delta.snapshot),
+                    ),
+                )
                 yield {
                     "tick": tick,
                     "platform": run.spec.platform.value,
@@ -144,3 +162,17 @@ class WorldOrchestrator:  # review:P9-T2
                     run_id=target.run_id,
                 ):
                     self._store.append_event(event)
+
+    def _snapshot_delta_size(self, snapshot) -> int:
+        return sum(
+            len(getattr(snapshot, field_name))
+            for field_name in (
+                "actors",
+                "posts",
+                "replies",
+                "reactions",
+                "follows",
+                "reports",
+                "traces",
+            )
+        )
