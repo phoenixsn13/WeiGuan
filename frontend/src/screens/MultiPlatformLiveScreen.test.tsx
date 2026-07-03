@@ -61,8 +61,8 @@ test("multi-platform live renders columns clock and bridge links", () => {  // r
   render(<MultiPlatformLiveScreen events={events} />);
 
   expect(screen.getByText("世界时钟 · 第 2 拍")).toBeInTheDocument();
-  expect(screen.getByText("微博")).toBeInTheDocument();
-  expect(screen.getByText("Reddit")).toBeInTheDocument();
+  expect(screen.getAllByText("微博").length).toBeGreaterThan(0);
+  expect(screen.getAllByText("Reddit").length).toBeGreaterThan(0);
   expect(screen.getByText("同一条内容先在微博发酵")).toBeInTheDocument();
   expect(screen.getByText("同一条内容到了 Reddit")).toBeInTheDocument();
   expect(screen.getByLabelText("跨平台桥 twitter 到 reddit")).toBeInTheDocument();
@@ -74,4 +74,18 @@ test("single platform live falls back to one column without bridges", () => {  /
   expect(screen.getByText("世界时钟 · 第 1 拍")).toBeInTheDocument();
   expect(screen.getByText("微博")).toBeInTheDocument();
   expect(screen.queryByLabelText(/跨平台桥/)).not.toBeInTheDocument();
+});
+
+test("high-fidelity world stage uses tokenized bridge color and desktop three columns", () => {  // review:P9-T8-AC1
+  const { container } = render(<MultiPlatformLiveScreen events={events} />);
+  const stage = screen.getByTestId("world-live-stage");
+  const bridge = screen.getByLabelText("跨平台桥 twitter 到 reddit");
+
+  expect(stage).toHaveAttribute("data-world-surface", "#0F172A");
+  expect(stage).toHaveStyle({ backgroundColor: "#0F172A" });
+  expect(bridge).toHaveAttribute("data-from-platform", "twitter");
+  expect(bridge).toHaveAttribute("data-to-platform", "reddit");
+  expect(bridge).toHaveStyle({ borderColor: "#2C4A7C" });
+  expect(container.querySelector("[class*='indigo-']")).toBeNull();
+  expect(container.querySelector(".lg\\:grid-cols-3")).not.toBeNull();
 });
