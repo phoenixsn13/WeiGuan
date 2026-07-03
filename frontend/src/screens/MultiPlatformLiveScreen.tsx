@@ -49,6 +49,7 @@ function BridgePathPanel({ bridges }: { bridges: ReturnType<typeof multiPlatform
 }
 
 type LoadState = "idle" | "loading" | "error";
+const WORLD_EVENT_POLL_MS = 1500;
 
 // review:P9-T6
 export default function MultiPlatformLiveScreen({ events }: { events?: WorldEvent[] }) {
@@ -56,7 +57,7 @@ export default function MultiPlatformLiveScreen({ events }: { events?: WorldEven
   const [loadedEvents, setLoadedEvents] = useState<WorldEvent[]>([]);
   const [loadState, setLoadState] = useState<LoadState>(events ? "idle" : "loading");
 
-  const loadWorldEvents = useCallback(async () => {
+  const loadWorldEvents = useCallback(async (options: { silent?: boolean } = {}) => {
     if (events !== undefined) return;
     const worldId = params.id;
     if (!worldId) {
@@ -64,7 +65,9 @@ export default function MultiPlatformLiveScreen({ events }: { events?: WorldEven
       setLoadState("idle");
       return;
     }
-    setLoadState("loading");
+    if (!options.silent) {
+      setLoadState("loading");
+    }
     try {
       // review:P11-T4
       setLoadedEvents(await getWorldEvents(worldId));
@@ -77,6 +80,14 @@ export default function MultiPlatformLiveScreen({ events }: { events?: WorldEven
   useEffect(() => {
     void loadWorldEvents();
   }, [loadWorldEvents]);
+
+  useEffect(() => {
+    if (events !== undefined || !params.id || loadState !== "idle") return undefined;
+    const timer = window.setInterval(() => {
+      void loadWorldEvents({ silent: true });
+    }, WORLD_EVENT_POLL_MS);
+    return () => window.clearInterval(timer);
+  }, [events, loadState, loadWorldEvents, params.id]);
 
   const activeEvents = events ?? loadedEvents;
   const view = useMemo(() => multiPlatformView(activeEvents), [activeEvents]);

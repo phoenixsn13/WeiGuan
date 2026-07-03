@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from typing import AsyncIterator
 
 from fastapi.testclient import TestClient
@@ -41,7 +42,14 @@ class RoutePlatformEngine:
 def _client(tmp_path):
     app = create_app(FakeEngine(), store_path=tmp_path / "runs.json")
     app.state.orchestrator_engine_builder = lambda spec: RoutePlatformEngine(spec.platform)
+    app.state.scheduled_world_tasks = []
+    app.state.world_task_factory = lambda coro: app.state.scheduled_world_tasks.append(coro)
     return app, TestClient(app)
+
+
+def _drain_world_tasks(app) -> None:
+    while app.state.scheduled_world_tasks:
+        asyncio.run(app.state.scheduled_world_tasks.pop(0))
 
 
 def _body(platforms: list[str]) -> dict:
@@ -66,6 +74,7 @@ def test_multi_run_creates_world_specs_accounts_and_bridge(tmp_path):  # review:
 
     assert response.status_code == 200
     world_id = response.json()["world_id"]
+    _drain_world_tasks(app)
     world = app.state.world_store.get_world(world_id)
     assert world is not None
     assert world.persistent is True
@@ -96,6 +105,7 @@ def test_multi_run_single_platform_degenerates_to_one_platform_world(tmp_path): 
     )
 
     assert response.status_code == 200
+    _drain_world_tasks(app)
     events = app.state.world_store.read_world_events(response.json()["world_id"])
     assert {event.platform for event in events} == {Platform.TWITTER}
 
@@ -110,3 +120,42 @@ def test_multi_run_rejects_empty_platforms(tmp_path):  # review:P11-T2-AC3
     )
 
     assert response.status_code in {400, 422}
+
+
+def test_multi_run_returns_before_world_orchestration_finishes(tmp_path):  # review:P11-T7-AC1
+    app = create_app(FakeEngine(), store_path=tmp_path / "runs.json")
+    scheduled: list[object] = []
+
+    async def never_run(_config) -> AsyncIterator[RunDelta]:
+        raise AssertionError("route must not await orchestration before responding")
+        yield  # pragma: no cover
+
+    class HangingEngine:
+        async def run(self, config) -> AsyncIterator[RunDelta]:
+            async for delta in never_run(config):
+                yield delta
+
+        async def interview(self, config, snapshot, actor_id, question) -> str:
+            return "ok"
+
+    app.state.orchestrator_engine_builder = lambda spec: HangingEngine()
+
+    def schedule(coro):
+        scheduled.append(coro)
+        return object()
+
+    app.state.world_task_factory = schedule
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/multi-runs",
+        json=_body(["twitter", "reddit"]),
+        headers={"X-LLM-Key": "sk", "X-LLM-Model": "m"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["world_id"]
+    assert len(scheduled) == 1
+    assert app.state.world_store.read_world_events(response.json()["world_id"]) == []
+
+    scheduled[0].close()

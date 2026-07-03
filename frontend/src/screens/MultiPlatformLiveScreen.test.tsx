@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 import type { WorldEvent } from "../api/client";
@@ -14,7 +14,13 @@ vi.mock("../api/client", async (importOriginal) => {
 });
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
+  vi.useRealTimers();
+});
+
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
 });
 
 const events: WorldEvent[] = [
@@ -111,6 +117,33 @@ test("multi-platform route renders honest empty state for empty worlds", async (
   );
 
   expect(await screen.findByText("该世界还没有多平台内容")).toBeInTheDocument();
+});
+
+test("multi-platform route keeps polling while a new world is still warming up", async () => {  // review:P11-T7-AC2
+  vi.useFakeTimers();
+  vi.mocked(getWorldEvents)
+    .mockResolvedValueOnce([])
+    .mockResolvedValueOnce(events);
+
+  render(
+    <MemoryRouter initialEntries={["/world/w_pending/live"]}>
+      <Routes>
+        <Route path="/world/:id/live" element={<MultiPlatformLiveScreen />} />
+      </Routes>
+    </MemoryRouter>,
+  );
+
+  await act(async () => {
+    await Promise.resolve();
+  });
+  expect(screen.getByText("该世界还没有多平台内容")).toBeInTheDocument();
+
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(1500);
+  });
+
+  expect(getWorldEvents).toHaveBeenCalledTimes(2);
+  expect(screen.getByText("世界时钟 · 第 2 拍")).toBeInTheDocument();
 });
 
 test("multi-platform route shows retry when world events fail", async () => {  // review:P11-T4-AC4

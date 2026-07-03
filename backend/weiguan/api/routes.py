@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
 
 from fastapi import APIRouter, Header, HTTPException, Request
 from fastapi.responses import StreamingResponse
@@ -20,6 +22,7 @@ from weiguan.world.orchestrator import PlatformRunSpec, WorldOrchestrator
 from weiguan.world.run_bridge import ensure_world_for_run
 
 router = APIRouter(prefix="/api")
+logger = logging.getLogger(__name__)
 
 
 @router.get("/crowds")
@@ -72,6 +75,35 @@ class _InterviewBody(BaseModel):
 
 def _sse(event: str, data: object) -> str:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
+async def _drain_world_orchestrator(orchestrator: WorldOrchestrator, world_id: str, specs: list[PlatformRunSpec]) -> None:
+    try:
+        async for _ in orchestrator.orchestrate(world_id, specs):
+            pass
+    except Exception:  # noqa: BLE001
+        logger.exception("multi-platform world orchestration failed", extra={"world_id": world_id})
+
+
+def _schedule_world_orchestration(
+    request: Request,
+    world_id: str,
+    specs: list[PlatformRunSpec],
+    engine_builder,
+) -> None:
+    orchestrator = WorldOrchestrator(
+        request.app.state.world_store,
+        engine_builder,
+        metric_sink=getattr(request.app.state, "metric_sink", None),
+    )
+
+    async def run_in_worker_thread() -> None:
+        await asyncio.to_thread(
+            lambda: asyncio.run(_drain_world_orchestrator(orchestrator, world_id, specs))
+        )
+
+    task_factory = getattr(request.app.state, "world_task_factory", asyncio.create_task)
+    task_factory(run_in_worker_thread())
 
 
 def _thinking_enabled(value: str | None) -> bool:
@@ -347,12 +379,7 @@ async def create_multi_run(  # review:P11-T2
         "orchestrator_engine_builder",
         lambda spec: request.app.state.engine,
     )
-    orchestrator = WorldOrchestrator(
-        store,
-        engine_builder,
-        metric_sink=getattr(request.app.state, "metric_sink", None),
-    )
-    [event async for event in orchestrator.orchestrate(world.world_id, specs)]
+    _schedule_world_orchestration(request, world.world_id, specs, engine_builder)  # review:P11-T7
     return {"world_id": world.world_id}
 
 
