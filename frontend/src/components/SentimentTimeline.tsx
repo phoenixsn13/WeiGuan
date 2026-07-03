@@ -1,11 +1,12 @@
 import type { TemporalMetrics } from "../api/client";
+import { sentimentColor, type Sentiment } from "../design/tokens";
 import { sentimentLabel } from "../pov/analysis";
 
-const COLORS: Record<string, string> = {
-  positive: "bg-emerald-500",
-  negative: "bg-rose-500",
-  neutral: "bg-slate-300",
-};
+const SENTIMENTS = new Set(["positive", "negative", "neutral"]);
+
+function barColor(sentiment: string): string {
+  return sentimentColor(SENTIMENTS.has(sentiment) ? (sentiment as Sentiment) : "neutral");
+}
 
 export function SentimentTimeline({
   curve,
@@ -24,8 +25,11 @@ export function SentimentTimeline({
         {curve.map((point) => (
           <div key={point.tick} className="flex flex-1 flex-col items-center gap-2">
             <div
-              className={`w-full rounded-t ${COLORS[point.sentiment] ?? "bg-slate-300"}`}
-              style={{ height: `${(point.volume / max) * 100}%` }}
+              className="w-full rounded-t"
+              style={{
+                backgroundColor: barColor(point.sentiment),
+                height: `${(point.volume / max) * 100}%`,
+              }}
               aria-label={`第 ${point.tick} 拍 ${point.volume}`}
             />
             <span className="text-xs font-semibold text-slate-500">{point.tick}</span>

@@ -34,3 +34,16 @@ test("analysis components render deterministic social metrics", () => {  // revi
   expect(screen.getByText("第 1 拍")).toBeInTheDocument();
   expect(screen.getByText(/正向 → 负向/)).toBeInTheDocument();
 });
+
+test("sentiment timeline uses token driven fill instead of default utility colors", () => {  // review:P8-T7
+  render(
+    <SentimentTimeline
+      curve={[{ tick: "1", volume: 3, sentiment: "negative" }]}
+      reversals={[]}
+    />,
+  );
+
+  const bar = screen.getByLabelText("第 1 拍 3");
+  expect(bar.getAttribute("style")).toContain("background-color");
+  expect(bar.className).not.toMatch(/bg-(emerald|rose|slate)-/);
+});
