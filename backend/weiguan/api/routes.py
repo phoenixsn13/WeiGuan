@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from datetime import datetime, timezone
 from uuid import uuid4
 
 from fastapi import APIRouter, Header, HTTPException, Request
@@ -18,7 +19,7 @@ from weiguan.canonical import Platform
 from weiguan.engine.config import Audience, RunConfig
 from weiguan.engine.crowds import list_crowds
 from weiguan.obs.collect import collect
-from weiguan.world.models import PersonaKind
+from weiguan.world.models import Launch, PersonaKind
 from weiguan.world.orchestrator import PlatformRunSpec, WorldOrchestrator
 from weiguan.world.run_bridge import ensure_world_for_run
 
@@ -78,11 +79,34 @@ def _sse(event: str, data: object) -> str:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
 
 
-async def _drain_world_orchestrator(orchestrator: WorldOrchestrator, world_id: str, specs: list[PlatformRunSpec]) -> None:
+async def _drain_world_orchestrator(
+    orchestrator: WorldOrchestrator,
+    world_store,
+    world_id: str,
+    specs: list[PlatformRunSpec],
+    launch_id: str | None = None,
+) -> None:
     try:
         async for _ in orchestrator.orchestrate(world_id, specs):
             pass
-    except Exception:  # noqa: BLE001
+        if launch_id is not None:
+            world = world_store.get_world(world_id)
+            world_store.update_launch(
+                world_id,
+                launch_id,
+                status="done",
+                clock_tick=world.clock_tick if world else 0,
+            )
+    except Exception as exc:  # noqa: BLE001
+        if launch_id is not None:
+            world = world_store.get_world(world_id)
+            world_store.update_launch(
+                world_id,
+                launch_id,
+                status="error",
+                error=str(exc),
+                clock_tick=world.clock_tick if world else 0,
+            )
         logger.exception("multi-platform world orchestration failed", extra={"world_id": world_id})
 
 
@@ -91,6 +115,7 @@ def _schedule_world_orchestration(
     world_id: str,
     specs: list[PlatformRunSpec],
     engine_builder,
+    launch_id: str | None = None,
 ) -> None:
     orchestrator = WorldOrchestrator(
         request.app.state.world_store,
@@ -100,7 +125,15 @@ def _schedule_world_orchestration(
 
     async def run_in_worker_thread() -> None:
         await asyncio.to_thread(
-            lambda: asyncio.run(_drain_world_orchestrator(orchestrator, world_id, specs))
+            lambda: asyncio.run(
+                _drain_world_orchestrator(
+                    orchestrator,
+                    request.app.state.world_store,
+                    world_id,
+                    specs,
+                    launch_id,
+                )
+            )
         )
 
     task_factory = getattr(request.app.state, "world_task_factory", asyncio.create_task)
@@ -221,6 +254,29 @@ def _run_summary(record) -> dict:
     }
 
 
+def _single_launch_summary(record) -> dict:  # review:P12-T5
+    return {
+        "launch_id": record.run_id,
+        "kind": "single",
+        "world_id": record.config.world_id,
+        "content": record.config.content,
+        "steps": record.config.steps,
+        "platforms": [record.config.platform.value],
+        "run_ids": [record.run_id],
+        "status": record.status,
+        "clock_tick": record.current_step,
+        "poster_person_id": record.config.poster_person_id,
+        "poster_persona": record.config.poster_persona.value,
+        "created_at": record.created_at,
+    }
+
+
+def _multi_launch_summary(launch: Launch) -> dict:  # review:P12-T5
+    data = launch.model_dump(mode="json")
+    data["kind"] = "multi"
+    return data
+
+
 def _bridge_notes(request: Request, world_id: str | None) -> list[str]:
     if world_id is None or request.app.state.world_store.get_world(world_id) is None:
         return []
@@ -277,11 +333,15 @@ def world_events(world_id: str, request: Request, after: int = 0):  # review:P11
         after=after,
         run_ids=run_ids or None,
     )
+    launch = request.app.state.world_store.find_launch_for_runs(world_id, run_ids)
+    launch_status = (
+        launch.status if launch is not None and set(launch.run_ids) == run_ids else None
+    )
     return {  # review:P12-T1
         "frames": [event.model_dump(mode="json") for event in frames],
         "next_after": next_after,
         "clock_tick": world.clock_tick,
-        "launch_status": None,
+        "launch_status": launch_status,
     }
 
 
@@ -392,8 +452,45 @@ async def create_multi_run(  # review:P11-T2
         "orchestrator_engine_builder",
         lambda spec: request.app.state.engine,
     )
-    _schedule_world_orchestration(request, world.world_id, specs, engine_builder)  # review:P11-T7
-    return {"world_id": world.world_id, "run_ids": run_ids}
+    launch_id = f"launch_{uuid4().hex}"
+    store.create_launch(
+        Launch(
+            launch_id=launch_id,
+            world_id=world.world_id,
+            content=body.content,
+            steps=body.steps,
+            platforms=platforms,
+            run_ids=run_ids,
+            status="running",
+            poster_person_id=person_id,
+            poster_persona=body.persona,
+            created_at=datetime.now(timezone.utc).isoformat(),
+        )
+    )
+    _schedule_world_orchestration(
+        request,
+        world.world_id,
+        specs,
+        engine_builder,
+        launch_id=launch_id,
+    )  # review:P11-T7
+    return {"world_id": world.world_id, "run_ids": run_ids, "launch_id": launch_id}
+
+
+@router.get("/launches")
+def list_launches(request: Request):  # review:P12-T5
+    launches = [
+        _multi_launch_summary(launch)
+        for launch in request.app.state.world_store.list_all_launches()
+    ]
+    launches.extend(_single_launch_summary(record) for record in request.app.state.store.list())
+    return {
+        "launches": sorted(
+            launches,
+            key=lambda item: item["created_at"],
+            reverse=True,
+        )
+    }
 
 
 @router.get("/worlds/{world_id}/persons")

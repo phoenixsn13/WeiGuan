@@ -10,6 +10,7 @@ from weiguan.canonical import Platform
 
 from .models import (
     IdentitySummary,
+    Launch,
     Person,
     PersonView,
     PersonaKind,
@@ -83,6 +84,57 @@ class WorldStore:
         world = world.model_copy(update={"clock_tick": tick})
         self._write_json(self._world_path(world.world_id), world.model_dump(mode="json"))
         return world
+
+    def create_launch(self, launch: Launch | dict) -> Launch:  # review:P12-T5
+        item = launch if isinstance(launch, Launch) else Launch.model_validate(launch)
+        launches = self._read_launches(item.world_id)
+        by_id = {existing.launch_id: existing for existing in launches}
+        by_id[item.launch_id] = item
+        self._write_launches(item.world_id, list(by_id.values()))
+        return item
+
+    def update_launch(
+        self, world_id: str, launch_id: str, **updates: object
+    ) -> Launch | None:  # review:P12-T5
+        launches = self._read_launches(world_id)
+        updated: Launch | None = None
+        result: list[Launch] = []
+        for launch in launches:
+            if launch.launch_id == launch_id:
+                launch = launch.model_copy(update=updates)
+                updated = launch
+            result.append(launch)
+        if updated is not None:
+            self._write_launches(world_id, result)
+        return updated
+
+    def list_launches(self, world_id: str) -> list[Launch]:  # review:P12-T5
+        return sorted(
+            self._read_launches(world_id),
+            key=lambda launch: launch.created_at,
+            reverse=True,
+        )
+
+    def list_all_launches(self) -> list[Launch]:  # review:P12-T5
+        launches: list[Launch] = []
+        for world_dir in self.root.glob("w_*"):
+            if not world_dir.is_dir():
+                continue
+            world = self.get_world(world_dir.name)
+            if world is None or not world.persistent:
+                continue
+            launches.extend(self.list_launches(world.world_id))
+        return sorted(launches, key=lambda launch: launch.created_at, reverse=True)
+
+    def find_launch_for_runs(
+        self, world_id: str, run_ids: set[str]
+    ) -> Launch | None:  # review:P12-T5
+        if not run_ids:
+            return None
+        for launch in self._read_launches(world_id):
+            if set(launch.run_ids).issuperset(run_ids):
+                return launch
+        return None
 
     def create_person(
         self,
@@ -189,6 +241,22 @@ class WorldStore:
 
     def _eventlog(self, world_id: str) -> EventLog:
         return EventLog(str(self._world_dir(world_id) / "events.jsonl"))
+
+    def _launches_path(self, world_id: str) -> Path:
+        return self._world_dir(world_id) / "launches.json"
+
+    def _read_launches(self, world_id: str) -> list[Launch]:
+        path = self._launches_path(world_id)
+        if not path.exists():
+            return []
+        return [Launch.model_validate(item) for item in self._read_json(path)]
+
+    def _write_launches(self, world_id: str, launches: list[Launch]) -> None:
+        ordered = sorted(launches, key=lambda launch: launch.created_at, reverse=True)
+        self._write_json(
+            self._launches_path(world_id),
+            [launch.model_dump(mode="json") for launch in ordered],
+        )
 
     def _projection_key(self, world_id: str) -> tuple[int, int]:  # review:P12-T2
         events_path = self._world_dir(world_id) / "events.jsonl"

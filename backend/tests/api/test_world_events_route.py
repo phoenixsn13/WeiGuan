@@ -112,6 +112,41 @@ async def test_world_events_after_cursor_combines_with_run_filter(tmp_path):  # 
     assert payload["launch_status"] is None
 
 
+async def test_world_events_launch_status_requires_complete_run_group(tmp_path):  # review:P12-T5
+    app, client = _client(tmp_path)
+    async with client:
+        world = (await client.post("/api/worlds", json={"persistent": True})).json()
+        world_id = world["world_id"]
+        app.state.world_store.create_launch(
+            {
+                "launch_id": "launch_1",
+                "world_id": world_id,
+                "content": "多平台内容",
+                "steps": 2,
+                "platforms": ["twitter", "reddit"],
+                "run_ids": ["run-twitter", "run-reddit"],
+                "status": "done",
+                "poster_person_id": "p_author",
+                "poster_persona": "ordinary",
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            }
+        )
+        app.state.world_store.append_event(_event(world_id, "tw", 1, run_id="run-twitter"))
+        app.state.world_store.append_event(_event(world_id, "rd", 1, run_id="run-reddit"))
+
+        complete = await client.get(
+            f"/api/worlds/{world_id}/events",
+            params=[("run_id", "run-twitter"), ("run_id", "run-reddit")],
+        )
+        partial = await client.get(
+            f"/api/worlds/{world_id}/events",
+            params=[("run_id", "run-twitter")],
+        )
+
+    assert complete.json()["launch_status"] == "done"
+    assert partial.json()["launch_status"] is None
+
+
 async def test_world_events_unknown_world_returns_404(tmp_path):  # review:P11-T1-AC3
     _, client = _client(tmp_path)
     async with client:

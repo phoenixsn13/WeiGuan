@@ -39,6 +39,15 @@ class RoutePlatformEngine:
         return "ok"
 
 
+class FailingRouteEngine:
+    async def run(self, config) -> AsyncIterator[RunDelta]:
+        raise RuntimeError("orchestration failed")
+        yield  # pragma: no cover
+
+    async def interview(self, config, snapshot, actor_id, question) -> str:
+        return "ok"
+
+
 def _client(tmp_path):
     app = create_app(FakeEngine(), store_path=tmp_path / "runs.json")
     app.state.orchestrator_engine_builder = lambda spec: RoutePlatformEngine(spec.platform)
@@ -164,3 +173,85 @@ def test_multi_run_returns_before_world_orchestration_finishes(tmp_path):  # rev
     assert app.state.world_store.read_world_events(response.json()["world_id"]) == []
 
     scheduled[0].close()
+
+
+def test_multi_run_records_launch_lifecycle(tmp_path):  # review:P12-T5
+    app, client = _client(tmp_path)
+
+    response = client.post(
+        "/api/multi-runs",
+        json=_body(["twitter", "reddit"]),
+        headers={"X-LLM-Key": "sk", "X-LLM-Model": "m"},
+    )
+
+    assert response.status_code == 200
+    world_id = response.json()["world_id"]
+    run_ids = response.json()["run_ids"]
+    launches = app.state.world_store.list_launches(world_id)
+    assert len(launches) == 1
+    assert launches[0].status == "running"
+    assert launches[0].run_ids == run_ids
+
+    _drain_world_tasks(app)
+
+    launches = app.state.world_store.list_launches(world_id)
+    assert launches[0].status == "done"
+    assert launches[0].clock_tick > 0
+    events_response = client.get(
+        f"/api/worlds/{world_id}/events",
+        params=[("run_id", run_ids[0]), ("run_id", run_ids[1])],
+    )
+    assert events_response.status_code == 200
+    assert events_response.json()["launch_status"] == "done"
+
+
+def test_multi_run_records_launch_error(tmp_path):  # review:P12-T5
+    app, client = _client(tmp_path)
+    app.state.orchestrator_engine_builder = lambda spec: FailingRouteEngine()
+
+    response = client.post(
+        "/api/multi-runs",
+        json=_body(["twitter"]),
+        headers={"X-LLM-Key": "sk", "X-LLM-Model": "m"},
+    )
+
+    assert response.status_code == 200
+    world_id = response.json()["world_id"]
+    _drain_world_tasks(app)
+
+    launches = app.state.world_store.list_launches(world_id)
+    assert launches[0].status == "error"
+    assert "orchestration failed" in (launches[0].error or "")
+
+
+def test_launches_endpoint_lists_single_and_multi_runs(tmp_path):  # review:P12-T5
+    app, client = _client(tmp_path)
+
+    single = client.post(
+        "/api/runs",
+        json={
+            "content": "单平台内容",
+            "audience": {"crowd_id": "tech_devs"},
+            "steps": 2,
+            "platform": "twitter",
+            "poster_persona": "ordinary",
+            "person_memory_budget": 4,
+        },
+        headers={"X-LLM-Key": "sk", "X-LLM-Model": "m"},
+    )
+    multi = client.post(
+        "/api/multi-runs",
+        json=_body(["twitter", "reddit"]),
+        headers={"X-LLM-Key": "sk", "X-LLM-Model": "m"},
+    )
+
+    assert single.status_code == 200
+    assert multi.status_code == 200
+    _drain_world_tasks(app)
+
+    payload = client.get("/api/launches").json()
+    launches = payload["launches"]
+    kinds = {item["launch_id"]: item["kind"] for item in launches}
+    assert kinds[single.json()["run_id"]] == "single"
+    assert any(item["kind"] == "multi" for item in launches)
+    assert launches == sorted(launches, key=lambda item: item["created_at"], reverse=True)

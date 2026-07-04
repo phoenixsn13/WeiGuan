@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -46,6 +47,21 @@ class World(BaseModel):
     created_at: str
     clock_tick: int = 0
     persistent: bool = False
+
+
+class Launch(BaseModel):  # review:P12-T5
+    launch_id: str
+    world_id: str
+    content: str
+    steps: int
+    platforms: list[Platform]
+    run_ids: list[str]
+    status: Literal["running", "done", "error"]
+    clock_tick: int = 0
+    poster_person_id: str | None = None
+    poster_persona: PersonaKind
+    error: str | None = None
+    created_at: str
 
 
 class WorldEvent(BaseModel):
