@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 @router.get("/crowds")
-async def crowds():  # review:P4-T1
+def crowds():  # review:P4-T1
     return list_crowds()
 
 
@@ -259,7 +259,7 @@ async def create_world(body: _CreateWorldBody, request: Request):  # review:P6-T
 
 
 @router.get("/worlds/{world_id}")
-async def get_world(world_id: str, request: Request):
+def get_world(world_id: str, request: Request):
     world = request.app.state.world_store.get_world(world_id)
     if world is None:
         raise HTTPException(status_code=404, detail="world not found")
@@ -267,7 +267,7 @@ async def get_world(world_id: str, request: Request):
 
 
 @router.get("/worlds/{world_id}/events")
-async def world_events(world_id: str, request: Request, after: int = 0):  # review:P11-T1
+def world_events(world_id: str, request: Request, after: int = 0):  # review:P11-T1
     world = request.app.state.world_store.get_world(world_id)
     if world is None:
         raise HTTPException(status_code=404, detail="world not found")
@@ -397,7 +397,7 @@ async def create_multi_run(  # review:P11-T2
 
 
 @router.get("/worlds/{world_id}/persons")
-async def list_world_persons(world_id: str, request: Request):  # review:P7-T2
+def list_world_persons(world_id: str, request: Request):  # review:P7-T2
     if request.app.state.world_store.get_world(world_id) is None:
         raise HTTPException(status_code=404, detail="world not found")
     return {
@@ -409,7 +409,7 @@ async def list_world_persons(world_id: str, request: Request):  # review:P7-T2
 
 
 @router.get("/identities")
-async def list_identities(request: Request):  # review:P7-T11
+def list_identities(request: Request):  # review:P7-T11
     return {
         "identities": [
             identity.model_dump(mode="json")
@@ -419,7 +419,7 @@ async def list_identities(request: Request):  # review:P7-T11
 
 
 @router.post("/persons")
-async def create_person(body: _CreatePersonBody, request: Request):
+def create_person(body: _CreatePersonBody, request: Request):
     world_id = body.world_id
     if world_id is None:
         world_id = request.app.state.world_store.create_world(persistent=True).world_id
@@ -436,7 +436,7 @@ async def create_person(body: _CreatePersonBody, request: Request):
 
 
 @router.get("/persons/{person_id}")
-async def get_person(person_id: str, world_id: str, request: Request):
+def get_person(person_id: str, world_id: str, request: Request):
     view = request.app.state.world_store.get_person_view(world_id, person_id)
     if view is None:
         raise HTTPException(status_code=404, detail="person not found")
@@ -444,7 +444,7 @@ async def get_person(person_id: str, world_id: str, request: Request):
 
 
 @router.get("/runs/preview-cost")
-async def preview_cost(
+def preview_cost(
     steps: int,
     llm_max_agents: int = 8,
     attention_comment_budget: int = 12,
@@ -510,7 +510,7 @@ async def create_run(
 
 
 @router.get("/runs/{run_id}/frames")
-async def run_frames(run_id: str, request: Request):
+def run_frames(run_id: str, request: Request):
     if request.app.state.store.get(run_id) is None:
         raise HTTPException(status_code=404, detail="run not found")
     frames = request.app.state.world_store.read_frames(run_id)
@@ -518,12 +518,12 @@ async def run_frames(run_id: str, request: Request):
 
 
 @router.get("/runs")
-async def list_runs(request: Request):  # review:UI-P1
+def list_runs(request: Request):  # review:UI-P1
     return [_run_summary(record) for record in request.app.state.store.list()]
 
 
 @router.get("/runs/{run_id}")
-async def get_run(run_id: str, request: Request):  # review:UI-P12
+def get_run(run_id: str, request: Request):  # review:UI-P12
     record = request.app.state.store.get(run_id)
     if record is None:
         raise HTTPException(status_code=404, detail="run not found")
@@ -610,7 +610,7 @@ async def interview(run_id: str, body: _InterviewBody, request: Request):
 
 
 @router.get("/runs/{run_id}/snapshot")
-async def snapshot(run_id: str, request: Request):
+def snapshot(run_id: str, request: Request):
     record = request.app.state.store.get(run_id)
     if record is None:
         raise HTTPException(status_code=404, detail="run not found")
@@ -618,7 +618,7 @@ async def snapshot(run_id: str, request: Request):
 
 
 @router.get("/runs/{run_id}/retro")
-async def retro(run_id: str, request: Request):  # review:P5-T1
+def retro(run_id: str, request: Request):  # review:P5-T1
     record = request.app.state.store.get(run_id)
     if record is None:
         raise HTTPException(status_code=404, detail="run not found")
@@ -626,7 +626,7 @@ async def retro(run_id: str, request: Request):  # review:P5-T1
 
 
 @router.get("/runs/{run_id}/analysis")
-async def analysis(run_id: str, request: Request):  # review:P8-T5
+def analysis(run_id: str, request: Request):  # review:P8-T5
     record = request.app.state.store.get(run_id)
     if record is None:
         raise HTTPException(status_code=404, detail="run not found")
@@ -634,7 +634,7 @@ async def analysis(run_id: str, request: Request):  # review:P8-T5
 
 
 @router.get("/runs/{run_id}/flavor")
-async def flavor(run_id: str, request: Request, world_id: str | None = None):  # review:P10-T3
+def flavor(run_id: str, request: Request, world_id: str | None = None):  # review:P10-T3
     record = request.app.state.store.get(run_id)
     if record is None:
         raise HTTPException(status_code=404, detail="run not found")
@@ -653,7 +653,7 @@ async def flavor(run_id: str, request: Request, world_id: str | None = None):  #
 
 
 @router.get("/runs/{run_id}/perf")
-async def perf(run_id: str, request: Request):  # review:P10-T5
+def perf(run_id: str, request: Request):  # review:P10-T5
     sink = getattr(request.app.state, "metric_sink", None)
     metrics = [
         metric
@@ -664,7 +664,7 @@ async def perf(run_id: str, request: Request):  # review:P10-T5
 
 
 @router.get("/runs/{run_id}/insights")
-async def saved_insights(run_id: str, request: Request):  # review:UI-P16
+def saved_insights(run_id: str, request: Request):  # review:UI-P16
     record = request.app.state.store.get(run_id)
     if record is None:
         raise HTTPException(status_code=404, detail="run not found")
@@ -674,7 +674,7 @@ async def saved_insights(run_id: str, request: Request):  # review:UI-P16
 
 
 @router.post("/runs/{run_id}/insights")
-async def insights(
+def insights(
     run_id: str,
     request: Request,
     x_llm_key: str | None = Header(default=None),
