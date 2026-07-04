@@ -8,10 +8,12 @@ from weiguan.engine.base import Engine
 from weiguan.canonical import RunSnapshot
 from weiguan.world.run_bridge import (
     delta_to_events,
-    ensure_account_for_actor,
+    ensure_accounts_for_actors,
     ensure_world_for_run,
 )
 from weiguan.world.store import WorldStore
+
+SAVE_EVERY_STEPS = 25  # review:P12-T4
 
 
 class RunEvent:
@@ -99,6 +101,7 @@ class RunRunner:
         try:
             async for delta in self._engine.run(record.config):
                 if self._world_store is not None and world is not None:
+                    poster_skip: set[int] = set()
                     if poster_account_id is not None:  # review:P9-T7
                         for post in delta.snapshot.posts:
                             if (
@@ -106,20 +109,22 @@ class RunRunner:
                                 and post.post_id == delta.snapshot.seed_post_id
                             ):
                                 account_of[post.author_id] = poster_account_id
-                    for actor in delta.snapshot.actors:
-                        if actor.user_id not in account_of:
-                            account_of[actor.user_id] = ensure_account_for_actor(
-                                self._world_store,
-                                world_id=world.world_id,
-                                platform=record.config.platform,
-                                actor_id=actor.user_id,
-                                display_name=actor.name
-                                or actor.user_name
-                                or f"actor_{actor.user_id}",
-                            )
+                                poster_skip.add(post.author_id)
+                    ensure_accounts_for_actors(
+                        self._world_store,
+                        world_id=world.world_id,
+                        platform=record.config.platform,
+                        actors=delta.snapshot.actors,
+                        account_of=account_of,
+                        poster_skip=poster_skip,
+                    )
                 record.accumulate(delta.snapshot)
                 record.current_step = delta.step
-                self._store.save()
+                if (
+                    record.current_step == 1
+                    or record.current_step % SAVE_EVERY_STEPS == 0
+                ):
+                    self._store.save()
                 if self._world_store is not None and world is not None:
                     for event in delta_to_events(
                         delta,

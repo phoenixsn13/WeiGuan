@@ -14,7 +14,7 @@ from weiguan.obs.emit import MetricSink, NullSink, RunMetric, emit
 
 from .bridge import select_bridgeable, to_bridge_events
 from .models import WorldEvent
-from .run_bridge import delta_to_events, ensure_account_for_actor
+from .run_bridge import delta_to_events, ensure_accounts_for_actors
 from .store import WorldStore
 
 
@@ -126,16 +126,13 @@ class WorldOrchestrator:  # review:P9-T2
                 run.account_of[post.author_id] = run.spec.poster_account_id
 
     def _map_actors(self, world_id: str, run: _RunningPlatform, delta: RunDelta) -> None:
-        for actor in delta.snapshot.actors:
-            if actor.user_id in run.account_of:
-                continue
-            run.account_of[actor.user_id] = ensure_account_for_actor(
-                self._store,
-                world_id=world_id,
-                platform=run.spec.platform,
-                actor_id=actor.user_id,
-                display_name=actor.name or actor.user_name or f"actor_{actor.user_id}",
-            )
+        ensure_accounts_for_actors(
+            self._store,
+            world_id=world_id,
+            platform=run.spec.platform,
+            actors=delta.snapshot.actors,
+            account_of=run.account_of,
+        )
 
     def _append_bridge_events(
         self,

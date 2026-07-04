@@ -17,7 +17,11 @@ from weiguan.world.models import (
     WorldEventKind,
 )
 from weiguan.world.projector import fold_world, project_standing_timeline, project_stance
-from weiguan.world.run_bridge import ensure_world_for_run, poster_account_id
+from weiguan.world.run_bridge import (
+    ensure_accounts_for_actors,
+    ensure_world_for_run,
+    poster_account_id,
+)
 from weiguan.world.store import WorldStore
 
 
@@ -230,3 +234,31 @@ def test_ensure_world_for_run_keeps_one_poster_account_per_platform(tmp_path):  
         Platform.TWITTER,
         Platform.REDDIT,
     }
+
+
+def test_ensure_accounts_for_actors_batches_person_writes(tmp_path, monkeypatch):  # review:P12-T4
+    store = WorldStore(str(tmp_path))
+    world = store.create_world(persistent=True)
+    write_count = 0
+    original_write_json = store._write_json
+
+    def counting_write_json(path, data):
+        nonlocal write_count
+        if path.name == "persons.json":
+            write_count += 1
+        original_write_json(path, data)
+
+    monkeypatch.setattr(store, "_write_json", counting_write_json)
+    account_of: dict[int, str] = {}
+
+    ensure_accounts_for_actors(
+        store,
+        world_id=world.world_id,
+        platform=Platform.TWITTER,
+        actors=[Actor(user_id=item, name=f"用户{item}") for item in range(1, 6)],
+        account_of=account_of,
+    )
+
+    assert write_count == 1
+    assert set(account_of) == {1, 2, 3, 4, 5}
+    assert all(store.get_person(world.world_id, f"p_actor_{item}") for item in range(1, 6))

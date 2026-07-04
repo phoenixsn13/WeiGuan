@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from weiguan.canonical import Platform, RunSnapshot
+from weiguan.canonical import Actor, Platform, RunSnapshot
 from weiguan.engine.base import RunDelta
 from weiguan.engine.config import RunConfig
 
@@ -228,3 +228,45 @@ def ensure_account_for_actor(
         ),
     )
     return account_id
+
+
+def ensure_accounts_for_actors(  # review:P12-T4
+    store: WorldStore,
+    *,
+    world_id: str,
+    platform: Platform,
+    actors: list[Actor],
+    account_of: dict[int, str],
+    poster_skip: set[int] | None = None,
+) -> None:
+    """Ensure OASIS actors have world accounts with one persons.json write."""
+
+    skipped = poster_skip or set()
+    persons: list[Person] = []
+    for actor in actors:
+        if actor.user_id in skipped or actor.user_id in account_of:
+            continue
+        display_name = actor.name or actor.user_name or f"actor_{actor.user_id}"
+        person_id = f"p_actor_{actor.user_id}"
+        account_id = _account_id(world_id, platform, actor.user_id)
+        account_of[actor.user_id] = account_id
+        persons.append(
+            Person(
+                person_id=person_id,
+                display_name=display_name,
+                persona_kind=PersonaKind.ORDINARY,
+                accounts=[
+                    Account(
+                        account_id=account_id,
+                        person_id=person_id,
+                        platform=platform,
+                        handle=display_name,
+                        avatar_seed=str(actor.user_id),
+                        num_followers=20,
+                        influence_score=1.0,
+                    )
+                ],
+            )
+        )
+
+    store.upsert_persons(world_id, persons)

@@ -57,10 +57,16 @@ class WorldStore:
         return world
 
     def upsert_person(self, world_id: str, person: Person) -> None:
+        self.upsert_persons(world_id, [person])
+
+    def upsert_persons(self, world_id: str, persons: list[Person]) -> None:  # review:P12-T4
+        if not persons:
+            return
         self._world_dir(world_id).mkdir(parents=True, exist_ok=True)
-        persons = self._read_persons(world_id)
-        by_id = {item.person_id: item for item in persons}
-        by_id[person.person_id] = person
+        existing = self._read_persons(world_id)
+        by_id = {item.person_id: item for item in existing}
+        for person in persons:
+            by_id[person.person_id] = person
         ordered = [by_id[key].model_dump(mode="json") for key in sorted(by_id)]
         self._write_json(self._persons_path(world_id), ordered)
 
