@@ -16,6 +16,29 @@ from weiguan.world.store import WorldStore
 SAVE_EVERY_STEPS = 25  # review:P12-T4
 
 
+def _snapshot_item_count(snapshot: RunSnapshot) -> int:
+    return sum(
+        len(getattr(snapshot, field_name))
+        for field_name in (
+            "actors",
+            "posts",
+            "replies",
+            "reactions",
+            "follows",
+            "reports",
+            "traces",
+        )
+    )
+
+
+def _emit_interval(total_items: int) -> int:  # review:P12-T7
+    if total_items < 2_000:
+        return 1
+    if total_items < 10_000:
+        return 5
+    return 20
+
+
 class RunEvent:
     def __init__(
         self,
@@ -99,6 +122,7 @@ class RunRunner:
             )
             poster_account_id = poster_account.account_id if poster_account else None
         try:
+            last_snapshot_step: int | None = None
             async for delta in self._engine.run(record.config):
                 if self._world_store is not None and world is not None:
                     poster_skip: set[int] = set()
@@ -134,16 +158,31 @@ class RunRunner:
                         account_of=account_of,
                     ):
                         self._world_store.append_event(event)
+                if self._should_emit_snapshot(record):
+                    self._publish(
+                        run_id,
+                        RunEvent("snapshot", record.current_step, record.snapshot),
+                    )
+                    last_snapshot_step = record.current_step
+            record.status = "done"
+            record.current_step = record.config.effective_steps
+            self._store.save()
+            if last_snapshot_step != record.current_step and _snapshot_item_count(
+                record.snapshot
+            ):
                 self._publish(
                     run_id,
                     RunEvent("snapshot", record.current_step, record.snapshot),
                 )
-            record.status = "done"
-            record.current_step = record.config.effective_steps
-            self._store.save()
             self._publish(run_id, RunEvent("done", record.current_step))
         except Exception as exc:  # noqa: BLE001
             record.status = "error"
             record.error = str(exc)
             self._store.save()
             self._publish(run_id, RunEvent("error", record.current_step, message=str(exc)))
+
+    def _should_emit_snapshot(self, record) -> bool:
+        if record.current_step == 1 or record.current_step == record.config.effective_steps:
+            return True
+        interval = _emit_interval(_snapshot_item_count(record.snapshot))
+        return record.current_step % interval == 0

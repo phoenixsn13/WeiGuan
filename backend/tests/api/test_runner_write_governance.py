@@ -4,7 +4,7 @@ from collections.abc import AsyncIterator
 
 from weiguan.api.runner import RunRunner
 from weiguan.api.store import RunStore
-from weiguan.canonical import RunSnapshot
+from weiguan.canonical import Reply, RunSnapshot
 from weiguan.engine.base import RunDelta
 from weiguan.engine.config import Audience, RunConfig
 
@@ -42,6 +42,35 @@ class DeferredTask:
         return False
 
 
+class LargeSnapshotEngine:
+    async def run(self, config: RunConfig) -> AsyncIterator[RunDelta]:
+        for step in range(1, 7):
+            count = 2_100 if step == 1 else 1
+            yield RunDelta(
+                step=step,
+                snapshot=RunSnapshot(
+                    replies=[
+                        Reply(
+                            comment_id=step * 10_000 + item,
+                            post_id=1,
+                            author_id=1,
+                            content="x",
+                        )
+                        for item in range(count)
+                    ]
+                ),
+            )
+
+    async def interview(
+        self,
+        config: RunConfig,
+        snapshot: RunSnapshot,
+        actor_id: int,
+        question: str,
+    ) -> str:
+        return "ok"
+
+
 async def test_runner_does_not_persist_every_delta(tmp_path, monkeypatch):  # review:P12-T4
     store = RunStore(tmp_path / "runs.json")
     run_id = store.create(_cfg())
@@ -65,3 +94,20 @@ async def test_runner_does_not_persist_every_delta(tmp_path, monkeypatch):  # re
 
     assert store.get(run_id).status == "done"
     assert save_count <= 4
+
+
+async def test_runner_throttles_large_snapshot_sse_events(tmp_path):  # review:P12-T7
+    store = RunStore(tmp_path / "runs.json")
+    run_id = store.create(_cfg(steps=6))
+    runner = RunRunner(store, LargeSnapshotEngine())
+    queue = runner.subscribe(run_id)
+
+    await runner._run(run_id)
+
+    snapshot_steps: list[int] = []
+    while not queue.empty():
+        event = queue.get_nowait()
+        if event.kind == "snapshot":
+            snapshot_steps.append(event.step)
+
+    assert snapshot_steps == [1, 5, 6]

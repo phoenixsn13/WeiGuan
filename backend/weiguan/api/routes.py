@@ -12,6 +12,7 @@ from pydantic import BaseModel, ValidationError
 
 from weiguan.api.runner import SAVE_EVERY_STEPS
 from weiguan.api.llm_defaults import LlmDefaults
+from weiguan.api.snapshot_window import page_replies_snapshot, window_snapshot
 from weiguan.analysis.flavor import FlavorDigest, PlatformFlavor, flavor_digest
 from weiguan.analysis.insights import generate_insights
 from weiguan.analysis.provider import default_analysis_provider
@@ -745,10 +746,39 @@ async def interview(run_id: str, body: _InterviewBody, request: Request):
 
 
 @router.get("/runs/{run_id}/snapshot")
-def snapshot(run_id: str, request: Request):
+def snapshot(
+    run_id: str,
+    request: Request,
+    tail: int | None = None,
+    replies_offset: int | None = None,
+    replies_limit: int | None = None,
+):
     record = request.app.state.store.get(run_id)
     if record is None:
         raise HTTPException(status_code=404, detail="run not found")
+    has_reply_page = replies_offset is not None or replies_limit is not None
+    if tail is not None and has_reply_page:
+        raise HTTPException(
+            status_code=400,
+            detail="tail and replies page are mutually exclusive",
+        )
+    if tail is not None:
+        if tail < 0:
+            raise HTTPException(status_code=400, detail="tail must be non-negative")
+        return window_snapshot(record.snapshot, tail=tail)
+    if has_reply_page:
+        if replies_offset is None or replies_limit is None:
+            raise HTTPException(
+                status_code=400,
+                detail="replies_offset and replies_limit are required",
+            )
+        if replies_offset < 0 or replies_limit < 1:
+            raise HTTPException(status_code=400, detail="invalid replies page")
+        return page_replies_snapshot(
+            record.snapshot,
+            replies_offset=replies_offset,
+            replies_limit=replies_limit,
+        )
     return record.snapshot.model_dump(mode="json")
 
 
