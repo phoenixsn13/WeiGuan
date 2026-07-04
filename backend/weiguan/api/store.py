@@ -52,6 +52,15 @@ class RunStore:
         self.save()
         return run_id
 
+    def create_with_id(  # review:P12-T6
+        self, run_id: str, config: RunConfig, *, status: str = "created"
+    ) -> str:
+        if run_id in self._runs:
+            raise ValueError(f"run already exists: {run_id}")
+        self._runs[run_id] = RunRecord(run_id=run_id, config=config, status=status)
+        self.save()
+        return run_id
+
     def get(self, run_id: str) -> RunRecord | None:
         return self._runs.get(run_id)
 

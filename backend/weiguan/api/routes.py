@@ -10,6 +10,7 @@ from fastapi import APIRouter, Header, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ValidationError
 
+from weiguan.api.runner import SAVE_EVERY_STEPS
 from weiguan.api.llm_defaults import LlmDefaults
 from weiguan.analysis.flavor import FlavorDigest, PlatformFlavor, flavor_digest
 from weiguan.analysis.insights import generate_insights
@@ -25,6 +26,36 @@ from weiguan.world.run_bridge import ensure_world_for_run
 
 router = APIRouter(prefix="/api")
 logger = logging.getLogger(__name__)
+
+
+class _RunStoreRecorder:  # review:P12-T6
+    def __init__(self, store) -> None:
+        self._store = store
+
+    def on_delta(self, run_id: str, delta) -> None:
+        record = self._store.get(run_id)
+        if record is None:
+            return
+        record.accumulate(delta.snapshot)
+        record.current_step = delta.step
+        if delta.step == 1 or delta.step % SAVE_EVERY_STEPS == 0:
+            self._store.save()
+
+    def on_done(self, run_id: str) -> None:
+        record = self._store.get(run_id)
+        if record is None:
+            return
+        record.status = "done"
+        record.current_step = record.config.effective_steps
+        self._store.save()
+
+    def on_error(self, run_id: str, message: str) -> None:
+        record = self._store.get(run_id)
+        if record is None:
+            return
+        record.status = "error"
+        record.error = message
+        self._store.save()
 
 
 @router.get("/crowds")
@@ -116,11 +147,13 @@ def _schedule_world_orchestration(
     specs: list[PlatformRunSpec],
     engine_builder,
     launch_id: str | None = None,
+    run_recorder=None,
 ) -> None:
     orchestrator = WorldOrchestrator(
         request.app.state.world_store,
         engine_builder,
         metric_sink=getattr(request.app.state, "metric_sink", None),
+        run_recorder=run_recorder,
     )
 
     async def run_in_worker_thread() -> None:
@@ -384,14 +417,14 @@ async def create_multi_run(  # review:P11-T2
     if not platforms:
         raise HTTPException(status_code=400, detail="platforms must not be empty")
 
-    store = request.app.state.world_store
+    world_store = request.app.state.world_store
     if body.world_id is not None:
-        world = store.get_world(body.world_id)
+        world = world_store.get_world(body.world_id)
         if world is None:
             raise HTTPException(status_code=404, detail="world not found")
-        world = store.persist_world(world.world_id) or world
+        world = world_store.persist_world(world.world_id) or world
     else:
-        world = store.create_world(persistent=True)
+        world = world_store.create_world(persistent=True)
 
     specs: list[PlatformRunSpec] = []
     run_ids: list[str] = []
@@ -419,7 +452,7 @@ async def create_multi_run(  # review:P11-T2
                 person_memory_budget=body.person_memory_budget,
                 **llm_update,
             )
-            world, person = ensure_world_for_run(store, config)
+            world, person = ensure_world_for_run(world_store, config)
             person_id = person.person_id
             poster_account = next(
                 (account for account in person.accounts if account.platform == platform),
@@ -453,7 +486,11 @@ async def create_multi_run(  # review:P11-T2
         lambda spec: request.app.state.engine,
     )
     launch_id = f"launch_{uuid4().hex}"
-    store.create_launch(
+    run_store = request.app.state.store
+    for spec in specs:
+        run_store.create_with_id(spec.run_id, spec.config, status="running")
+
+    world_store.create_launch(
         Launch(
             launch_id=launch_id,
             world_id=world.world_id,
@@ -473,6 +510,7 @@ async def create_multi_run(  # review:P11-T2
         specs,
         engine_builder,
         launch_id=launch_id,
+        run_recorder=_RunStoreRecorder(run_store),
     )  # review:P11-T7
     return {"world_id": world.world_id, "run_ids": run_ids, "launch_id": launch_id}
 

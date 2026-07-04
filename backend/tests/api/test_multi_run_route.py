@@ -255,3 +255,34 @@ def test_launches_endpoint_lists_single_and_multi_runs(tmp_path):  # review:P12-
     assert kinds[single.json()["run_id"]] == "single"
     assert any(item["kind"] == "multi" for item in launches)
     assert launches == sorted(launches, key=lambda item: item["created_at"], reverse=True)
+
+
+def test_multi_run_persists_platform_run_records(tmp_path):  # review:P12-T6
+    app, client = _client(tmp_path)
+
+    response = client.post(
+        "/api/multi-runs",
+        json=_body(["twitter", "reddit"]),
+        headers={"X-LLM-Key": "sk", "X-LLM-Model": "m"},
+    )
+
+    assert response.status_code == 200
+    run_ids = response.json()["run_ids"]
+    assert [app.state.store.get(run_id).status for run_id in run_ids] == [
+        "running",
+        "running",
+    ]
+    _drain_world_tasks(app)
+
+    for run_id in run_ids:
+        summary = client.get(f"/api/runs/{run_id}")
+        snapshot = client.get(f"/api/runs/{run_id}/snapshot")
+        analysis = client.get(f"/api/runs/{run_id}/analysis")
+        flavor = client.get(f"/api/runs/{run_id}/flavor")
+
+        assert summary.status_code == 200
+        assert summary.json()["status"] == "done"
+        assert snapshot.status_code == 200
+        assert snapshot.json()["posts"]
+        assert analysis.status_code == 200
+        assert flavor.status_code == 200
