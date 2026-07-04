@@ -24,6 +24,10 @@ class WorldStore:
     def __init__(self, workdir: str) -> None:
         self.root = Path(workdir) / "worlds"
         self.root.mkdir(parents=True, exist_ok=True)
+        self._projection_cache: dict[
+            str,
+            tuple[tuple[int, int], dict[str, PersonView]],
+        ] = {}  # review:P12-T2
 
     def create_world(self, *, persistent: bool) -> World:  # review:P6-T4
         world = World(
@@ -110,14 +114,14 @@ class WorldStore:
         world = self.get_world(world_id)
         if world is None:
             return []
-        views = fold_world(world, self._read_persons(world_id), self._eventlog(world_id).read())
+        views = self._fold_cached(world)
         return [views[person_id] for person_id in sorted(views)]
 
     def get_person_view(self, world_id: str, person_id: str) -> PersonView | None:
         world = self.get_world(world_id)
         if world is None:
             return None
-        views = fold_world(world, self._read_persons(world_id), self._eventlog(world_id).read())
+        views = self._fold_cached(world)
         return views.get(person_id)
 
     def list_identities(self) -> list[IdentitySummary]:  # review:P7-T11
@@ -128,11 +132,7 @@ class WorldStore:
             world = self.get_world(world_dir.name)
             if world is None or not world.persistent:
                 continue
-            views = fold_world(
-                world,
-                self._read_persons(world.world_id),
-                self._eventlog(world.world_id).read(),
-            )
+            views = self._fold_cached(world)
             for view in views.values():
                 identities.append(
                     IdentitySummary(
@@ -183,6 +183,27 @@ class WorldStore:
 
     def _eventlog(self, world_id: str) -> EventLog:
         return EventLog(str(self._world_dir(world_id) / "events.jsonl"))
+
+    def _projection_key(self, world_id: str) -> tuple[int, int]:  # review:P12-T2
+        events_path = self._world_dir(world_id) / "events.jsonl"
+        persons_path = self._persons_path(world_id)
+        events_bytes = events_path.stat().st_size if events_path.exists() else 0
+        persons_bytes = persons_path.stat().st_size if persons_path.exists() else 0
+        return events_bytes, persons_bytes
+
+    def _fold_cached(self, world: World) -> dict[str, PersonView]:  # review:P12-T2
+        key = self._projection_key(world.world_id)
+        cached = self._projection_cache.get(world.world_id)
+        if cached is not None and cached[0] == key:
+            return cached[1]
+
+        views = fold_world(
+            world,
+            self._read_persons(world.world_id),
+            self._eventlog(world.world_id).read(),
+        )
+        self._projection_cache[world.world_id] = (key, views)
+        return views
 
     def _read_persons(self, world_id: str) -> list[Person]:
         path = self._persons_path(world_id)

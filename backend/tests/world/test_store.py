@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+import weiguan.world.store as store_module
 from weiguan.canonical.models import Platform
 from weiguan.world.models import (
     Account,
@@ -112,3 +113,55 @@ def test_store_persists_across_instances(tmp_path):  # review:P6-T4-AC4
     assert second.get_world(world.world_id) == world
     assert second.get_person_view(world.world_id, "p1") is not None
     assert [event.event_id for event in second.read_frames("run_1")] == ["reply"]
+
+
+def test_list_persons_reuses_projection_until_events_change(tmp_path, monkeypatch):  # review:P12-T2-AC1
+    store = WorldStore(str(tmp_path))
+    world = store.create_world(persistent=True)
+    store.upsert_person(world.world_id, _person("p1", "acct_1"))
+    store.append_event(_event("reply", world.world_id, tick=1, account_id="acct_1"))
+    calls = 0
+    original_fold = store_module.fold_world
+
+    def counting_fold(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        return original_fold(*args, **kwargs)
+
+    monkeypatch.setattr(store_module, "fold_world", counting_fold)
+
+    first = store.list_persons(world.world_id)
+    second = store.list_persons(world.world_id)
+    store.append_event(_event("reply_2", world.world_id, tick=2, account_id="acct_1"))
+    third = store.list_persons(world.world_id)
+
+    assert calls == 2
+    assert [view.model_dump(mode="json") for view in first] == [
+        view.model_dump(mode="json") for view in second
+    ]
+    assert [view.run_ids for view in third] == [["run_1"]]
+
+
+def test_list_identities_reuses_cached_projection_per_world(tmp_path, monkeypatch):  # review:P12-T2-AC2
+    store = WorldStore(str(tmp_path))
+    first_world = store.create_world(persistent=True)
+    second_world = store.create_world(persistent=True)
+    store.upsert_person(first_world.world_id, _person("p1", "acct_1"))
+    store.upsert_person(second_world.world_id, _person("p2", "acct_2"))
+    calls = 0
+    original_fold = store_module.fold_world
+
+    def counting_fold(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        return original_fold(*args, **kwargs)
+
+    monkeypatch.setattr(store_module, "fold_world", counting_fold)
+
+    first = store.list_identities()
+    second = store.list_identities()
+
+    assert calls == 2
+    assert [identity.model_dump(mode="json") for identity in first] == [
+        identity.model_dump(mode="json") for identity in second
+    ]
