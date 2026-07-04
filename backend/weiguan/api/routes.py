@@ -267,19 +267,22 @@ async def get_world(world_id: str, request: Request):
 
 
 @router.get("/worlds/{world_id}/events")
-async def world_events(world_id: str, request: Request):  # review:P11-T1
-    if request.app.state.world_store.get_world(world_id) is None:
+async def world_events(world_id: str, request: Request, after: int = 0):  # review:P11-T1
+    world = request.app.state.world_store.get_world(world_id)
+    if world is None:
         raise HTTPException(status_code=404, detail="world not found")
     run_ids = set(request.query_params.getlist("run_id"))
-    frames = sorted(
-        [
-            event
-            for event in request.app.state.world_store.read_world_events(world_id)
-            if not run_ids or event.run_id in run_ids
-        ],
-        key=lambda event: (event.tick, event.created_at, event.event_id),
+    frames, next_after = request.app.state.world_store.read_world_events_page(
+        world_id,
+        after=after,
+        run_ids=run_ids or None,
     )
-    return {"frames": [event.model_dump(mode="json") for event in frames]}
+    return {  # review:P12-T1
+        "frames": [event.model_dump(mode="json") for event in frames],
+        "next_after": next_after,
+        "clock_tick": world.clock_tick,
+        "launch_status": None,
+    }
 
 
 @router.post("/worlds/{world_id}/orchestrate")

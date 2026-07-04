@@ -163,6 +163,15 @@ class WorldStore:
     def read_world_events(self, world_id: str) -> list[WorldEvent]:  # review:P9-T2
         return self._eventlog(world_id).read()
 
+    def read_world_events_page(
+        self,
+        world_id: str,
+        *,
+        after: int = 0,
+        run_ids: set[str] | None = None,
+    ) -> tuple[list[WorldEvent], int]:  # review:P12-T1
+        return self._eventlog(world_id).read_page(after=after, run_ids=run_ids)
+
     def _world_dir(self, world_id: str) -> Path:
         return self.root / world_id
 

@@ -56,3 +56,24 @@ def test_append_is_line_atomic(tmp_path):  # review:P6-T2-AC3
         log.append(_event(f"e{index}", index, "r1"))
 
     assert len(path.read_text(encoding="utf-8").splitlines()) == 5
+
+
+def test_read_page_returns_cursor_and_filters_after_line_number(tmp_path):  # review:P12-T1-AC1
+    log = EventLog(str(tmp_path / "events.jsonl"))
+    for index in range(5):
+        run_id = "run_a" if index % 2 == 0 else "run_b"
+        log.append(_event(f"e{index + 1}", index + 1, run_id))
+
+    first_page, first_cursor = log.read_page(after=0)
+    second_page, second_cursor = log.read_page(after=3)
+    filtered_page, filtered_cursor = log.read_page(after=1, run_ids={"run_a"})
+    empty_page, empty_cursor = log.read_page(after=5)
+
+    assert [event.event_id for event in first_page] == ["e1", "e2", "e3", "e4", "e5"]
+    assert first_cursor == 5
+    assert [event.event_id for event in second_page] == ["e4", "e5"]
+    assert second_cursor == 5
+    assert [event.event_id for event in filtered_page] == ["e3", "e5"]
+    assert filtered_cursor == 5
+    assert empty_page == []
+    assert empty_cursor == 5
