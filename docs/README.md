@@ -28,6 +28,8 @@
 
 ## 手工验证与整改
 
+- [P14 完整验收手册](manual/2026-07-06-weiguan-P14-complete-manual.md)
+- [P14 入口接线审计](manual/2026-07-06-weiguan-P14-wiring-audit.md)
 - [计划 A 端到端手工测试](manual/2026-07-01-weiguan-plan-A-e2e-manual-test.md)
 - [围观整改记录](manual/2026-07-01-weiguan-remediation.md)
 - [种子可见与参与整改](manual/2026-07-01-weiguan-remediation-2-seed-engagement.md)
