@@ -30,6 +30,13 @@ export function skinForPlatform(platform: Platform | "x" | "weibo"): PlatformSki
   return availableSkins[0];
 }
 
+export function labelForPlatform(platform: Platform | "x" | "weibo" | string): string {
+  if (platform === "reddit" || platform === "twitter" || platform === "x" || platform === "weibo") {
+    return skinForPlatform(platform).label;
+  }
+  return platform;
+}
+
 export function PlatformSkinFeed({ skin, vm }: { skin: SkinId; vm: PosterViewModel }) {
   const selected = availableSkins.find((item) => item.id === skin) ?? availableSkins[0];
   return <selected.Feed vm={vm} />;

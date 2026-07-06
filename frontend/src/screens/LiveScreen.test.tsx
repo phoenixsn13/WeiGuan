@@ -54,34 +54,48 @@ function mount() {
 function mountReplay() {
   const factory = () => new FakeES() as unknown as EventSource;
   FakeES.created = 0;
+  const initialSnapshot = {
+    platform: "twitter",
+    seed_post_id: 1,
+    actors: [
+      { user_id: 1, user_name: "you", name: "你", num_followers: 0, num_followings: 0 },
+      { user_id: 2, user_name: "reader", name: "读者", num_followers: 0, num_followings: 0 },
+    ],
+    posts: [
+      {
+        post_id: 1,
+        author_id: 1,
+        kind: "original",
+        content: "历史里的内容",
+        num_likes: 0,
+        num_dislikes: 0,
+        num_shares: 0,
+        num_reports: 0,
+      },
+    ],
+    replies: [
+      { comment_id: 2, post_id: 1, author_id: 2, content: "第二条评论", num_likes: 0, num_dislikes: 0 },
+      { comment_id: 3, post_id: 1, author_id: 2, content: "第三条评论", num_likes: 0, num_dislikes: 0 },
+    ],
+    reactions: [],
+    follows: [],
+    reports: [],
+    traces: [],
+    window: { tail: 200, totals: { replies: 3, posts: 1, reactions: 0, follows: 0, reports: 0, traces: 0 } },
+  };
+  const previousSnapshot = {
+    ...initialSnapshot,
+    replies: [
+      { comment_id: 1, post_id: 1, author_id: 2, content: "第一条评论", num_likes: 0, num_dislikes: 0 },
+      { comment_id: 2, post_id: 1, author_id: 2, content: "第二条评论", num_likes: 0, num_dislikes: 0 },
+    ],
+    window: { replies_offset: 2, replies_limit: 200, totals: { replies: 3, posts: 1, reactions: 0, follows: 0, reports: 0, traces: 0 } },
+  };
   vi.stubGlobal(
     "fetch",
-    vi.fn(async () => ({
+    vi.fn(async (url: string) => ({
       ok: true,
-      json: async () => ({
-        platform: "twitter",
-        seed_post_id: 1,
-        actors: [
-          { user_id: 1, user_name: "you", name: "你", num_followers: 0, num_followings: 0 },
-        ],
-        posts: [
-          {
-            post_id: 1,
-            author_id: 1,
-            kind: "original",
-            content: "历史里的内容",
-            num_likes: 0,
-            num_dislikes: 0,
-            num_shares: 0,
-            num_reports: 0,
-          },
-        ],
-        replies: [],
-        reactions: [],
-        follows: [],
-        reports: [],
-        traces: [],
-      }),
+      json: async () => (url.includes("replies_offset") ? previousSnapshot : initialSnapshot),
     })),
   );
   render(
@@ -238,5 +252,21 @@ test("replay mode loads saved snapshot without opening event stream", async () =
 
   expect(await screen.findByText("历史里的内容")).toBeInTheDocument();
   expect(FakeES.created).toBe(0);
-  expect(fetch).toHaveBeenCalledWith("/api/runs/r_1/snapshot");
+  expect(fetch).toHaveBeenCalledWith("/api/runs/r_1/snapshot?tail=200");
+});
+
+test("replay mode pages older comments and uses replay wording", async () => {  // review:P13-T5
+  mountReplay();
+
+  expect(await screen.findByText("第三条评论")).toBeInTheDocument();
+  expect(screen.getAllByText("回放 · 共 3 条评论").length).toBeGreaterThan(0);
+  expect(screen.queryByText(/实时/)).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "加载更早评论" }));
+
+  expect(await screen.findByText("第一条评论")).toBeInTheDocument();
+  expect(screen.getAllByText("第二条评论")).toHaveLength(1);
+  expect(fetch).toHaveBeenCalledWith(
+    "/api/runs/r_1/snapshot?replies_offset=2&replies_limit=200",
+  );
 });

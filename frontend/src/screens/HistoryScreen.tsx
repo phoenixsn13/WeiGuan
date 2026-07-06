@@ -12,6 +12,7 @@ import {
 import { Button } from "../components/Button";
 import { TrendRail } from "../components/TrendRail";
 import { groupRunsByIdentity, TEMPORARY_PERSON_ID } from "../pov/identity";
+import { labelForPlatform } from "../skins/skin";
 
 function statusLabel(status: RunSummary["status"]): string {
   if (status === "done") return "已完成";
@@ -42,12 +43,8 @@ function temporaryPerson(): PersonView {
   };
 }
 
-function platformLabel(platform: "twitter" | "reddit"): string {
-  return platform === "reddit" ? "Reddit" : "微博";
-}
-
 function launchPlatformLabel(launch: LaunchSummary): string {
-  return launch.platforms.map(platformLabel).join(" + ");
+  return launch.platforms.map(labelForPlatform).join(" + ");
 }
 
 function launchLiveUrl(launch: LaunchSummary): string {
@@ -264,13 +261,13 @@ export default function HistoryScreen() {
                                     className="min-h-11 rounded-card border border-ink/10 px-3 text-sm hover:border-accent hover:text-accent"
                                     onClick={() => navigate(`/run/${runId}/live?replay=1`)}
                                   >
-                                    {platformLabel(platform)}评论区
+                                    {labelForPlatform(platform)}评论区
                                   </button>
                                   <button
                                     className="min-h-11 rounded-card border border-ink/10 px-3 text-sm hover:border-accent hover:text-accent"
                                     onClick={() => navigate(`/run/${runId}/retro`)}
                                   >
-                                    {platformLabel(platform)}复盘
+                                    {labelForPlatform(platform)}复盘
                                   </button>
                                 </span>
                               );

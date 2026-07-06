@@ -203,7 +203,7 @@ test("explains rounds and submits a custom long run", async () => {  // review:U
   vi.stubGlobal("fetch", spy);
   mount();
 
-  expect(screen.getByText(/第 1 步发布原帖/)).toBeInTheDocument();
+  expect(screen.getByText(/第 1 拍发布原帖/)).toBeInTheDocument();
   fireEvent.click(screen.getByLabelText(/自定义轮次/));
   fireEvent.change(screen.getByLabelText("自定义轮次数"), { target: { value: "1000" } });
   fireEvent.change(screen.getByPlaceholderText(/有什么新鲜事/), {

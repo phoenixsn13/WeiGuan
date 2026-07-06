@@ -263,6 +263,34 @@ test("fetchRunSnapshot loads saved snapshot without events stream", async () => 
   expect(spy).toHaveBeenCalledWith("/api/runs/r_1/snapshot");
 });
 
+test("fetchRunSnapshot can request replay windows", async () => {  // review:P13-T5
+  const spy = vi.fn(async () => ({
+    ok: true,
+    json: async () => ({
+      platform: "twitter",
+      seed_post_id: 1,
+      actors: [],
+      posts: [],
+      replies: [],
+      reactions: [],
+      follows: [],
+      reports: [],
+      traces: [],
+      window: { totals: { replies: 240 } },
+    }),
+  }));
+  vi.stubGlobal("fetch", spy);
+
+  await fetchRunSnapshot("r_1", { tail: 200 });
+  await fetchRunSnapshot("r_1", { repliesOffset: 200, repliesLimit: 200 });
+
+  expect(spy).toHaveBeenNthCalledWith(1, "/api/runs/r_1/snapshot?tail=200");
+  expect(spy).toHaveBeenNthCalledWith(
+    2,
+    "/api/runs/r_1/snapshot?replies_offset=200&replies_limit=200",
+  );
+});
+
 test("fetchInsights posts with key", async () => {  // review:P5-T3-AC3
   const spy = vi.fn(async () => ({
     ok: true,

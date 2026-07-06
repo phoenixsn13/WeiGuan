@@ -14,6 +14,7 @@ import {
 import { saveCurrentIdentity, useApiKey } from "../api/useApiKey";
 import { Button } from "../components/Button";
 import { world } from "../design/tokens";
+import { labelForPlatform } from "../skins/skin";
 
 type LaunchPlatform = "twitter" | "reddit";
 
@@ -41,8 +42,8 @@ const PERSONAS: Array<{
 ];
 
 const PLATFORMS: Array<{ value: LaunchPlatform; label: string; hint: string }> = [
-  { value: "twitter", label: "微博", hint: "中文社交媒体" },
-  { value: "reddit", label: "Reddit", hint: "全球社区讨论" },
+  { value: "twitter", label: labelForPlatform("twitter"), hint: "中文社交媒体" },
+  { value: "reddit", label: labelForPlatform("reddit"), hint: "全球社区讨论" },
 ];
 
 function personaLabel(kind: PersonaKind): string {
@@ -233,7 +234,7 @@ export default function ComposeScreen() {
     <div className="mx-auto grid max-w-6xl gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
       <section className="rounded-card border border-line bg-white p-6 shadow-spotlight">
         <h1 className="text-3xl font-black tracking-normal">写点什么</h1>
-        <p className="mt-2 text-sm text-slate-500">像发微博一样输入正文，发出后看评论如何逐步出现。</p>
+        <p className="mt-2 text-sm text-slate-500">像发微博一样输入正文，发出后看评论如何逐渐出现。</p>
         <textarea
           value={content}
           onChange={(event) => setContent(event.target.value)}
@@ -470,7 +471,7 @@ export default function ComposeScreen() {
             <div>
               <div className="text-sm font-bold text-slate-950">讨论轮次</div>
               <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
-                第 1 步发布原帖；之后每一轮让一批用户基于当前评论区继续点赞、评论或转发。
+                第 1 拍发布原帖；之后每一轮让一批用户基于当前评论区继续点赞、评论或转发。
                 轮次越多，越接近一条长微博持续发酵的过程。
               </p>
             </div>
@@ -545,7 +546,7 @@ export default function ComposeScreen() {
           <div className="mt-3 rounded-card border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800"> {/* review:P7-T10 */}
             <div>
               预计约 ¥{cost.estimated_rmb.toFixed(2)}；本次约 {cost.budgeted_agents} 个可见人物，
-              {cost.decision_steps} 个决策步。
+              {cost.decision_steps} 个决策拍。
             </div>
             <div className="mt-1">
               自有算力不额外计费；付费 API 按 token 估算约 ¥{cost.estimated_rmb.toFixed(2)}。

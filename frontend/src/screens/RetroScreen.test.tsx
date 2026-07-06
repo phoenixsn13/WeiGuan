@@ -91,7 +91,7 @@ function stubFetch(savedInsights: object | null = null) {
         };
       }
       if (url.endsWith("/analysis")) return { ok: true, json: async () => analysis };
-      if (url.endsWith("/snapshot")) return { ok: true, json: async () => snapshot };
+      if (url.endsWith("/snapshot")) throw new Error("retro should not request full snapshot");
       if (url.endsWith("/insights") && savedInsights) {
         return { ok: true, json: async () => savedInsights };
       }
@@ -146,4 +146,38 @@ test("links retro back to the multi-platform world when available", async () => 
 
   fireEvent.click(await screen.findByRole("button", { name: "看世界现场" }));
   expect(screen.getByText("世界现场/world/w_1/live")).toBeInTheDocument();
+});
+
+test("retro avoids full snapshot fetch and uses summary content", async () => {  // review:P13-T5
+  const requests: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      requests.push(url);
+      if (url === "/api/runs/r_1") {
+        return {
+          ok: true,
+          json: async () => ({
+            run_id: "r_1",
+            world_id: "w_1",
+            content: "摘要里的主帖",
+            steps: 15,
+            platform: "twitter",
+            status: "done",
+            poster_person_id: "p_author",
+            totals: { replies: 2, reposts: 1, likes: 3 },
+          }),
+        };
+      }
+      if (url.endsWith("/analysis")) return { ok: true, json: async () => analysis };
+      if (url.endsWith("/insights")) return { ok: false, status: 404, json: async () => ({}) };
+      if (url.endsWith("/snapshot")) throw new Error("full snapshot should not be fetched");
+      return { ok: true, json: async () => ({}) };
+    }),
+  );
+
+  mount();
+
+  expect(await screen.findByText("摘要里的主帖")).toBeInTheDocument();
+  expect(requests.some((url) => url.endsWith("/snapshot"))).toBe(false);
 });

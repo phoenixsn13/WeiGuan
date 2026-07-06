@@ -488,8 +488,37 @@ export async function getAnalysis(runId: string): Promise<AnalysisProjection> { 
   return response.json();
 }
 
-export async function fetchRunSnapshot(runId: string): Promise<RunSnapshot> {
-  const response = await fetch(`/api/runs/${runId}/snapshot`);
+export interface SnapshotWindow {
+  tail?: number;
+  replies_offset?: number;
+  replies_limit?: number;
+  totals?: Record<string, number>;
+}
+
+export type WindowedRunSnapshot = RunSnapshot & { window?: SnapshotWindow };
+
+export interface FetchRunSnapshotOptions {
+  tail?: number;
+  repliesOffset?: number;
+  repliesLimit?: number;
+}
+
+export async function fetchRunSnapshot(
+  runId: string,
+  options: FetchRunSnapshotOptions = {},
+): Promise<WindowedRunSnapshot> {
+  const query = new URLSearchParams();
+  if (options.tail !== undefined) {
+    query.set("tail", String(options.tail));
+  }
+  if (options.repliesOffset !== undefined) {
+    query.set("replies_offset", String(options.repliesOffset));
+  }
+  if (options.repliesLimit !== undefined) {
+    query.set("replies_limit", String(options.repliesLimit));
+  }
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  const response = await fetch(`/api/runs/${runId}/snapshot${suffix}`);
   if (!response.ok) {
     throw new Error("failed to load snapshot");
   }

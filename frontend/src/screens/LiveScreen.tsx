@@ -1,7 +1,12 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
-import { fetchRunSnapshot, fetchRunSummary, type RunSummary } from "../api/client";
+import {
+  fetchRunSnapshot,
+  fetchRunSummary,
+  type RunSummary,
+  type WindowedRunSnapshot,
+} from "../api/client";
 import { useRunStream, type EventSourceFactory } from "../api/runStream";
 import { InterviewDrawer } from "../components/InterviewDrawer";
 import { emptySnapshot } from "../model/accumulate";
@@ -81,6 +86,7 @@ function LiveRail({
   step,
   total,
   replyCount,
+  totalReplyCount,
   replay,
   mode,
   onModeChange,
@@ -89,6 +95,7 @@ function LiveRail({
   step: number;
   total: number;
   replyCount: number;
+  totalReplyCount: number;
   replay: boolean;
   mode: XFeedMode;
   onModeChange: (mode: XFeedMode) => void;
@@ -131,8 +138,10 @@ function LiveRail({
               <div className="h-2 rounded-full bg-brand" style={{ width: `${progress}%` }} />
             </div>
             <div className="flex justify-between">
-              <span>实时互动</span>
-              <span className="tabular">{replyCount} 条新评论</span>
+              <span>{replay ? "回放" : "互动"}</span>
+              <span className="tabular">
+                {replay ? `共 ${totalReplyCount} 条评论` : `${replyCount} 条新评论`}
+              </span>
             </div>
           </div>
         </div>
@@ -152,7 +161,8 @@ export default function LiveScreen({
   const [searchParams] = useSearchParams();
   const replay = searchParams.get("replay") === "1";
   const stream = useRunStream(id, streamFactory, !replay);
-  const [replaySnapshot, setReplaySnapshot] = useState<RunSnapshot | null>(null);
+  const [replaySnapshot, setReplaySnapshot] = useState<WindowedRunSnapshot | null>(null);
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const [runSummary, setRunSummary] = useState<RunSummary | null>(null);
   const [selected, setSelected] = useState<Actor | null>(null);
   const [mode, setMode] = useState<XFeedMode>("comments");
@@ -170,6 +180,8 @@ export default function LiveScreen({
   const actors = actorRows(snapshot);
   const hot = hotRows(snapshot);
   const timeline = timelineRows(snapshot);
+  const totalReplayReplies = replaySnapshot?.window?.totals?.replies ?? vm.thread.length;
+  const canLoadOlder = replay && totalReplayReplies > (replaySnapshot?.replies.length ?? 0);
   const selectedLabel = selected
     ? displayHandle(selected)
       ? `@${displayHandle(selected)}`
@@ -178,10 +190,45 @@ export default function LiveScreen({
 
   useEffect(() => {
     if (!replay) return;
-    fetchRunSnapshot(id)
+    fetchRunSnapshot(id, { tail: 200 })
       .then(setReplaySnapshot)
       .catch(() => setReplaySnapshot(null));
   }, [id, replay]);
+
+  function mergeReplaySnapshot(
+    current: WindowedRunSnapshot | null,
+    page: WindowedRunSnapshot,
+  ): WindowedRunSnapshot {
+    if (!current) return page;
+    const pageReplyIds = new Set(page.replies.map((reply) => reply.comment_id));
+    const replies = [
+      ...page.replies,
+      ...current.replies.filter((reply) => !pageReplyIds.has(reply.comment_id)),
+    ].sort((left, right) => left.comment_id - right.comment_id);
+    const pageActorIds = new Set(page.actors.map((actor) => actor.user_id));
+    const actors = [
+      ...page.actors,
+      ...current.actors.filter((actor) => !pageActorIds.has(actor.user_id)),
+    ];
+    const pagePostIds = new Set(page.posts.map((post) => post.post_id));
+    const posts = [
+      ...page.posts,
+      ...current.posts.filter((post) => !pagePostIds.has(post.post_id)),
+    ];
+    return { ...current, actors, posts, replies, window: page.window ?? current.window };
+  }
+
+  function loadOlderReplies() {
+    if (!replaySnapshot || loadingOlder) return;
+    setLoadingOlder(true);
+    fetchRunSnapshot(id, {
+      repliesOffset: replaySnapshot.replies.length,
+      repliesLimit: 200,
+    })
+      .then((page) => setReplaySnapshot((current) => mergeReplaySnapshot(current, page)))
+      .catch(() => {})
+      .finally(() => setLoadingOlder(false));
+  }
 
   useEffect(() => {
     if (replay) return;
@@ -197,6 +244,7 @@ export default function LiveScreen({
         step={step}
         total={total}
         replyCount={vm.thread.length}
+        totalReplyCount={totalReplayReplies}
         replay={replay}
         mode={mode}
         onModeChange={setMode}
@@ -215,7 +263,7 @@ export default function LiveScreen({
                 ? "历史回放，只读取已保存的评论区"
                 : status === "done"
                   ? "围观已完成"
-                  : "评论和通知会逐步刷出来"}
+                  : "评论和通知会逐渐刷出来"}
             </div>
           </div>
           <div className="flex items-center gap-3 text-sm">
@@ -249,6 +297,18 @@ export default function LiveScreen({
           timeline={timeline}
         />
 
+        {canLoadOlder && mode === "comments" && (
+          <div className="mt-3 flex justify-center">
+            <button
+              className="min-h-11 rounded-card border border-line bg-white px-4 text-sm font-semibold text-ink hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={loadingOlder}
+              onClick={loadOlderReplies}
+            >
+              {loadingOlder ? "加载中..." : "加载更早评论"}
+            </button>
+          </div>
+        )}
+
         <div className="sticky bottom-4 z-10 mx-auto mt-4 flex max-w-3xl items-center gap-3 rounded-card border border-line bg-white/95 px-4 py-3 text-sm text-ink shadow-chrome backdrop-blur">
         <span
           className={[
@@ -260,7 +320,7 @@ export default function LiveScreen({
           {replay ? "历史回放" : status === "done" ? "围观完成" : "围观进行中"}
         </span>
         <span className="mr-auto hidden text-slate-500 sm:inline">
-          {`${vm.thread.length} 条评论`}
+          {replay ? `回放 · 共 ${totalReplayReplies} 条评论` : `${vm.thread.length} 条评论`}
         </span>
         <button
           className="min-h-11 rounded-card bg-ink px-4 text-cream disabled:cursor-not-allowed disabled:opacity-40"

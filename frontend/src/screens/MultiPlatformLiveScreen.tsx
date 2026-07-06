@@ -4,13 +4,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { getWorldEvents, listPersons, type PersonView, type WorldEvent } from "../api/client";
 import { world } from "../design/tokens";
 import { mergeEvents, multiPlatformView } from "../pov/multiplatform";
-import { PlatformSkinFeed, skinForPlatform } from "../skins/skin";
-
-function platformName(platform: string) {
-  if (platform === "twitter") return "微博";
-  if (platform === "reddit") return "Reddit";
-  return platform;
-}
+import { labelForPlatform, PlatformSkinFeed, skinForPlatform } from "../skins/skin";
 
 function BridgePathPanel({ bridges }: { bridges: ReturnType<typeof multiPlatformView>["bridges"] }) {
   return (
@@ -28,9 +22,9 @@ function BridgePathPanel({ bridges }: { bridges: ReturnType<typeof multiPlatform
         {bridges.map((bridge, index) => (
           <div key={`${bridge.fromPlatform}-${bridge.toPlatform}-${bridge.tick}-${index}`} className="rounded-card border border-white/10 bg-slate-950/50 p-3">
             <div className="flex items-center gap-2 text-sm font-bold">
-              <span>{platformName(bridge.fromPlatform)}</span>
+              <span>{labelForPlatform(bridge.fromPlatform)}</span>
               <span aria-hidden="true" style={{ color: world.line }}>→</span>
-              <span>{platformName(bridge.toPlatform)}</span>
+              <span>{labelForPlatform(bridge.toPlatform)}</span>
             </div>
             <div className="mt-2 text-xs text-white/45">第 {bridge.tick} 拍 · 关联内容 #{bridge.postRef}</div>
             <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10">
@@ -212,7 +206,7 @@ export default function MultiPlatformLiveScreen({ events }: { events?: WorldEven
               className="rounded-full border bg-white px-3 py-1 text-xs font-bold"
               style={{ borderColor: world.line, color: world.line }}
             >
-              {platformName(bridge.fromPlatform)} → {platformName(bridge.toPlatform)} · 第 {bridge.tick} 拍
+              {labelForPlatform(bridge.fromPlatform)} → {labelForPlatform(bridge.toPlatform)} · 第 {bridge.tick} 拍
             </div>
           ))}
         </div>
@@ -236,7 +230,7 @@ export default function MultiPlatformLiveScreen({ events }: { events?: WorldEven
                     </span>
                     {skin.label}
                   </div>
-                  <div className="text-xs font-semibold text-slate-500">{platformName(column.platform)} 现场</div>
+                  <div className="text-xs font-semibold text-slate-500">{labelForPlatform(column.platform)} 现场</div>
                 </div>
                 <div
                   data-testid="platform-scroll-viewport"

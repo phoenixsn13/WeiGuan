@@ -3,7 +3,6 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import {
   fetchInsights,
-  fetchRunSnapshot,
   fetchRunSummary,
   fetchSavedInsights,
   getAnalysis,
@@ -17,9 +16,7 @@ import { CascadeTree } from "../components/CascadeTree";
 import { InfluenceBoard } from "../components/InfluenceBoard";
 import { SentimentTimeline } from "../components/SentimentTimeline";
 import { StanceDistribution } from "../components/StanceDistribution";
-import type { RunSnapshot } from "../model/canonical";
 import { analysisTabs, insightCards, phaseCards, type AnalysisTab } from "../pov/analysis";
-import { displayName } from "../skins/x/identity";
 
 const EMPTY_ANALYSIS: AnalysisProjection = {
   diffusion: { tree: [], max_depth: 0, breadth: 0, cascade_size: 0, key_rebroadcasters: [] },
@@ -39,16 +36,6 @@ const EMPTY_ANALYSIS: AnalysisProjection = {
     sentiment_reversals: [],
   },
 };
-
-function seedPost(snapshot: RunSnapshot | null) {
-  return snapshot?.posts.find((post) => post.post_id === snapshot.seed_post_id) ?? null;
-}
-
-function authorName(snapshot: RunSnapshot | null): string {
-  const seed = seedPost(snapshot);
-  const actor = snapshot?.actors.find((item) => item.user_id === seed?.author_id);
-  return actor ? displayName(actor) : "我";
-}
 
 function renderMain(tab: AnalysisTab, analysis: AnalysisProjection) {
   if (tab === "diffusion") return <CascadeTree nodes={analysis.diffusion.tree} />;
@@ -77,7 +64,6 @@ export default function RetroScreen() {  // review:P8-T7
   const navigate = useNavigate();
   const { key, model, baseUrl, reasoningEffort, thinking } = useApiKey();
   const [analysis, setAnalysis] = useState<AnalysisProjection | null>(null);
-  const [snapshot, setSnapshot] = useState<RunSnapshot | null>(null);
   const [summary, setSummary] = useState<RunSummary | null>(null);
   const [insights, setInsights] = useState<Insights | null>(null);
   const [loadingInsights, setLoadingInsights] = useState(false);
@@ -87,9 +73,6 @@ export default function RetroScreen() {  // review:P8-T7
     getAnalysis(id)
       .then(setAnalysis)
       .catch(() => setAnalysis(EMPTY_ANALYSIS));
-    fetchRunSnapshot(id)
-      .then(setSnapshot)
-      .catch(() => setSnapshot(null));
     fetchRunSummary(id)
       .then(setSummary)
       .catch(() => setSummary(null));
@@ -101,7 +84,6 @@ export default function RetroScreen() {  // review:P8-T7
   const projection = analysis ?? EMPTY_ANALYSIS;
   const cards = useMemo(() => insightCards(projection), [projection]);
   const phases = useMemo(() => phaseCards(projection), [projection]);
-  const seed = seedPost(snapshot);
   const totalComments = projection.temporal.fermentation_curve.reduce(
     (sum, point) => sum + point.volume,
     0,
@@ -116,14 +98,14 @@ export default function RetroScreen() {  // review:P8-T7
       <aside className="hidden bg-slate-950 p-6 text-white lg:block">
         <div className="mb-8 flex items-center gap-3">
           <div className="grid h-12 w-12 place-items-center rounded-full bg-brand text-xl font-black text-slate-950">
-            {authorName(snapshot).slice(0, 1)}
+            我
           </div>
           <div>
-            <div className="text-sm font-bold">{authorName(snapshot)}</div>
+            <div className="text-sm font-bold">我</div>
             <div className="mt-0.5 text-xs text-white/50">来自 Web</div>
           </div>
         </div>
-        <div className="text-lg font-bold leading-7">{seed?.content ?? "历史内容"}</div>
+        <div className="text-lg font-bold leading-7">{summary?.content ?? "历史内容"}</div>
         <div className="mt-5 grid grid-cols-3 gap-3 border-b border-white/10 pb-5 text-center text-sm">
           <Metric value={projection.diffusion.cascade_size} label="扩散" />
           <Metric value={projection.influence.ranking.length} label="节点" />
