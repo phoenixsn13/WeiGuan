@@ -187,7 +187,9 @@ FollowGraph / AnalysisProjection ...     # 均为 EventLog 的确定性投影
 2. **围观壳**（控制与洞察）：深墨 `#14140F`/`#0F172A`、暖琥珀 `brand`、冷靛蓝 `accent`。导航、控制条、洞察卡在此。
 3. **世界层**（宏观身份/时间/跨平台）：围观壳的延伸，用于表达持久身份、立场漂移时间线、跨平台并列。视觉上比围观壳更"星图/时间线"化——暖琥珀作为身份/影响力主色，冷靛蓝作为跨平台连接线，sentiment 色仅用于立场。**世界层禁止使用图表库默认配色**，一律走本寄存器。
 
-> **硬规则（配色单一真源，全站前端强制）**：世界层与围观壳的**连接线、桥接、情绪/立场、影响力**等语义色，**只准来自 `frontend/src/design/tokens.ts`**（`world.surface/line/influenceUp/influenceDown`、`sentimentColor(...)`、`colors.*`），**严禁**在组件里硬编 Tailwind 默认色阶（`bg-emerald-500`/`bg-rose-500`/`indigo-400`/`bg-*-[0-9]` 等）表达语义色。中性排版色（`text-slate-500`、`border-line`、`bg-white` 等结构性灰白）不受限。**审核者每次前端片必查此条**——历史两次欠账（P8-T7 情绪色、P9-T8 桥接色）皆此类，已列为回归项。
+> **硬规则一（配色单一真源，全站前端强制）**：世界层与围观壳的**连接线、桥接、情绪/立场、影响力**等语义色，**只准来自 `frontend/src/design/tokens.ts`**（`world.surface/line/influenceUp/influenceDown`、`sentimentColor(...)`、`colors.*`），**严禁**在组件里硬编 Tailwind 默认色阶（`bg-emerald-500`/`bg-rose-500`/`indigo-400`/`bg-*-[0-9]` 等）表达语义色。中性排版色（`text-slate-500`、`border-line`、`bg-white` 等结构性灰白）不受限。**审核者每次前端片必查此条**——历史两次欠账（P8-T7 情绪色、P9-T8 桥接色）皆此类，已列为回归项。
+
+> **硬规则二（可见文案禁裸 ID，全站前端强制）**：任何用户可见文本**不得出现** account_id/person_id/world_id/run_id 的裸 hex（2026-07-04 manual 实据：多平台现场作者显示 `7bb2eb80803d…`）。显示名一律走固定解析链：**事件 payload 富化的 `author_display_name` → 世界 persons 投影 join → 确定性化名兜底（`围观者·{尾4位}`）**；数据集前缀（`码05_`）在展示层统一清洗。**审核者每次前端片必查此条**（渲染输出对 `/[0-9a-f]{12,}/` 零命中）。
 
 字体：系统无衬线优先 `-apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif`；数字 `tabular-nums`；不用 emoji 作结构图标（用 SVG/文本，延续现状 `emoji` 字段仅作单字符字形）。
 
@@ -261,8 +263,11 @@ FollowGraph / AnalysisProjection ...     # 均为 EventLog 的确定性投影
 3. **P8 · 专业社媒分析**：§5.2 五方法族的确定性分析投影 + Retro 重构 + 洞察卡。锚点 `P8-T*`。
 4. **P9 · 多平台编排与皮肤**：编排器、跨平台桥、多平台并列 Live、平台皮肤差异化。锚点 `P9-T*`。
 5. **P10 · 效果评估与可扩展性收尾**（收尾片，P6–P9 后）：分析层 `AnalysisProvider` 接口化（embedded 默认、预留第三方/远程位）、LLM 可读风味摘要投影 `FlavorDigest`（X味/微博味/reddit味主观评估上游）、perf 旁路发射缝 + `PerfDigest` 聚合。全非破坏、非 LLM、无新依赖。锚点 `P10-T*`。计划见 `plans/2026-07-03-weiguan-P10-evaluation-and-extensibility.md`。
+6. **P11 · 世界入口与多平台发起接线**（修欠账，P6–P10 后）：多平台世界组件做完却未接入用户路径（`/world/:id/live` 无数据、无 `GET /worlds/{id}/events`、导航"世界"指向 gallery）。补：世界事件读取端点、UI 友好多平台发起 `POST /multi-runs`（后端组 specs/建账户）、Live 路由拉数据、发起页多平台模式、世界总览 `/worlds` + 导航接线。单平台零回归。锚点 `P11-T*`。计划见 `plans/2026-07-03-weiguan-P11-world-entry-and-multiplatform-launch.md`。
+7. **P12 · 读模型与发起生命周期基座**（整体质量整改·后端，P11 后）：修两条结构性根因——事件溯源缺读模型（每请求全量 fold、同步 IO 塞事件循环、每 step 全量落盘、SSE O(n²) 推流）与「发起」无一等生命周期（多平台 run 无状态/历史/复盘）。交付：事件游标读、世界投影缓存、路由线程池化、写路径治理、`Launch` 生命周期 + `GET /api/launches` 统一发起历史、多平台 run 落 `RunRecord`、快照窗口 + SSE 发射节流。锚点 `P12-T*`。计划见 `plans/2026-07-04-weiguan-P12-read-model-and-launch-lifecycle.md`。
+8. **P13 · 连贯性与界面产品化**（整体质量整改·前端，P12 后）：显示名管线（硬规则二落地）、多平台现场改版（游标轮询+终态、双语义显式化、桥接布局重构）、统一发起历史 + 热榜聚合、回放/复盘减重与语义清理（"步"→"拍"）、launch 复盘页、骨架屏与发起页收紧。锚点 `P13-T*`。计划见 `plans/2026-07-04-weiguan-P13-coherence-and-ui-productization.md`。
 
-依赖：P7/P8/P9 均依赖 P6；P9 依赖 P7 的身份模型落地；P10 依赖 P6–P9 全部落地。UI 原型图作为各 plan 首个前端 Task 的前置产物（先出图自审再实现）。
+依赖：P7/P8/P9 均依赖 P6；P9 依赖 P7 的身份模型落地；P10 依赖 P6–P9 全部落地；P11 依赖 P6–P10 全部落地；P12 依赖 P6–P11；P13 依赖 P12 契约（`events?after`、`/api/launches`、快照窗口、多平台 RunRecord）。UI 原型图作为各 plan 首个前端 Task 的前置产物（先出图自审再实现）。
 
 ---
 
