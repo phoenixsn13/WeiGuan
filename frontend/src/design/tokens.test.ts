@@ -73,3 +73,13 @@ test("tailwind line keeps light shell hairline separate from world connector lin
   expect(palette.line).not.toBe(world.line);
   expect(palette.sentiment.contestedFrom).toBe("#B4552F");
 });
+
+test("compose semantic surface tokens are explicit and accessible", () => {  // review:P14-T8
+  const hex = /^#[0-9A-F]{6}$/i;
+  expect(colors.accentSoft).toMatch(hex);
+  expect(colors.warnSoft).toMatch(hex);
+  expect(colors.warnBorder).toMatch(hex);
+  expect(colors.warnInk).toMatch(hex);
+  expect(contrastRatio(colors.accent, colors.accentSoft)).toBeGreaterThanOrEqual(4.5);
+  expect(contrastRatio(colors.warnInk, colors.warnSoft)).toBeGreaterThanOrEqual(4.5);
+});

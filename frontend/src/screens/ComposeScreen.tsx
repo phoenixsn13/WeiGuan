@@ -325,7 +325,7 @@ export default function ComposeScreen() {
             <label
               className={[
                 "cursor-pointer rounded-card border p-3",
-                worldMode === "new" ? "border-accent bg-blue-50 text-accent" : "border-line text-slate-600",
+                worldMode === "new" ? "border-accent bg-accentSoft text-accent" : "border-line text-slate-600",
               ].join(" ")}
             >
               <span className="flex items-center justify-between gap-3">
@@ -345,7 +345,7 @@ export default function ComposeScreen() {
             <label
               className={[
                 "cursor-pointer rounded-card border p-3",
-                worldMode === "continue" ? "border-accent bg-blue-50 text-accent" : "border-line text-slate-600",
+                worldMode === "continue" ? "border-accent bg-accentSoft text-accent" : "border-line text-slate-600",
               ].join(" ")}
             >
               <span className="flex items-center justify-between gap-3">
@@ -428,7 +428,7 @@ export default function ComposeScreen() {
                       className={[
                         "cursor-pointer rounded-card border bg-white p-3 text-sm",
                         selectedWorldId === item.world_id
-                          ? "border-accent bg-blue-50 text-accent"
+                          ? "border-accent bg-accentSoft text-accent"
                           : "border-line text-slate-600",
                       ].join(" ")}
                     >
@@ -512,7 +512,7 @@ export default function ComposeScreen() {
               </p>
             </div>
             {cost && (
-              <div className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">
+              <div className="rounded-full bg-warnSoft px-3 py-1 text-xs font-bold text-warnInk">
                 已预估费用
               </div>
             )}
@@ -524,7 +524,7 @@ export default function ComposeScreen() {
                 className={[
                   "cursor-pointer rounded-card border p-3 text-sm",
                   posterPersona === persona.value
-                    ? "border-brand bg-amber-50 text-slate-950"
+                    ? "border-accent bg-accentSoft text-accent"
                     : "border-line text-slate-600",
                 ].join(" ")}
               >
@@ -548,7 +548,7 @@ export default function ComposeScreen() {
             <label
               className={[
                 "cursor-pointer rounded-card border p-3",
-                identityMode === "new" ? "border-accent bg-blue-50 text-accent" : "border-line text-slate-600",
+                identityMode === "new" ? "border-accent bg-accentSoft text-accent" : "border-line text-slate-600",
               ].join(" ")}
             >
               <span className="flex items-center justify-between gap-3">
@@ -565,7 +565,7 @@ export default function ComposeScreen() {
             <label
               className={[
                 "cursor-pointer rounded-card border p-3",
-                identityMode === "continue" ? "border-accent bg-blue-50 text-accent" : "border-line text-slate-600",
+                identityMode === "continue" ? "border-accent bg-accentSoft text-accent" : "border-line text-slate-600",
               ].join(" ")}
             >
               <span className="flex items-center justify-between gap-3">
@@ -649,7 +649,7 @@ export default function ComposeScreen() {
                       className={[
                         "cursor-pointer rounded-card border bg-white p-3 text-sm",
                         selectedIdentityId === identity.person_id
-                          ? "border-accent bg-blue-50 text-accent"
+                          ? "border-accent bg-accentSoft text-accent"
                           : "border-line text-slate-600",
                       ].join(" ")}
                     >
@@ -697,7 +697,7 @@ export default function ComposeScreen() {
               key={round.value}
               className={[
                 "flex min-h-16 cursor-pointer items-center justify-between rounded-card border px-3",
-                !customMode && steps === round.value ? "border-accent bg-blue-50 text-accent" : "border-line text-slate-600",
+                !customMode && steps === round.value ? "border-accent bg-accentSoft text-accent" : "border-line text-slate-600",
               ].join(" ")}
             >
               <span>
@@ -718,7 +718,7 @@ export default function ComposeScreen() {
           <label
             className={[
               "flex min-h-16 cursor-pointer items-center justify-between rounded-card border px-3",
-              customMode ? "border-accent bg-blue-50 text-accent" : "border-line text-slate-600",
+              customMode ? "border-accent bg-accentSoft text-accent" : "border-line text-slate-600",
             ].join(" ")}
           >
             <span>
@@ -754,7 +754,7 @@ export default function ComposeScreen() {
           </div>
         )}
         {cost && (
-          <div className="mt-3 rounded-card border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800"> {/* review:P7-T10 */}
+          <div className="mt-3 rounded-card border border-warnBorder bg-warnSoft p-3 text-sm text-warnInk"> {/* review:P7-T10 */}
             <div>
               预计约 ¥{cost.estimated_rmb.toFixed(2)}；本次约 {cost.budgeted_agents} 个可见人物，
               {cost.decision_steps} 个决策拍。
@@ -777,7 +777,7 @@ export default function ComposeScreen() {
         <p className="mt-2 text-sm leading-6 text-slate-500">
           不填前端字段时会使用服务 `.env` 默认值。
         </p>
-        <div className="mt-4 rounded-card border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+        <div className="mt-4 rounded-card border border-warnBorder bg-warnSoft p-3 text-sm text-warnInk">
           <div className="text-xs font-bold uppercase tracking-wide">费用预览</div>
           {cost ? (
             <>
