@@ -9,6 +9,7 @@ import {
   listPersons,
   previewCost,
   fetchRetro,
+  fetchFlavor,
   fetchRunSummary,
   fetchRunSnapshot,
   fetchRuns,
@@ -311,6 +312,23 @@ test("fetchSavedInsights reads persisted suggestions", async () => {  // review:
   expect(insights).not.toBeNull();
   expect(insights?.verdict).toBe("已保存");
   expect(spy).toHaveBeenCalledWith("/api/runs/r_1/insights");
+});
+
+test("fetchFlavor reads world-scoped platform flavor", async () => {  // review:P13-T6
+  const spy = vi.fn(async () => ({
+    ok: true,
+    json: async () => ({
+      world_id: "w_1",
+      run_ids: ["r_1"],
+      platforms: [],
+      cross_platform_notes: [],
+    }),
+  }));
+  vi.stubGlobal("fetch", spy);
+
+  await fetchFlavor("r_1", "w_1");
+
+  expect(spy).toHaveBeenCalledWith("/api/runs/r_1/flavor?world_id=w_1");
 });
 
 test("identity APIs call person endpoints", async () => {  // review:P7-T5-AC1

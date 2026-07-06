@@ -253,6 +253,14 @@ export default function HistoryScreen() {
                             >
                               看现场
                             </button>
+                            {launch.world_id && (
+                              <button
+                                className="min-h-11 rounded-card bg-brand px-3 text-sm font-semibold text-ink hover:brightness-105"
+                                onClick={() => navigate(`/world/${launch.world_id}/retro?launch=${launch.launch_id}`)}
+                              >
+                                看复盘
+                              </button>
+                            )}
                             {launch.run_ids.map((runId, index) => {
                               const platform = launch.platforms[index] ?? runMap.get(runId)?.platform ?? "twitter";
                               return (

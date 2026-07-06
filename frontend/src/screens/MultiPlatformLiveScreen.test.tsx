@@ -212,6 +212,25 @@ test("multi-platform route stops polling after launch is done", async () => {  /
   expect(screen.getByText("已完成 · 共 2 拍")).toBeInTheDocument();
 });
 
+test("done multi-platform live links to launch retro results", async () => {  // review:P13-T6
+  vi.mocked(getWorldEvents).mockResolvedValueOnce(
+    eventsPage(events, { next_after: 2, clock_tick: 2, launch_status: "done" }),
+  );
+
+  render(
+    <MemoryRouter initialEntries={["/world/w_done/live?launch=launch_1&run_id=run-twitter&run_id=run-reddit"]}>
+      <Routes>
+        <Route path="/world/:id/live" element={<MultiPlatformLiveScreen />} />
+        <Route path="/world/:id/retro" element={<div>launch 结果</div>} />
+      </Routes>
+    </MemoryRouter>,
+  );
+
+  expect(await screen.findByText("已完成 · 共 2 拍")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "看结果" }));
+  expect(screen.getByText("launch 结果")).toBeInTheDocument();
+});
+
 test("multi-platform route shows retry when world events fail", async () => {  // review:P11-T4-AC4
   vi.mocked(getWorldEvents)
     .mockRejectedValueOnce(new Error("network down"))

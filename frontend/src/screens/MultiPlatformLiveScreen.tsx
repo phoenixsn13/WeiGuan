@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { getWorldEvents, listPersons, type PersonView, type WorldEvent } from "../api/client";
 import { world } from "../design/tokens";
@@ -56,6 +56,7 @@ function statusLabel(status: LaunchStatus, clockTick: number): string {
 export default function MultiPlatformLiveScreen({ events }: { events?: WorldEvent[] }) {
   const params = useParams();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [loadedEvents, setLoadedEvents] = useState<WorldEvent[]>([]);
   const [personViews, setPersonViews] = useState<PersonView[]>([]);
   const [nextAfter, setNextAfter] = useState(0);
@@ -63,6 +64,7 @@ export default function MultiPlatformLiveScreen({ events }: { events?: WorldEven
   const [launchStatus, setLaunchStatus] = useState<LaunchStatus>(null);
   const [loadState, setLoadState] = useState<LoadState>(events ? "idle" : "loading");
   const runIds = useMemo(() => searchParams.getAll("run_id"), [searchParams]);
+  const launchId = searchParams.get("launch");
 
   const loadWorldEvents = useCallback(async (options: { silent?: boolean; append?: boolean; after?: number } = {}) => {
     if (events !== undefined) return;
@@ -242,6 +244,17 @@ export default function MultiPlatformLiveScreen({ events }: { events?: WorldEven
             );
           })}
           {view.columns.length > 1 && <BridgePathPanel bridges={view.bridges} />}
+        </div>
+      )}
+
+      {events === undefined && launchStatus === "done" && launchId && (
+        <div className="mt-4 flex justify-end">
+          <button
+            className="min-h-11 rounded-card bg-brand px-4 text-sm font-bold text-slate-950 hover:brightness-105"
+            onClick={() => navigate(`/world/${params.id}/retro?launch=${launchId}`)}
+          >
+            看结果
+          </button>
         </div>
       )}
 

@@ -23,6 +23,7 @@ function mount() {
         <Route path="/run/:id/live" element={<LocationProbe />} />
         <Route path="/run/:id/retro" element={<div>回放页</div>} />
         <Route path="/world/:id/live" element={<WorldProbe />} />
+        <Route path="/world/:id/retro" element={<WorldProbe />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -319,4 +320,67 @@ test("renders multi-platform launches with run-scoped live and platform links", 
   expect(screen.getByRole("button", { name: "Reddit复盘" })).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "看现场" }));
   expect(screen.getByText("世界现场/world/w_1/live?run_id=run-twitter&run_id=run-reddit")).toBeInTheDocument();
+});
+
+test("multi-platform launch opens launch-level retro", async () => {  // review:P13-T6
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => ({
+      ok: true,
+      json: async () => {
+        if (url === "/api/launches") {
+          return {
+            launches: [
+              {
+                launch_id: "launch_1",
+                kind: "multi",
+                world_id: "w_1",
+                content: "跨平台内容",
+                steps: 15,
+                platforms: ["twitter", "reddit"],
+                run_ids: ["run-twitter", "run-reddit"],
+                status: "done",
+                clock_tick: 15,
+                poster_person_id: "p_author",
+                poster_persona: "kol",
+                created_at: "2026-07-04T08:00:00Z",
+              },
+            ],
+          };
+        }
+        if (url === "/api/runs") {
+          return [
+            {
+              run_id: "run-twitter",
+              world_id: "w_1",
+              poster_person_id: "p_author",
+              content: "跨平台内容",
+              steps: 15,
+              platform: "twitter",
+              status: "done",
+              created_at: "2026-07-04T08:00:00Z",
+              totals: { replies: 3, reposts: 1, likes: 8 },
+            },
+            {
+              run_id: "run-reddit",
+              world_id: "w_1",
+              poster_person_id: "p_author",
+              content: "跨平台内容",
+              steps: 15,
+              platform: "reddit",
+              status: "done",
+              created_at: "2026-07-04T08:00:00Z",
+              totals: { replies: 4, reposts: 0, likes: 2 },
+            },
+          ];
+        }
+        return { persons: [] };
+      },
+    })),
+  );
+
+  mount();
+
+  fireEvent.click(await screen.findByRole("button", { name: "看复盘" }));
+  expect(screen.getByText("世界现场/world/w_1/retro?launch=launch_1")).toBeInTheDocument();
 });

@@ -440,6 +440,29 @@ export interface AnalysisProjection {
   temporal: TemporalMetrics;
 }
 
+export interface FlavorPhase {
+  phase: string;
+  tick_range: [number, number];
+  volume: number;
+  dominant_sentiment: string;
+  representative_utterances: string[];
+}
+
+export interface PlatformFlavor {
+  platform: "twitter" | "reddit" | string;
+  persona_mix: Record<string, number>;
+  spread_shape: string;
+  phases: FlavorPhase[];
+  volume: number;
+}
+
+export interface FlavorDigest {
+  world_id?: string | null;
+  run_ids: string[];
+  platforms: PlatformFlavor[];
+  cross_platform_notes: string[];
+}
+
 function isInsights(value: unknown): value is Insights {
   if (!value || typeof value !== "object") {
     return false;
@@ -484,6 +507,19 @@ export async function getAnalysis(runId: string): Promise<AnalysisProjection> { 
   const response = await fetch(`/api/runs/${runId}/analysis`);
   if (!response.ok) {
     throw new Error("failed to load analysis");
+  }
+  return response.json();
+}
+
+export async function fetchFlavor(runId: string, worldId?: string): Promise<FlavorDigest> {  // review:P13-T6
+  const query = new URLSearchParams();
+  if (worldId) {
+    query.set("world_id", worldId);
+  }
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  const response = await fetch(`/api/runs/${runId}/flavor${suffix}`);
+  if (!response.ok) {
+    throw new Error("failed to load flavor");
   }
   return response.json();
 }
