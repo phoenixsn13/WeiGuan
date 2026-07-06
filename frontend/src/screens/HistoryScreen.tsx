@@ -1,7 +1,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { fetchRuns, listPersons, type PersonView, type RunSummary } from "../api/client";
+import {
+  fetchLaunches,
+  fetchRuns,
+  listPersons,
+  type LaunchSummary,
+  type PersonView,
+  type RunSummary,
+} from "../api/client";
 import { Button } from "../components/Button";
 import { TrendRail } from "../components/TrendRail";
 import { groupRunsByIdentity, TEMPORARY_PERSON_ID } from "../pov/identity";
@@ -13,18 +20,108 @@ function statusLabel(status: RunSummary["status"]): string {
   return "已创建";
 }
 
+type LaunchGroup = { person: PersonView; launches: LaunchSummary[] };
+
+function launchTime(launch: LaunchSummary): number {
+  const parsed = launch.created_at ? Date.parse(launch.created_at) : 0;
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function temporaryPerson(): PersonView {
+  return {
+    person: {
+      person_id: TEMPORARY_PERSON_ID,
+      display_name: "临时身份",
+      persona_kind: "ordinary",
+      accounts: [],
+    },
+    stance: { stance_counts: {}, dominant: "other" },
+    total_influence: 0,
+    run_ids: [],
+    standing_timeline: [],
+  };
+}
+
+function platformLabel(platform: "twitter" | "reddit"): string {
+  return platform === "reddit" ? "Reddit" : "微博";
+}
+
+function launchPlatformLabel(launch: LaunchSummary): string {
+  return launch.platforms.map(platformLabel).join(" + ");
+}
+
+function launchLiveUrl(launch: LaunchSummary): string {
+  if (!launch.world_id) {
+    return `/run/${launch.run_ids[0]}/live?replay=1`;
+  }
+  const query = new URLSearchParams();
+  launch.run_ids.forEach((runId) => query.append("run_id", runId));
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  return `/world/${launch.world_id}/live${suffix}`;
+}
+
+function totalsForLaunch(launch: LaunchSummary, runMap: Map<string, RunSummary>): Record<string, number> {
+  return launch.run_ids.reduce(
+    (totals, runId) => {
+      const run = runMap.get(runId);
+      totals.replies += run?.totals.replies ?? 0;
+      totals.reposts += run?.totals.reposts ?? 0;
+      totals.likes += run?.totals.likes ?? 0;
+      return totals;
+    },
+    { replies: 0, reposts: 0, likes: 0 },
+  );
+}
+
+function groupLaunchesByIdentity(persons: PersonView[], launches: LaunchSummary[]): LaunchGroup[] {
+  const remaining = new Map(launches.map((launch) => [launch.launch_id, launch]));
+  const groups: LaunchGroup[] = [];
+
+  for (const person of persons) {
+    const personRunIds = new Set(person.run_ids);
+    const groupedLaunches = [...remaining.values()]
+      .filter(
+        (launch) =>
+          launch.poster_person_id === person.person.person_id ||
+          launch.run_ids.some((runId) => personRunIds.has(runId)),
+      )
+      .sort((left, right) => launchTime(right) - launchTime(left) || left.launch_id.localeCompare(right.launch_id));
+    if (groupedLaunches.length === 0) continue;
+    groupedLaunches.forEach((launch) => remaining.delete(launch.launch_id));
+    groups.push({ person, launches: groupedLaunches });
+  }
+
+  const temporaryLaunches = [...remaining.values()].sort(
+    (left, right) => launchTime(right) - launchTime(left) || left.launch_id.localeCompare(right.launch_id),
+  );
+  if (temporaryLaunches.length > 0) {
+    groups.push({ person: temporaryPerson(), launches: temporaryLaunches });
+  }
+
+  return groups.sort((left, right) => {
+    const byTime = launchTime(right.launches[0]) - launchTime(left.launches[0]);
+    return byTime || left.person.person.person_id.localeCompare(right.person.person.person_id);
+  });
+}
+
 export default function HistoryScreen() {
   const [runs, setRuns] = useState<RunSummary[]>([]);
+  const [launches, setLaunches] = useState<LaunchSummary[]>([]);
   const [persons, setPersons] = useState<PersonView[]>([]);
   const [loaded, setLoaded] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchRuns()
-      .then(async (nextRuns) => {
+    Promise.all([fetchRuns(), fetchLaunches()])
+      .then(async ([nextRuns, nextLaunches]) => {
         setRuns(nextRuns);
+        setLaunches(nextLaunches);
         const worldIds = [
-          ...new Set(nextRuns.map((run) => run.world_id).filter((id): id is string => Boolean(id))),
+          ...new Set(
+            [...nextRuns.map((run) => run.world_id), ...nextLaunches.map((launch) => launch.world_id)].filter(
+              (id): id is string => Boolean(id),
+            ),
+          ),
         ];
         const personLists = await Promise.all(
           worldIds.map((worldId) => listPersons(worldId).catch(() => [])),
@@ -33,12 +130,32 @@ export default function HistoryScreen() {
       })
       .catch(() => {
         setRuns([]);
+        setLaunches([]);
         setPersons([]);
       })
       .finally(() => setLoaded(true));
   }, []);
 
-  const groups = groupRunsByIdentity(persons, runs);
+  const runMap = new Map(runs.map((run) => [run.run_id, run]));
+  const groups = launches.length > 0
+    ? groupLaunchesByIdentity(persons, launches)
+    : groupRunsByIdentity(persons, runs).map((group) => ({
+        person: group.person,
+        launches: group.runs.map((run) => ({
+          launch_id: run.run_id,
+          kind: "single",
+          world_id: run.world_id,
+          content: run.content,
+          steps: run.steps,
+          platforms: [run.platform],
+          run_ids: [run.run_id],
+          status: run.status,
+          clock_tick: run.current_step,
+          poster_person_id: run.poster_person_id,
+          poster_persona: run.poster_persona,
+          created_at: run.created_at,
+        })),
+      }));
 
   return (
     <section className="mx-auto max-w-6xl">
@@ -53,13 +170,13 @@ export default function HistoryScreen() {
       </div>
 
       {!loaded && <div className="text-sm text-ink/50">正在加载历史记录…</div>}
-      {loaded && runs.length === 0 && (
+      {loaded && launches.length === 0 && runs.length === 0 && (
         <div className="rounded-card border border-line bg-white p-8 text-sm text-slate-500 shadow-spotlight">
           还没有历史推演。先发一条内容，让一群人围观一下。
         </div>
       )}
 
-      {runs.length > 0 && (
+      {groups.length > 0 && (
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div className="grid gap-4">
             {groups.map((group) => (
@@ -77,7 +194,7 @@ export default function HistoryScreen() {
                         {group.person.person.display_name}
                       </h2>
                       <div className="mt-1 flex flex-wrap gap-2 text-xs font-semibold text-slate-500">
-                        <span>{group.runs.length} 次围观</span>
+                        <span>{group.launches.length} 次围观</span>
                         <span>影响力 {Math.round(group.person.total_influence)}</span>
                       </div>
                     </div>
@@ -87,64 +204,98 @@ export default function HistoryScreen() {
                       {group.person.person.accounts[0].num_followers.toLocaleString()} 粉丝
                     </div>
                   )}
-                  {group.runs[0]?.world_id && group.person.person.person_id !== TEMPORARY_PERSON_ID && (
-                    <Button variant="ghost" onClick={() => navigate(`/world/${group.runs[0].world_id}/live`)}>
+                  {group.launches[0]?.world_id && group.person.person.person_id !== TEMPORARY_PERSON_ID && (
+                    <Button variant="ghost" onClick={() => navigate(`/world/${group.launches[0].world_id}/live`)}>
                       看多平台现场
                     </Button>
                   )}
                 </div>
                 <div className="mt-4 grid gap-3">
-                  {group.runs.map((run) => (
+                  {group.launches.map((launch) => {
+                    const totals = totalsForLaunch(launch, runMap);
+                    return (
                     <div
-                      key={run.run_id}
+                      key={launch.launch_id}
                       data-testid="history-run-card-layout"
                       className="grid gap-4 rounded-card border border-line p-4 transition hover:border-accent/40 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start"
                     >
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-500">
                           <span className="rounded-full bg-slate-100 px-2 py-1">
-                            {statusLabel(run.status)}
+                            {statusLabel(launch.status)}
                           </span>
-                          <span>
-                            {run.steps} 步 · 微博客
-                          </span>
+                          <span>{launch.steps} 拍</span>
+                          <span>{launchPlatformLabel(launch)}</span>
                         </div>
                         <div className="sr-only">
-                          {statusLabel(run.status)} · {run.steps} 步 · 微博客
+                          {statusLabel(launch.status)} · {launch.steps} 拍 · {launchPlatformLabel(launch)}
                         </div>
                         <h3 className="mt-3 line-clamp-2 text-lg font-bold leading-7">
-                          {run.content}
+                          {launch.content}
                         </h3>
                         <div className="mt-4 flex flex-wrap gap-4 text-sm text-slate-500">
                           <span>
                             评论{" "}
-                            <span className="tabular font-semibold text-slate-950">{run.totals.replies ?? 0}</span>
+                            <span className="tabular font-semibold text-slate-950">{totals.replies}</span>
                           </span>
                           <span>
                             转发{" "}
-                            <span className="tabular font-semibold text-slate-950">{run.totals.reposts ?? 0}</span>
+                            <span className="tabular font-semibold text-slate-950">{totals.reposts}</span>
                           </span>
                           <span>
-                            点赞 <span className="tabular font-semibold text-slate-950">{run.totals.likes ?? 0}</span>
+                            点赞 <span className="tabular font-semibold text-slate-950">{totals.likes}</span>
                           </span>
                         </div>
                       </div>
-                      <div className="flex shrink-0 gap-2 sm:justify-end">
-                        <button
-                          className="min-h-11 rounded-card border border-ink/10 px-3 text-sm hover:border-accent hover:text-accent"
-                          onClick={() => navigate(`/run/${run.run_id}/live?replay=1`)}
-                        >
-                          看评论区
-                        </button>
-                        <button
-                          className="min-h-11 rounded-card bg-ink px-3 text-sm text-cream hover:bg-accent"
-                          onClick={() => navigate(`/run/${run.run_id}/retro`)}
-                        >
-                          看回放
-                        </button>
+                      <div className="flex shrink-0 flex-wrap gap-2 sm:max-w-72 sm:justify-end">
+                        {launch.kind === "multi" ? (
+                          <>
+                            <button
+                              className="min-h-11 rounded-card bg-ink px-3 text-sm text-cream hover:bg-accent"
+                              onClick={() => navigate(launchLiveUrl(launch))}
+                            >
+                              看现场
+                            </button>
+                            {launch.run_ids.map((runId, index) => {
+                              const platform = launch.platforms[index] ?? runMap.get(runId)?.platform ?? "twitter";
+                              return (
+                                <span key={runId} className="flex gap-2">
+                                  <button
+                                    className="min-h-11 rounded-card border border-ink/10 px-3 text-sm hover:border-accent hover:text-accent"
+                                    onClick={() => navigate(`/run/${runId}/live?replay=1`)}
+                                  >
+                                    {platformLabel(platform)}评论区
+                                  </button>
+                                  <button
+                                    className="min-h-11 rounded-card border border-ink/10 px-3 text-sm hover:border-accent hover:text-accent"
+                                    onClick={() => navigate(`/run/${runId}/retro`)}
+                                  >
+                                    {platformLabel(platform)}复盘
+                                  </button>
+                                </span>
+                              );
+                            })}
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              className="min-h-11 rounded-card border border-ink/10 px-3 text-sm hover:border-accent hover:text-accent"
+                              onClick={() => navigate(`/run/${launch.run_ids[0]}/live?replay=1`)}
+                            >
+                              看评论区
+                            </button>
+                            <button
+                              className="min-h-11 rounded-card bg-ink px-3 text-sm text-cream hover:bg-accent"
+                              onClick={() => navigate(`/run/${launch.run_ids[0]}/retro`)}
+                            >
+                              看回放
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </article>
             ))}

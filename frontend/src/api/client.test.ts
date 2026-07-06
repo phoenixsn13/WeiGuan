@@ -3,6 +3,7 @@ import {
   createRun,
   fetchCrowds,
   fetchInsights,
+  fetchLaunches,
   createPerson,
   getIdentities,
   listPersons,
@@ -412,6 +413,37 @@ test("getWorldEvents can request frames after a cursor", async () => {  // revie
   expect(page.next_after).toBe(9);
   expect(page.clock_tick).toBe(9);
   expect(page.launch_status).toBe("running");
+});
+
+test("fetchLaunches reads single and multi launch summaries", async () => {  // review:P13-T4
+  const spy = vi.fn(async () => ({
+    ok: true,
+    json: async () => ({
+      launches: [
+        {
+          launch_id: "launch_1",
+          kind: "multi",
+          world_id: "w_1",
+          content: "跨平台内容",
+          steps: 15,
+          platforms: ["twitter", "reddit"],
+          run_ids: ["run-twitter", "run-reddit"],
+          status: "done",
+          clock_tick: 15,
+          poster_person_id: "p_author",
+          poster_persona: "kol",
+          created_at: "2026-07-04T08:00:00Z",
+        },
+      ],
+    }),
+  }));
+  vi.stubGlobal("fetch", spy);
+
+  const launches = await fetchLaunches();
+
+  expect(spy).toHaveBeenCalledWith("/api/launches");
+  expect(launches[0].kind).toBe("multi");
+  expect(launches[0].run_ids).toEqual(["run-twitter", "run-reddit"]);
 });
 
 test("getAnalysis reads professional social analysis projection", async () => {  // review:P8-T7

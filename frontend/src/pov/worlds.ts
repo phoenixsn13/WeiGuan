@@ -1,4 +1,4 @@
-import type { IdentitySummary, PersonView, RunSummary } from "../api/client";
+import type { IdentitySummary, LaunchSummary, PersonView, RunSummary } from "../api/client";
 
 export interface WorldCardView {
   worldId: string;
@@ -9,6 +9,7 @@ export interface WorldCardView {
   platformCount: number;
   latestRunContent: string;
   latestRunId?: string;
+  latestLaunchRunIds?: string[];
   latestCreatedAt?: string;
   totals: { replies: number; reposts: number; likes: number };
   status: string;
@@ -19,16 +20,29 @@ function runTime(run: RunSummary): number {
   return Number.isNaN(parsed) ? 0 : parsed;
 }
 
+function launchTime(launch: LaunchSummary): number {
+  const parsed = launch.created_at ? Date.parse(launch.created_at) : 0;
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
 function total(runs: RunSummary[], key: string): number {
   return runs.reduce((sum, run) => sum + (run.totals[key] ?? 0), 0);
 }
 
-function platformCount(worldId: string, runs: RunSummary[], persons: PersonView[]): number {
+function platformCount(
+  worldId: string,
+  runs: RunSummary[],
+  persons: PersonView[],
+  launches: LaunchSummary[],
+): number {
   const platforms = new Set<string>();
   for (const person of persons) {
     person.person.accounts.forEach((account) => platforms.add(account.platform));
   }
   runs.filter((run) => run.world_id === worldId).forEach((run) => platforms.add(run.platform));
+  launches
+    .filter((launch) => launch.world_id === worldId)
+    .forEach((launch) => launch.platforms.forEach((platform) => platforms.add(platform)));
   return Math.max(1, platforms.size);
 }
 
@@ -37,6 +51,7 @@ export function groupWorldCards(
   identities: IdentitySummary[],
   runs: RunSummary[],
   personsByWorld: Record<string, PersonView[]>,
+  launches: LaunchSummary[] = [],
 ): WorldCardView[] {
   const ids = [...new Set(identities.map((identity) => identity.world_id))];
 
@@ -46,7 +61,11 @@ export function groupWorldCards(
       const worldRuns = runs
         .filter((run) => run.world_id === worldId)
         .sort((left, right) => runTime(right) - runTime(left) || left.run_id.localeCompare(right.run_id));
+      const worldLaunches = launches
+        .filter((launch) => launch.world_id === worldId)
+        .sort((left, right) => launchTime(right) - launchTime(left) || left.launch_id.localeCompare(right.launch_id));
       const latest = worldRuns[0];
+      const latestLaunch = worldLaunches[0];
       const primary = [...worldIdentities].sort(
         (left, right) => right.total_influence - left.total_influence || left.display_name.localeCompare(right.display_name),
       )[0];
@@ -57,16 +76,17 @@ export function groupWorldCards(
         identityCount: worldIdentities.length,
         runCount: worldIdentities.reduce((sum, identity) => sum + identity.run_count, 0),
         totalInfluence: worldIdentities.reduce((sum, identity) => sum + identity.total_influence, 0),
-        platformCount: platformCount(worldId, runs, personsByWorld[worldId] ?? []),
-        latestRunContent: latest?.content ?? "还没有内容",
+        platformCount: platformCount(worldId, runs, personsByWorld[worldId] ?? [], launches),
+        latestRunContent: latestLaunch?.content ?? latest?.content ?? "还没有内容",
         latestRunId: latest?.run_id,
-        latestCreatedAt: latest?.created_at,
+        latestLaunchRunIds: latestLaunch?.run_ids,
+        latestCreatedAt: latestLaunch?.created_at ?? latest?.created_at,
         totals: {
           replies: total(worldRuns, "replies"),
           reposts: total(worldRuns, "reposts"),
           likes: total(worldRuns, "likes"),
         },
-        status: latest?.status ?? "created",
+        status: latestLaunch?.status ?? latest?.status ?? "created",
       };
     })
     .sort((left, right) => {

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import {
+  fetchLaunches,
   fetchRuns,
   getIdentities,
   listPersons,
@@ -24,7 +25,7 @@ async function loadWorldCards(): Promise<WorldCardView[]> {
   const identities = await getIdentities();
   if (identities.length === 0) return [];
 
-  const runs = await fetchRuns();
+  const [runs, launches] = await Promise.all([fetchRuns(), fetchLaunches()]);
   const worldIds = [...new Set(identities.map((identity) => identity.world_id))];
   const personEntries = await Promise.all(
     worldIds.map(async (worldId): Promise<[string, PersonView[]]> => [
@@ -36,6 +37,7 @@ async function loadWorldCards(): Promise<WorldCardView[]> {
     identities,
     runs,
     Object.fromEntries(personEntries),
+    launches,
   );
 }
 
@@ -45,6 +47,16 @@ function totalIdentities(cards: WorldCardView[]): number {
 
 function totalInfluence(cards: WorldCardView[]): number {
   return Math.round(cards.reduce((sum, card) => sum + card.totalInfluence, 0));
+}
+
+function scopedWorldLiveUrl(card: WorldCardView): string {
+  const runIds = card.latestLaunchRunIds ?? [];
+  if (runIds.length === 0) {
+    return `/world/${card.worldId}/live`;
+  }
+  const query = new URLSearchParams();
+  runIds.forEach((runId) => query.append("run_id", runId));
+  return `/world/${card.worldId}/live?${query.toString()}`;
 }
 
 export default function WorldOverviewScreen() {  // review:P11-T6
@@ -127,9 +139,14 @@ export default function WorldOverviewScreen() {  // review:P11-T6
                 </div>
               </div>
               <div className="grid content-start gap-2 sm:grid-cols-2 lg:w-48 lg:grid-cols-1">
-                <Button onClick={() => navigate(`/world/${card.worldId}/live`)}>
-                  看现场
+                <Button onClick={() => navigate(scopedWorldLiveUrl(card))}>
+                  {card.latestLaunchRunIds?.length ? "看最新现场" : "看现场"}
                 </Button>
+                {card.latestLaunchRunIds?.length ? (
+                  <Button variant="ghost" onClick={() => navigate(`/world/${card.worldId}/live`)}>
+                    世界全景
+                  </Button>
+                ) : null}
                 {card.latestRunId && (
                   <Button variant="ghost" onClick={() => navigate(`/run/${card.latestRunId}/retro`)}>
                     看回放

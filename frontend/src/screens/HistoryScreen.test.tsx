@@ -7,12 +7,12 @@ afterEach(() => vi.restoreAllMocks());
 
 function LocationProbe() {
   const location = useLocation();
-  return <div>{`评论区${location.search}`}</div>;
+  return <div>{`评论区${location.pathname}${location.search}`}</div>;
 }
 
 function WorldProbe() {
   const location = useLocation();
-  return <div>{`世界现场${location.pathname}`}</div>;
+  return <div>{`世界现场${location.pathname}${location.search}`}</div>;
 }
 
 function mount() {
@@ -51,7 +51,7 @@ test("renders historical runs and opens live view", async () => {  // review:UI-
   expect(await screen.findByText("历史记录")).toBeInTheDocument();
   expect(screen.getByText("构建砍到3秒")).toBeInTheDocument();
   fireEvent.click(screen.getByText("看评论区"));
-  expect(screen.getByText("评论区?replay=1")).toBeInTheDocument();
+  expect(screen.getByText("评论区/run/r_1/live?replay=1")).toBeInTheDocument();
 });
 
 test("shows shared hot topics from saved runs", async () => {  // review:UI-P11-AC3
@@ -237,4 +237,86 @@ test("links identity history groups to the multi-platform world", async () => { 
 
   fireEvent.click(await screen.findByRole("button", { name: "看多平台现场" }));
   expect(screen.getByText("世界现场/world/w_1/live")).toBeInTheDocument();
+});
+
+test("renders multi-platform launches with run-scoped live and platform links", async () => {  // review:P13-T4
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => ({
+      ok: true,
+      json: async () => {
+        if (url === "/api/launches") {
+          return {
+            launches: [
+              {
+                launch_id: "launch_1",
+                kind: "multi",
+                world_id: "w_1",
+                content: "跨平台内容",
+                steps: 15,
+                platforms: ["twitter", "reddit"],
+                run_ids: ["run-twitter", "run-reddit"],
+                status: "done",
+                clock_tick: 15,
+                poster_person_id: "p_author",
+                poster_persona: "kol",
+                created_at: "2026-07-04T08:00:00Z",
+              },
+            ],
+          };
+        }
+        if (url === "/api/runs") {
+          return [
+            {
+              run_id: "run-twitter",
+              world_id: "w_1",
+              poster_person_id: "p_author",
+              content: "跨平台内容",
+              steps: 15,
+              platform: "twitter",
+              status: "done",
+              created_at: "2026-07-04T08:00:00Z",
+              totals: { replies: 3, reposts: 1, likes: 8 },
+            },
+            {
+              run_id: "run-reddit",
+              world_id: "w_1",
+              poster_person_id: "p_author",
+              content: "跨平台内容",
+              steps: 15,
+              platform: "reddit",
+              status: "done",
+              created_at: "2026-07-04T08:00:00Z",
+              totals: { replies: 4, reposts: 0, likes: 2 },
+            },
+          ];
+        }
+        return {
+          persons: [
+            {
+              person: {
+                person_id: "p_author",
+                display_name: "财经大号",
+                persona_kind: "kol",
+                accounts: [],
+              },
+              stance: { stance_counts: {}, dominant: "other" },
+              total_influence: 56,
+              run_ids: ["run-twitter", "run-reddit"],
+              standing_timeline: [],
+            },
+          ],
+        };
+      },
+    })),
+  );
+
+  mount();
+
+  expect(await screen.findByText("财经大号")).toBeInTheDocument();
+  expect(screen.getByText("微博 + Reddit")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "微博评论区" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Reddit复盘" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "看现场" }));
+  expect(screen.getByText("世界现场/world/w_1/live?run_id=run-twitter&run_id=run-reddit")).toBeInTheDocument();
 });

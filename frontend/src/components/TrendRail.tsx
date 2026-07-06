@@ -4,6 +4,7 @@ interface TrendItem {
   label: string;
   score: number;
   meta: string;
+  count: number;
 }
 
 function trimTopic(content: string): string {
@@ -12,17 +13,27 @@ function trimTopic(content: string): string {
 }
 
 export function buildTrendItems(runs: RunSummary[]): TrendItem[] {
-  return runs
-    .filter((run) => (run.content ?? "").trim())
-    .map((run) => {
-      const replies = run.totals.replies ?? 0;
-      const reposts = run.totals.reposts ?? 0;
-      const likes = run.totals.likes ?? 0;
-      return {
-        label: `#${trimTopic(run.content)}`,
-        score: replies * 3 + reposts * 4 + likes,
-        meta: `${replies} 评论 · ${likes} 赞`,
-      };
+  const grouped = new Map<string, { replies: number; reposts: number; likes: number; count: number }>();
+  for (const run of runs) {
+    const content = (run.content ?? "").trim();
+    if (!content) continue;
+    const label = `#${trimTopic(content)}`;
+    const current = grouped.get(label) ?? { replies: 0, reposts: 0, likes: 0, count: 0 };
+    current.replies += run.totals.replies ?? 0;
+    current.reposts += run.totals.reposts ?? 0;
+    current.likes += run.totals.likes ?? 0;
+    current.count += 1;
+    grouped.set(label, current);
+  }
+
+  return [...grouped.entries()]
+    .map(([label, item]) => {
+      const score = item.replies * 3 + item.reposts * 4 + item.likes;
+      const meta =
+        item.count > 1
+          ? `${item.replies} 评论 · ${item.likes} 赞 · 发起 ${item.count} 次`
+          : `${item.replies} 评论 · ${item.likes} 赞`;
+      return { label, score, meta, count: item.count };
     })
     .sort((a, b) => b.score - a.score || a.label.localeCompare(b.label, "zh-Hans-CN"))
     .slice(0, 5);

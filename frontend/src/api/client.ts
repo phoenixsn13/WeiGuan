@@ -54,6 +54,23 @@ export interface RunSummary {
 }
 
 export type PersonaKind = "ordinary" | "verified" | "kol";
+export type LaunchKind = "single" | "multi";
+
+export interface LaunchSummary {
+  launch_id: string;
+  kind: LaunchKind | string;
+  world_id?: string;
+  content: string;
+  steps: number;
+  platforms: Array<"twitter" | "reddit">;
+  run_ids: string[];
+  status: "created" | "running" | "done" | "error" | string;
+  clock_tick?: number;
+  poster_person_id?: string | null;
+  poster_persona?: PersonaKind;
+  error?: string | null;
+  created_at?: string;
+}
 
 export interface Account {
   account_id: string;
@@ -176,6 +193,35 @@ export async function fetchRuns(): Promise<RunSummary[]> {
     throw new Error("failed to load runs");
   }
   return response.json();
+}
+
+function launchFromRun(run: RunSummary): LaunchSummary {
+  return {
+    launch_id: run.run_id,
+    kind: "single",
+    world_id: run.world_id,
+    content: run.content,
+    steps: run.steps,
+    platforms: [run.platform],
+    run_ids: [run.run_id],
+    status: run.status,
+    clock_tick: run.current_step,
+    poster_person_id: run.poster_person_id,
+    poster_persona: run.poster_persona,
+    created_at: run.created_at,
+  };
+}
+
+export async function fetchLaunches(): Promise<LaunchSummary[]> {  // review:P13-T4
+  const response = await fetch("/api/launches");
+  if (!response.ok) {
+    throw new Error("failed to load launches");
+  }
+  const data = await response.json();
+  if (Array.isArray(data)) {
+    return data.map((run) => launchFromRun(run));
+  }
+  return Array.isArray(data.launches) ? data.launches : [];
 }
 
 export async function fetchRunSummary(runId: string): Promise<RunSummary> {
