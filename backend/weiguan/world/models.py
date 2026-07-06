@@ -47,6 +47,7 @@ class World(BaseModel):
     created_at: str
     clock_tick: int = 0
     persistent: bool = False
+    name: str | None = None  # review:P14-T1
 
 
 class Launch(BaseModel):  # review:P12-T5
