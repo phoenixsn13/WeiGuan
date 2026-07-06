@@ -20,7 +20,7 @@ function BridgePathPanel({ bridges }: { bridges: ReturnType<typeof multiPlatform
       </div>
       <div className="mt-4 grid gap-3">
         {bridges.map((bridge, index) => (
-          <div key={`${bridge.fromPlatform}-${bridge.toPlatform}-${bridge.tick}-${index}`} className="rounded-card border border-white/10 bg-slate-950/50 p-3">
+          <div key={`${bridge.fromPlatform}-${bridge.toPlatform}-${bridge.tick}-${index}`} className="rounded-card border border-white/10 bg-nightScrim p-3">
             <div className="flex items-center gap-2 text-sm font-bold">
               <span>{labelForPlatform(bridge.fromPlatform)}</span>
               <span aria-hidden="true" style={{ color: world.line }}>→</span>
@@ -188,7 +188,7 @@ export default function MultiPlatformLiveScreen({ events }: { events?: WorldEven
           <div className="font-bold text-white">多平台现场加载失败</div>
           <button
             type="button"
-            className="mt-4 rounded-card px-4 py-2 text-sm font-bold text-slate-950 shadow-sm"
+            className="mt-4 rounded-card px-4 py-2 text-sm font-bold text-ink shadow-sm"
             style={{ backgroundColor: world.identity }}
             onClick={() => void loadWorldEvents()}
           >
@@ -227,12 +227,12 @@ export default function MultiPlatformLiveScreen({ events }: { events?: WorldEven
               <article key={column.platform} className="min-w-0">
                 <div className="mb-2 flex items-center justify-between rounded-card border border-white/10 bg-white px-3 py-2 shadow-sm">
                   <div className="flex items-center gap-2 text-lg font-black">
-                    <span className="grid h-7 w-7 place-items-center rounded-full bg-brand text-xs text-slate-950">
+                    <span className="grid h-7 w-7 place-items-center rounded-full bg-brand text-xs text-ink">
                       {skin.label.slice(0, 1)}
                     </span>
                     {skin.label}
                   </div>
-                  <div className="text-xs font-semibold text-slate-500">{labelForPlatform(column.platform)} 现场</div>
+                  <div className="text-xs font-semibold text-muted">{labelForPlatform(column.platform)} 现场</div>
                 </div>
                 <div
                   data-testid="platform-scroll-viewport"
@@ -250,7 +250,7 @@ export default function MultiPlatformLiveScreen({ events }: { events?: WorldEven
       {events === undefined && launchStatus === "done" && launchId && (
         <div className="mt-4 flex justify-end">
           <button
-            className="min-h-11 rounded-card bg-brand px-4 text-sm font-bold text-slate-950 hover:brightness-105"
+            className="min-h-11 rounded-card bg-brand px-4 text-sm font-bold text-ink hover:brightness-105"
             onClick={() => navigate(`/world/${params.id}/retro?launch=${launchId}`)}
           >
             看结果
@@ -259,7 +259,7 @@ export default function MultiPlatformLiveScreen({ events }: { events?: WorldEven
       )}
 
       {loadState === "idle" && view.columns.length === 0 && (
-        <div className="rounded-card border border-dashed border-line bg-white p-10 text-center text-sm text-slate-400">
+        <div className="rounded-card border border-dashed border-line bg-white p-10 text-center text-sm text-subtle">
           该世界还没有多平台内容
         </div>
       )}

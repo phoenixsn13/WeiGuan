@@ -1,22 +1,26 @@
 import type { Config } from "tailwindcss";
+import { colors, sentimentColor, world } from "./src/design/tokens";
 
 export default {
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
-        ink: "#0B1220",
-        cream: "#F5F7FB",
-        brand: "#F5B12F",
-        accent: "#0F6FFF",
-        night: "#09111D",
-        line: "#E4E8F0",
+        ink: colors.ink,
+        cream: colors.cream,
+        brand: colors.brand,
+        accent: colors.accent,
+        muted: colors.textMuted,
+        subtle: colors.textSubtle,
+        night: world.surface,
+        nightScrim: colors.nightScrim,
+        line: world.line,
         sentiment: {
-          positive: "#3E9B6E",
-          negative: "#C4553B",
-          neutral: "#8A8578",
-          contestedFrom: "#B4552F",
-          contestedTo: "#E8A13A",
+          positive: sentimentColor("positive"),
+          negative: sentimentColor("negative"),
+          neutral: sentimentColor("neutral"),
+          contestedFrom: world.influenceDown,
+          contestedTo: colors.brand,
         },
       },
       fontFamily: {

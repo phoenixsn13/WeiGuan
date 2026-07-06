@@ -4,6 +4,10 @@ export const colors = {
   cream: "#F7F4EC",
   brand: "#E8A13A",
   accent: "#2C4A7C",
+  textPrimary: "#14140F",
+  textMuted: "#5B5B52",
+  textSubtle: "#7A7468",
+  nightScrim: "#070B14",
 } as const;
 
 // review:P7-T4

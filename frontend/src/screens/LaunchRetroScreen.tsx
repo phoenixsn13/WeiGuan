@@ -92,7 +92,7 @@ export default function LaunchRetroScreen() {  // review:P13-T6
         <header className="mb-4 rounded-card border border-line bg-white p-5 shadow-spotlight">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <div className="text-sm font-bold text-slate-500">
+              <div className="text-sm font-bold text-muted">
                 {launchStatusLabel(launch)} · {launch.clock_tick ?? launch.steps} 拍 · {launch.platforms.map(labelForPlatform).join(" + ")}
               </div>
               <h1 className="mt-2 text-2xl font-black tracking-normal">{launch.content}</h1>
@@ -119,7 +119,7 @@ export default function LaunchRetroScreen() {  // review:P13-T6
                 key={runId}
                 className={[
                   "min-h-10 rounded px-4 text-sm font-bold",
-                  activeRunId === runId ? "bg-brand text-ink" : "text-slate-500 hover:bg-slate-100",
+                  activeRunId === runId ? "bg-brand text-ink" : "text-muted hover:bg-cream",
                 ].join(" ")}
                 onClick={() => setActiveRunId(runId)}
               >
@@ -142,7 +142,7 @@ export default function LaunchRetroScreen() {  // review:P13-T6
       <aside className="grid content-start gap-4">
         <article className="rounded-card border border-line bg-white p-5 shadow-sm">
           <h2 className="text-lg font-black">桥接摘要</h2>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-muted">
             观察讨论如何从一个平台外溢到另一个平台。
           </p>
           <div className="mt-4 grid gap-3">
@@ -152,7 +152,7 @@ export default function LaunchRetroScreen() {  // review:P13-T6
               </div>
             ))}
             {bridgeEvents.length === 0 && (
-              <div className="rounded-card border border-dashed border-line p-4 text-sm text-slate-400">
+              <div className="rounded-card border border-dashed border-line p-4 text-sm text-subtle">
                 暂无跨平台桥接。
               </div>
             )}
@@ -161,14 +161,14 @@ export default function LaunchRetroScreen() {  // review:P13-T6
 
         <article className="rounded-card border border-line bg-white p-5 shadow-sm">
           <h2 className="text-lg font-black">平台风味</h2>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-muted">
             {labelForPlatform(activePlatform)} 当前的讨论形态。
           </p>
           <div className="mt-4 grid gap-3">
             {(flavor?.platforms ?? []).map((item) => (
               <div key={item.platform} className="rounded-card border border-line p-3">
                 <div className="text-sm font-black">{labelForPlatform(item.platform)}</div>
-                <div className="mt-1 text-sm text-slate-600">
+                <div className="mt-1 text-sm text-muted">
                   {item.spread_shape} · {item.volume} 条素材
                 </div>
               </div>
