@@ -1,8 +1,32 @@
+import type { Actor } from "../../model/canonical";
 import type { PosterViewModel } from "../../pov/poster";
+import type { PlatformFeedProps } from "../skin";
 import { displayHandle, displayName } from "./identity";
 import { RichText } from "./RichText";
 
-export function XNativeFeed({ vm }: { vm: PosterViewModel }) {
+function NativeAuthor({
+  actor,
+  identityHref,
+  onIdentityClick,
+}: {
+  actor: Actor;
+  identityHref?: string;
+  onIdentityClick?: (href: string) => void;
+}) {
+  const label = displayName(actor);
+  if (!identityHref) return <span>{label}</span>;
+  return (
+    <button
+      type="button"
+      className="min-h-8 rounded text-left font-bold hover:text-accent"
+      onClick={() => onIdentityClick?.(identityHref)}
+    >
+      {label}
+    </button>
+  );
+}
+
+export function XNativeFeed({ vm, identityHrefForActor, onIdentityClick }: PlatformFeedProps) {
   if (!vm.seedPost || !vm.me) {
     return <div className="rounded-card border border-line bg-white p-8 text-center text-slate-400">Waiting for a post...</div>;
   }
@@ -14,7 +38,13 @@ export function XNativeFeed({ vm }: { vm: PosterViewModel }) {
         <div className="text-xs text-slate-500">For you</div>
       </header>
       <article className="border-b border-slate-200 px-6 py-5">
-        <div className="text-sm font-bold text-slate-950">{displayName(vm.me)}</div>
+        <div className="text-sm font-bold text-slate-950">
+          <NativeAuthor
+            actor={vm.me}
+            identityHref={identityHrefForActor?.(vm.me)}
+            onIdentityClick={onIdentityClick}
+          />
+        </div>
         <div className="text-sm text-slate-500">{displayHandle(vm.me) ? `@${displayHandle(vm.me)}` : "@me"}</div>
         <div className="mt-4 whitespace-pre-wrap break-words text-xl leading-8 text-slate-950">
           <RichText text={vm.seedPost.content} />
@@ -27,7 +57,13 @@ export function XNativeFeed({ vm }: { vm: PosterViewModel }) {
       </article>
       {vm.thread.map(({ reply, author }) => (
         <article key={reply.comment_id} className="border-b border-slate-200 px-6 py-4 last:border-b-0">
-          <div className="text-sm font-bold text-slate-950">{displayName(author)}</div>
+          <div className="text-sm font-bold text-slate-950">
+            <NativeAuthor
+              actor={author}
+              identityHref={identityHrefForActor?.(author)}
+              onIdentityClick={onIdentityClick}
+            />
+          </div>
           <div className="mt-1 whitespace-pre-wrap break-words text-[15px] leading-6 text-slate-800">
             <RichText text={reply.content} />
           </div>

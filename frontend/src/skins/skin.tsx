@@ -1,6 +1,6 @@
 import type { ComponentType } from "react";
 
-import type { Platform } from "../model/canonical";
+import type { Actor, Platform } from "../model/canonical";
 import type { PosterViewModel } from "../pov/poster";
 import { RedditFeed } from "./reddit/RedditFeed";
 import { WeiboFeed } from "./weibo/WeiboFeed";
@@ -11,7 +11,13 @@ export type SkinId = "weibo" | "x" | "reddit";
 export interface PlatformSkin {
   id: SkinId;
   label: string;
-  Feed: ComponentType<{ vm: PosterViewModel }>;
+  Feed: ComponentType<PlatformFeedProps>;
+}
+
+export interface PlatformFeedProps {
+  vm: PosterViewModel;
+  identityHrefForActor?: (actor: Actor) => string | undefined;
+  onIdentityClick?: (href: string) => void;
 }
 
 export const availableSkins: PlatformSkin[] = [
@@ -37,7 +43,18 @@ export function labelForPlatform(platform: Platform | "x" | "weibo" | string): s
   return platform;
 }
 
-export function PlatformSkinFeed({ skin, vm }: { skin: SkinId; vm: PosterViewModel }) {
+export function PlatformSkinFeed({
+  skin,
+  vm,
+  identityHrefForActor,
+  onIdentityClick,
+}: PlatformFeedProps & { skin: SkinId }) {
   const selected = availableSkins.find((item) => item.id === skin) ?? availableSkins[0];
-  return <selected.Feed vm={vm} />;
+  return (
+    <selected.Feed
+      vm={vm}
+      identityHrefForActor={identityHrefForActor}
+      onIdentityClick={onIdentityClick}
+    />
+  );
 }

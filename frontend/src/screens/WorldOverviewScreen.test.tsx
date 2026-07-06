@@ -10,12 +10,18 @@ function LocationProbe() {
   return <div>{`多平台现场${location.pathname}${location.search}`}</div>;
 }
 
+function IdentityProbe() {
+  const location = useLocation();
+  return <div>{`身份页${location.pathname}${location.search}`}</div>;
+}
+
 function mount() {
   render(
     <MemoryRouter initialEntries={["/worlds"]}>
       <Routes>
         <Route path="/worlds" element={<WorldOverviewScreen />} />
         <Route path="/world/:id/live" element={<LocationProbe />} />
+        <Route path="/identity/:personId" element={<IdentityProbe />} />
         <Route path="/compose" element={<div>发起页</div>} />
       </Routes>
     </MemoryRouter>,
@@ -49,6 +55,8 @@ test("renders persistent worlds and opens the world live view", async () => {  /
                 total_influence: 56,
                 platform_count: 1,
                 run_count: 2,
+                primary_identity_person_id: "p_author",
+                primary_identity_name: "财经观察员",
                 latest: {
                   content: "AI 政策会改变商业模式吗",
                   created_at: "2026-07-02T08:00:00Z",
@@ -77,6 +85,49 @@ test("renders persistent worlds and opens the world live view", async () => {  /
 
   fireEvent.click(screen.getByRole("button", { name: "看最新现场" }));
   expect(screen.getByText("多平台现场/world/w_1/live?run_id=r_1")).toBeInTheDocument();
+});
+
+test("opens identity page from the world card primary identity name", async () => {  // review:P14-T7
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => ({
+      ok: true,
+      json: async () => {
+        if (url === "/api/worlds") {
+          return {
+            worlds: [
+              {
+                world_id: "w_1",
+                name: "财经吐槽圈",
+                identity_count: 3,
+                total_influence: 56,
+                platform_count: 1,
+                run_count: 2,
+                primary_identity_person_id: "p_author",
+                primary_identity_name: "财经观察员",
+                latest: {
+                  content: "AI 政策会改变商业模式吗",
+                  created_at: "2026-07-02T08:00:00Z",
+                  status: "done",
+                  run_ids: ["r_1"],
+                  launch_id: "r_1",
+                },
+                created_at: "2026-07-02T08:00:00Z",
+              },
+            ],
+          };
+        }
+        return {};
+      },
+    })),
+  );
+
+  mount();
+
+  const entry = await screen.findByRole("button", { name: "财经观察员" });
+  expect(document.body.textContent).not.toMatch(/w_[0-9a-f]{6,}|[0-9a-f]{12,}/);
+  fireEvent.click(entry);
+  expect(screen.getByText("身份页/identity/p_author?world_id=w_1")).toBeInTheDocument();
 });
 
 test("opens the latest launch with run scoped world live url", async () => {  // review:P13-T4

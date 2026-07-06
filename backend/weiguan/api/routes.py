@@ -373,6 +373,8 @@ def _world_summary(world, *, world_store, run_store) -> dict:  # review:P14-T2
     return {
         "world_id": world.world_id,
         "name": name,
+        "primary_identity_person_id": primary.person.person_id if primary else None,
+        "primary_identity_name": primary.person.display_name if primary else None,
         "identity_count": len(persons),
         "total_influence": sum(view.total_influence for view in persons),
         "platform_count": len(platforms),

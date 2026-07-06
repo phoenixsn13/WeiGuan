@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 
 import LiveScreen from "./LiveScreen";
 
@@ -24,7 +24,12 @@ class FakeES {
   close() {}
 }
 
-function mount() {
+function IdentityProbe() {
+  const location = useLocation();
+  return <div>{`身份页${location.pathname}${location.search}`}</div>;
+}
+
+function mount(summary: Record<string, unknown> = {}) {
   const factory = () => new FakeES() as unknown as EventSource;
   FakeES.created = 0;
   vi.stubGlobal(
@@ -38,6 +43,7 @@ function mount() {
         platform: "twitter",
         status: "created",
         totals: {},
+        ...summary,
       }),
     })),
   );
@@ -46,6 +52,7 @@ function mount() {
       <Routes>
         <Route path="/run/:id/live" element={<LiveScreen streamFactory={factory} />} />
         <Route path="/run/:id/retro" element={<div>复盘页</div>} />
+        <Route path="/identity/:personId" element={<IdentityProbe />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -159,6 +166,13 @@ test("shows pending seed content and total steps before stream deltas", async ()
     screen.getAllByText((_, node) => node?.textContent?.includes("0/500") ?? false)
       .length,
   ).toBeGreaterThan(0);
+});
+
+test("opens identity page from live seed author when ownership is known", async () => {  // review:P14-T7
+  mount({ world_id: "w_1", poster_person_id: "p_author" });
+
+  fireEvent.click(await screen.findByRole("button", { name: "我" }));
+  expect(screen.getByText("身份页/identity/p_author?world_id=w_1")).toBeInTheDocument();
 });
 
 test("see-results disabled until done, then navigates", () => {  // review:P3-T5-AC2

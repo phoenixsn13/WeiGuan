@@ -57,6 +57,13 @@ function launchLiveUrl(launch: LaunchSummary): string {
   return `/world/${launch.world_id}/live${suffix}`;
 }
 
+function identityUrl(group: LaunchGroup): string | null {
+  const worldId = group.launches[0]?.world_id;
+  const personId = group.person.person.person_id;
+  if (!worldId || personId === TEMPORARY_PERSON_ID) return null;
+  return `/identity/${personId}?world_id=${worldId}`;
+}
+
 function totalsForLaunch(launch: LaunchSummary, runMap: Map<string, RunSummary>): Record<string, number> {
   return launch.run_ids.reduce(
     (totals, runId) => {
@@ -187,9 +194,18 @@ export default function HistoryScreen() {
                       {group.person.person.display_name.slice(0, 1)}
                     </div>
                     <div>
-                      <h2 className="text-lg font-black tracking-normal">
-                        {group.person.person.display_name}
-                      </h2>
+                      {identityUrl(group) ? (
+                        <button
+                          className="text-left text-lg font-black tracking-normal text-slate-950 underline-offset-4 hover:text-accent hover:underline"
+                          onClick={() => navigate(identityUrl(group) as string)}
+                        >
+                          {group.person.person.display_name}
+                        </button>
+                      ) : (
+                        <h2 className="text-lg font-black tracking-normal">
+                          {group.person.person.display_name}
+                        </h2>
+                      )}
                       <div className="mt-1 flex flex-wrap gap-2 text-xs font-semibold text-slate-500">
                         <span>{group.launches.length} 次围观</span>
                         <span>影响力 {Math.round(group.person.total_influence)}</span>

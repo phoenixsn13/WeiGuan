@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactElement } from "react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 
 import type { WorldEvent, WorldEventsPage } from "../api/client";
 import { getWorldEvents, listPersons } from "../api/client";
@@ -94,6 +94,11 @@ function eventsPage(
 
 function renderWorldLive(node: ReactElement, initialEntry = "/world/w_1/live") {
   return render(<MemoryRouter initialEntries={[initialEntry]}>{node}</MemoryRouter>);
+}
+
+function IdentityProbe() {
+  const location = useLocation();
+  return <div>{`身份页${location.pathname}${location.search}`}</div>;
 }
 
 test("multi-platform live renders columns clock and bridge links", () => {  // review:P9-T6-AC3
@@ -331,4 +336,44 @@ test("multi-platform live resolves person names and never renders bare long ids"
   expect(await screen.findByText("产品懂点码")).toBeInTheDocument();
   expect(container.textContent ?? "").not.toMatch(/[0-9a-f]{12,}/);
   expect(listPersons).toHaveBeenCalledWith("w_1");
+});
+
+test("opens identity page from multi-platform author when ownership is known", async () => {  // review:P14-T7
+  vi.mocked(getWorldEvents).mockResolvedValueOnce(eventsPage([events[0]]));
+  vi.mocked(listPersons).mockResolvedValueOnce([
+    {
+      person: {
+        person_id: "p_author",
+        display_name: "财经观察员",
+        persona_kind: "kol",
+        accounts: [
+          {
+            account_id: "acct-twitter-poster",
+            person_id: "p_author",
+            platform: "twitter",
+            handle: "finance",
+            avatar_seed: "p_author",
+            num_followers: 50000,
+            influence_score: 50,
+          },
+        ],
+      },
+      stance: { stance_counts: {}, dominant: "neutral" },
+      total_influence: 50,
+      run_ids: [],
+      standing_timeline: [],
+    },
+  ]);
+
+  render(
+    <MemoryRouter initialEntries={["/world/w_1/live"]}>
+      <Routes>
+        <Route path="/world/:id/live" element={<MultiPlatformLiveScreen />} />
+        <Route path="/identity/:personId" element={<IdentityProbe />} />
+      </Routes>
+    </MemoryRouter>,
+  );
+
+  fireEvent.click(await screen.findByRole("button", { name: "财经观察员" }));
+  expect(screen.getByText("身份页/identity/p_author?world_id=w_1")).toBeInTheDocument();
 });

@@ -37,6 +37,11 @@ function scopedWorldLiveUrl(card: WorldCardView): string {
   return `/world/${card.worldId}/live?${query.toString()}`;
 }
 
+function identityUrl(card: WorldCardView): string | null {
+  if (!card.primaryIdentityId) return null;
+  return `/identity/${card.primaryIdentityId}?world_id=${card.worldId}`;
+}
+
 export default function WorldOverviewScreen() {  // review:P11-T6
   const [cards, setCards] = useState<WorldCardView[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -108,6 +113,14 @@ export default function WorldOverviewScreen() {  // review:P11-T6
                   <span>{card.platformCount} 个平台现场</span>
                 </div>
                 <h2 className="mt-3 text-xl font-black tracking-normal">{card.worldName}</h2>
+                {identityUrl(card) && (
+                  <button
+                    className="mt-2 text-left text-sm font-bold text-accent underline-offset-4 hover:underline"
+                    onClick={() => navigate(identityUrl(card) as string)}
+                  >
+                    {card.primaryIdentityName}
+                  </button>
+                )}
                 <p className="mt-2 line-clamp-2 text-lg font-bold leading-7">{card.latestRunContent}</p>
                 <div className="mt-4 flex flex-wrap gap-4 text-sm text-slate-500">
                   <span>身份 <span className="tabular font-semibold text-slate-950">{card.identityCount}</span></span>

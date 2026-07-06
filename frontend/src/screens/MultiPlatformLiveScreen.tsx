@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { getWorldEvents, listPersons, type PersonView, type WorldEvent } from "../api/client";
 import { world } from "../design/tokens";
+import type { Actor } from "../model/canonical";
 import { mergeEvents, multiPlatformView } from "../pov/multiplatform";
 import { labelForPlatform, PlatformSkinFeed, skinForPlatform } from "../skins/skin";
 
@@ -147,6 +148,11 @@ export default function MultiPlatformLiveScreen({ events }: { events?: WorldEven
   const liveStatusLabel = statusLabel(launchStatus, displayedClockTick);
   const hasBridges = view.bridges.length > 0;
 
+  function identityHrefForActor(actor: Actor): string | undefined {
+    if (!actor.person_id || !actor.world_id) return undefined;
+    return `/identity/${actor.person_id}?world_id=${actor.world_id}`;
+  }
+
   return (
     <div
       // review:P9-T8
@@ -238,7 +244,12 @@ export default function MultiPlatformLiveScreen({ events }: { events?: WorldEven
                   data-testid="platform-scroll-viewport"
                   className="max-h-[760px] overflow-y-auto overscroll-contain rounded-card"
                 >
-                  <PlatformSkinFeed skin={skin.id} vm={column.view} />
+                  <PlatformSkinFeed
+                    skin={skin.id}
+                    vm={column.view}
+                    identityHrefForActor={identityHrefForActor}
+                    onIdentityClick={navigate}
+                  />
                 </div>
               </article>
             );

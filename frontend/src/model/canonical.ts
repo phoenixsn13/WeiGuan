@@ -7,6 +7,8 @@ export type TargetType = "post" | "comment";
 export interface Actor {
   user_id: number;
   agent_id?: number | null;
+  person_id?: string | null;
+  world_id?: string | null;
   user_name?: string | null;
   name?: string | null;
   bio?: string | null;

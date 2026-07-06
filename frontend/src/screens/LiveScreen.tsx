@@ -60,6 +60,8 @@ function snapshotFromSummary(summary: RunSummary | null): RunSnapshot | null {
     actors: [
       {
         user_id: 0,
+        person_id: summary.poster_person_id ?? null,
+        world_id: summary.world_id ?? null,
         user_name: "me",
         name: "我",
         num_followers: 0,
@@ -188,6 +190,13 @@ export default function LiveScreen({
       : displayName(selected)
     : "";
 
+  function identityHrefForActor(actor: Actor): string | undefined {
+    const personId = actor.person_id ?? (actor.user_id === 0 ? runSummary?.poster_person_id : null);
+    const worldId = actor.world_id ?? runSummary?.world_id;
+    if (!personId || !worldId) return undefined;
+    return `/identity/${personId}?world_id=${worldId}`;
+  }
+
   useEffect(() => {
     if (!replay) return;
     fetchRunSnapshot(id, { tail: 200 })
@@ -295,6 +304,8 @@ export default function LiveScreen({
           actors={actors}
           hot={hot}
           timeline={timeline}
+          identityHrefForActor={identityHrefForActor}
+          onIdentityClick={navigate}
         />
 
         {canLoadOlder && mode === "comments" && (

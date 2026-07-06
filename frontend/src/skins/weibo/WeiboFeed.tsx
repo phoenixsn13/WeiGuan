@@ -1,5 +1,6 @@
 import type { Actor } from "../../model/canonical";
 import type { PosterViewModel } from "../../pov/poster";
+import type { PlatformFeedProps } from "../skin";
 import { displayName } from "../x/identity";
 import { RichText } from "../x/RichText";
 
@@ -15,7 +16,31 @@ function Avatar({ actor }: { actor: Actor }) {
   );
 }
 
-export function WeiboFeed({ vm }: { vm: PosterViewModel }) {
+function AuthorName({
+  actor,
+  identityHref,
+  onIdentityClick,
+}: {
+  actor: Actor;
+  identityHref?: string;
+  onIdentityClick?: (href: string) => void;
+}) {
+  const label = displayName(actor);
+  if (!identityHref) {
+    return <span className="font-bold text-slate-950">{label}</span>;
+  }
+  return (
+    <button
+      type="button"
+      className="min-h-8 rounded text-left font-bold text-slate-950 hover:text-accent"
+      onClick={() => onIdentityClick?.(identityHref)}
+    >
+      {label}
+    </button>
+  );
+}
+
+export function WeiboFeed({ vm, identityHrefForActor, onIdentityClick }: PlatformFeedProps) {
   if (!vm.seedPost || !vm.me) {
     return <div className="rounded-card border border-line bg-white p-8 text-center text-slate-400">等待第一条微博出现...</div>;
   }
@@ -30,7 +55,11 @@ export function WeiboFeed({ vm }: { vm: PosterViewModel }) {
         <Avatar actor={vm.me} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 text-[15px]">
-            <span className="font-bold text-slate-950">{displayName(vm.me)}</span>
+            <AuthorName
+              actor={vm.me}
+              identityHref={identityHrefForActor?.(vm.me)}
+              onIdentityClick={onIdentityClick}
+            />
             <span className="rounded-full bg-brand px-1.5 py-0.5 text-[10px] font-bold text-slate-950">V</span>
             <span className="text-slate-400">刚刚 · 来自 Web</span>
           </div>
@@ -49,7 +78,13 @@ export function WeiboFeed({ vm }: { vm: PosterViewModel }) {
           <div key={reply.comment_id} className="flex gap-3 border-b border-line px-6 py-4 last:border-b-0">
             <Avatar actor={author} />
             <div className="min-w-0">
-              <div className="text-sm font-bold text-slate-950">{displayName(author)}</div>
+              <div className="text-sm">
+                <AuthorName
+                  actor={author}
+                  identityHref={identityHrefForActor?.(author)}
+                  onIdentityClick={onIdentityClick}
+                />
+              </div>
               <div className="mt-1 whitespace-pre-wrap break-words text-[15px] leading-6 text-slate-800">
                 <RichText text={reply.content} />
               </div>

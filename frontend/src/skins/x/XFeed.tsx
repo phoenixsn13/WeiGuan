@@ -44,6 +44,8 @@ export function XFeed({
   actors = [],
   hot = [],
   timeline = [],
+  identityHrefForActor,
+  onIdentityClick,
 }: {
   vm: PosterViewModel;
   onActorClick?: (actor: Actor) => void;
@@ -55,6 +57,8 @@ export function XFeed({
   actors?: ActorRow[];
   hot?: HotRow[];
   timeline?: TimelineRow[];
+  identityHrefForActor?: (actor: Actor) => string | undefined;
+  onIdentityClick?: (href: string) => void;
 }) {
   if (!vm.seedPost || !vm.me) {
     return (
@@ -123,6 +127,8 @@ export function XFeed({
             replyCount={vm.thread.length}
             nowAt={latestAt}
             onAuthorClick={onActorClick}
+            identityHref={identityHrefForActor?.(vm.me)}
+            onIdentityClick={onIdentityClick}
           />
         </div>
 
@@ -158,6 +164,8 @@ export function XFeed({
               nowAt={latestAt}
               selected={item.author.user_id === selectedActorId}
               onAuthorClick={onActorClick}
+              identityHref={identityHrefForActor?.(item.author)}
+              onIdentityClick={onIdentityClick}
             />
           ))}
           {mode === "reposts" && (

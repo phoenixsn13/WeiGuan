@@ -3,6 +3,7 @@ import type { IdentitySummary, LaunchSummary, PersonView, RunSummary, WorldSumma
 export interface WorldCardView {
   worldId: string;
   worldName: string;
+  primaryIdentityId?: string | null;
   primaryIdentityName: string;
   identityCount: number;
   runCount: number;
@@ -74,6 +75,7 @@ export function groupWorldCards(
       return {
         worldId,
         worldName: primary?.display_name ?? "未命名世界",
+        primaryIdentityId: primary?.person_id ?? null,
         primaryIdentityName: primary?.display_name ?? "未命名世界",
         identityCount: worldIdentities.length,
         runCount: worldIdentities.reduce((sum, identity) => sum + identity.run_count, 0),
@@ -104,7 +106,8 @@ export function worldCardsFromSummaries(summaries: WorldSummary[]): WorldCardVie
     .map((summary) => ({
       worldId: summary.world_id,
       worldName: summary.name,
-      primaryIdentityName: summary.name,
+      primaryIdentityId: summary.primary_identity_person_id ?? null,
+      primaryIdentityName: summary.primary_identity_name ?? summary.name,
       identityCount: summary.identity_count,
       runCount: summary.run_count,
       totalInfluence: summary.total_influence,

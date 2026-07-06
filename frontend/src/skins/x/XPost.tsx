@@ -13,12 +13,16 @@ export function XPost({
   replyCount,
   nowAt,
   onAuthorClick,
+  identityHref,
+  onIdentityClick,
 }: {
   post: Post;
   author: Actor;
   replyCount: number;
   nowAt?: string | null;
   onAuthorClick?: (actor: Actor) => void;
+  identityHref?: string;
+  onIdentityClick?: (href: string) => void;
 }) {
   const authorName = displayName(author);
   const authorHandle = displayHandle(author);
@@ -28,7 +32,17 @@ export function XPost({
       <XAvatar actor={author} onClick={onAuthorClick} />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2 text-[15px]">
-          <span className="font-semibold">{authorName}</span>
+          {identityHref ? (
+            <button
+              type="button"
+              className="min-h-8 rounded text-left font-semibold hover:text-accent"
+              onClick={() => onIdentityClick?.(identityHref)}
+            >
+              {authorName}
+            </button>
+          ) : (
+            <span className="font-semibold">{authorName}</span>
+          )}
           <span className="rounded-full bg-brand px-1.5 py-0.5 text-[10px] font-bold text-slate-950">
             V
           </span>

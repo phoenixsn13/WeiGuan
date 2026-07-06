@@ -49,6 +49,16 @@ function personNameForAccount(accountId: string, personViews: PersonView[]): str
   return null;
 }
 
+function personForAccount(accountId: string | null | undefined, personViews: PersonView[]): PersonView | null {
+  if (!accountId) return null;
+  for (const view of personViews) {
+    if (view.person.accounts.some((item) => item.account_id === accountId)) {
+      return view;
+    }
+  }
+  return null;
+}
+
 function aliasForAccount(accountId: string | null | undefined, actorId?: number): string {
   const cleaned = accountId?.trim();
   if (cleaned) return `围观者·${cleaned.slice(-4)}`;
@@ -109,6 +119,7 @@ function ensureActor(
   personViews: PersonView[],
 ) {
   if (snap.actors.some((actor) => actor.user_id === actorId)) return;
+  const person = personForAccount(event.actor_account_id, personViews);
   const name = resolveWorldDisplayName({
     payloadName: event.payload.author_display_name,
     accountId: event.actor_account_id,
@@ -117,6 +128,8 @@ function ensureActor(
   });
   snap.actors.push({
     user_id: actorId,
+    person_id: person?.person.person_id ?? null,
+    world_id: event.world_id,
     name,
     user_name: name,
     num_followers: 0,

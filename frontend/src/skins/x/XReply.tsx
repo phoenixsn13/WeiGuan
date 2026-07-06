@@ -10,12 +10,16 @@ export function XReply({
   author,
   nowAt,
   onAuthorClick,
+  identityHref,
+  onIdentityClick,
   selected,
 }: {
   reply: Reply;
   author: Actor;
   nowAt?: string | null;
   onAuthorClick?: (actor: Actor) => void;
+  identityHref?: string;
+  onIdentityClick?: (href: string) => void;
   selected?: boolean;
 }) {
   const authorName = displayName(author);
@@ -34,7 +38,13 @@ export function XReply({
         <div className="flex flex-wrap items-center gap-1.5 text-[13px]">
           <button
             className="min-h-8 rounded text-left font-semibold hover:text-accent"
-            onClick={() => onAuthorClick?.(author)}
+            onClick={() => {
+              if (identityHref) {
+                onIdentityClick?.(identityHref);
+                return;
+              }
+              onAuthorClick?.(author);
+            }}
           >
             {authorName}
           </button>{" "}

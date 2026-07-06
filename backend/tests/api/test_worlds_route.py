@@ -107,6 +107,8 @@ def test_world_list_returns_persistent_worlds_sorted_by_latest(tmp_path):  # rev
     assert worlds[0]["latest"]["run_ids"] == ["l_new:twitter", "l_new:reddit"]
     assert worlds[0]["latest"]["launch_id"] == "l_new"
     assert worlds[0]["identity_count"] == 1
+    assert worlds[0]["primary_identity_person_id"]
+    assert worlds[0]["primary_identity_name"] == "估值洁癖"
     assert worlds[0]["total_influence"] >= 50
     assert worlds[0]["platform_count"] == 2
     assert worlds[0]["run_count"] == 2

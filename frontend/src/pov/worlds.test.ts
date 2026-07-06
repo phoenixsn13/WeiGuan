@@ -132,6 +132,8 @@ test("maps API world summaries without exposing storage ids", () => {  // review
       total_influence: 68,
       platform_count: 2,
       run_count: 4,
+      primary_identity_person_id: "p_author",
+      primary_identity_name: "财经观察员",
       latest: {
         content: "AI 政策会改变商业模式吗",
         created_at: "2026-07-04T08:00:00Z",
@@ -149,6 +151,8 @@ test("maps API world summaries without exposing storage ids", () => {  // review
     expect.objectContaining({
       worldId: "w_abcdef123456",
       worldName: "财经吐槽圈",
+      primaryIdentityId: "p_author",
+      primaryIdentityName: "财经观察员",
       identityCount: 3,
       runCount: 4,
       totalInfluence: 68,

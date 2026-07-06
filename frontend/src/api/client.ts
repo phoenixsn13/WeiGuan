@@ -85,6 +85,8 @@ export interface WorldLatestSummary {
 export interface WorldSummary {  // review:P14-T5
   world_id: string;
   name: string;
+  primary_identity_person_id?: string | null;
+  primary_identity_name?: string | null;
   identity_count: number;
   total_influence: number;
   platform_count: number;
