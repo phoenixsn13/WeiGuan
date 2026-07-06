@@ -201,6 +201,15 @@
 
 ---
 
+## Task 8 · ComposeScreen 选中态/提示框语义色 token 化（审核回归补片）
+
+> 起因：T1–T7 审核发现 `ComposeScreen.tsx` 选中态用 `bg-blue-50`、提示框用 `bg-amber-50/amber-*`（blue/amber 语义色系，命中硬规则一），T6 世界选区新增行沿用了此历史 pattern。整改提示词见 `HANDOFF-codex-P14-T8-color.md`。
+
+- tokens.ts 补 `accentSoft`（选中态浅底）+ `warnSoft`/`warnBorder`/`warnInk`（提示框），AA 对比度达标；`tailwind.config.ts` 从 tokens import 暴露。
+- ComposeScreen 选中态统一 `border-accent bg-accentSoft text-accent`（含 527 去 brand/amber 混用）；提示框统一 `border-warnBorder bg-warnSoft text-warnInk`。
+- **不动**中性排版灰（`text-slate-*`、`border-line`、`bg-white`）。
+- 断言：`rg "bg-(blue|amber)-[0-9]" src/screens/ComposeScreen.tsx` 零命中；对比度断言 pin；`ComposeScreen.test.tsx` 零回归。
+
 ## Review Index
 
 | 锚点 | 主题 | 主要文件 |
@@ -212,6 +221,7 @@
 | P14-T5 | 世界一等化前端 | `WorldOverviewScreen.tsx`, `api/client.ts`, `pov/worlds.ts` |
 | P14-T6 | 发起页世界选区 | `ComposeScreen.tsx`, `api/client.ts` |
 | P14-T7 | 入口贯通 + 审计清单 | `WorldOverviewScreen.tsx`, `HistoryScreen.tsx`, `*LiveScreen.tsx`, `manual` |
+| P14-T8 | 选中态/提示框语义色 token 化（审核回归补片） | `design/tokens.ts`, `tailwind.config.ts`, `ComposeScreen.tsx` |
 
 ## 非目标（YAGNI）
 
