@@ -75,13 +75,22 @@ def _poster_account(
     )
 
 
+def _anon_display_name(persona_kind: PersonaKind, account_id: str) -> str:  # review:P14-T3
+    label = {
+        PersonaKind.ORDINARY: "普通人",
+        PersonaKind.VERIFIED: "大V",
+        PersonaKind.KOL: "KOL",
+    }[persona_kind]
+    return f"{label}·{account_id[-4:]}"
+
+
 def ensure_world_for_run(store: WorldStore, config: RunConfig) -> tuple[World, Person]:
     """Create or reuse a world and ensure the posting person exists."""
 
-    persistent = bool(config.world_id or config.poster_person_id)
+    persistent = True  # review:P14-T3
     world = store.get_world(config.world_id) if config.world_id else None
     if world is None:
-        world = store.create_world(persistent=persistent)
+        world = store.create_world(persistent=persistent, name=config.world_name)
     elif persistent and not world.persistent:
         world = store.persist_world(world.world_id) or world
 
@@ -98,7 +107,7 @@ def ensure_world_for_run(store: WorldStore, config: RunConfig) -> tuple[World, P
     if existing is None:
         person = Person(
             person_id=person_id,
-            display_name="我" if config.poster_person_id is None else person_id,
+            display_name=_anon_display_name(config.poster_persona, account.account_id),
             persona_kind=config.poster_persona,
             accounts=[account],
         )

@@ -59,6 +59,7 @@ class RunConfig(BaseModel):
     oasis_llm_semaphore: int = 4
     attention_comment_budget: int = 12
     world_id: str | None = None
+    world_name: str | None = None  # review:P14-T3
     poster_persona: PersonaKind = PersonaKind.ORDINARY
     poster_person_id: str | None = None
     person_memory_budget: int = 4

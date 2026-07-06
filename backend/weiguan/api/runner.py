@@ -112,6 +112,13 @@ class RunRunner:
         account_of: dict[int, str] = {}
         if self._world_store is not None:  # review:P6-T6
             world, poster = ensure_world_for_run(self._world_store, record.config)
+            record.config = record.config.model_copy(  # review:P14-T3
+                update={
+                    "world_id": world.world_id,
+                    "poster_person_id": poster.person_id,
+                }
+            )
+            self._store.save()
             poster_account = next(
                 (
                     account

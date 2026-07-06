@@ -92,12 +92,12 @@ def test_delta_to_events_enriches_author_display_names():  # review:P13-T1
     assert reply.payload["author_display_name"] == "估值洁癖2"
 
 
-def test_ephemeral_world_when_no_world_id(tmp_path):  # review:P6-T6-AC2
+def test_new_world_is_persistent_when_no_world_id(tmp_path):  # review:P6-T6-AC2
     store = WorldStore(str(tmp_path))
 
     world, person = ensure_world_for_run(store, _cfg())
 
-    assert world.persistent is False
+    assert world.persistent is True
     assert person.persona_kind == PersonaKind.ORDINARY
     assert person.accounts[0].num_followers >= 20
     assert store.get_world(world.world_id) == world

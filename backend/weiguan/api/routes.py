@@ -71,6 +71,7 @@ class _CreateBody(BaseModel):
     steps: int
     platform: Platform = Platform.TWITTER
     world_id: str | None = None
+    world_name: str | None = None
     poster_persona: PersonaKind = PersonaKind.ORDINARY
     poster_person_id: str | None = None
     person_memory_budget: int = 4
@@ -78,6 +79,7 @@ class _CreateBody(BaseModel):
 
 class _CreateWorldBody(BaseModel):
     persistent: bool = False
+    world_name: str | None = None
 
 
 class _OrchestrateBody(BaseModel):
@@ -91,12 +93,14 @@ class _MultiRunBody(BaseModel):
     platforms: list[Platform]
     steps: int
     world_id: str | None = None
+    world_name: str | None = None
     poster_person_id: str | None = None
     person_memory_budget: int = 4
 
 
 class _CreatePersonBody(BaseModel):
     world_id: str | None = None
+    world_name: str | None = None
     display_name: str
     persona_kind: PersonaKind
     platform: Platform = Platform.TWITTER
@@ -411,7 +415,8 @@ def _flavor_for_records(records, *, world_id: str | None, request: Request) -> F
 @router.post("/worlds")
 async def create_world(body: _CreateWorldBody, request: Request):  # review:P6-T8
     return request.app.state.world_store.create_world(
-        persistent=body.persistent
+        persistent=body.persistent,
+        name=_nonblank(body.world_name),
     ).model_dump(mode="json")
 
 
@@ -509,7 +514,10 @@ async def create_multi_run(  # review:P11-T2
             raise HTTPException(status_code=404, detail="world not found")
         world = world_store.persist_world(world.world_id) or world
     else:
-        world = world_store.create_world(persistent=True)
+        world = world_store.create_world(
+            persistent=True,
+            name=_nonblank(body.world_name),
+        )
 
     specs: list[PlatformRunSpec] = []
     run_ids: list[str] = []
@@ -532,6 +540,7 @@ async def create_multi_run(  # review:P11-T2
                 steps=body.steps,
                 platform=platform,
                 world_id=world.world_id,
+                world_name=body.world_name,
                 poster_persona=body.persona,
                 poster_person_id=person_id,
                 person_memory_budget=body.person_memory_budget,
@@ -642,7 +651,10 @@ def list_identities(request: Request):  # review:P7-T11
 def create_person(body: _CreatePersonBody, request: Request):
     world_id = body.world_id
     if world_id is None:
-        world_id = request.app.state.world_store.create_world(persistent=True).world_id
+        world_id = request.app.state.world_store.create_world(
+            persistent=True,
+            name=_nonblank(body.world_name),
+        ).world_id
     elif request.app.state.world_store.get_world(world_id) is None:
         raise HTTPException(status_code=404, detail="world not found")
     person = request.app.state.world_store.create_person(
@@ -709,6 +721,7 @@ async def create_run(
             steps=body.steps,
             platform=body.platform,
             world_id=body.world_id,
+            world_name=body.world_name,
             poster_persona=body.poster_persona,
             poster_person_id=body.poster_person_id,
             person_memory_budget=body.person_memory_budget,
