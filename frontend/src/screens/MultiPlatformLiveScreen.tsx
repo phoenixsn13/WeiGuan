@@ -3,7 +3,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 
 import { getWorldEvents, listPersons, type PersonView, type WorldEvent } from "../api/client";
 import { world } from "../design/tokens";
-import { multiPlatformView } from "../pov/multiplatform";
+import { mergeEvents, multiPlatformView } from "../pov/multiplatform";
 import { PlatformSkinFeed, skinForPlatform } from "../skins/skin";
 
 function platformName(platform: string) {
@@ -50,6 +50,13 @@ function BridgePathPanel({ bridges }: { bridges: ReturnType<typeof multiPlatform
 
 type LoadState = "idle" | "loading" | "error";
 const WORLD_EVENT_POLL_MS = 1500;
+type LaunchStatus = string | null;
+
+function statusLabel(status: LaunchStatus, clockTick: number): string {
+  if (status === "done") return `已完成 · 共 ${clockTick} 拍`;
+  if (status === "error") return `出错 · 第 ${clockTick} 拍`;
+  return `发酵中 · 第 ${clockTick} 拍`;
+}
 
 // review:P9-T6
 export default function MultiPlatformLiveScreen({ events }: { events?: WorldEvent[] }) {
@@ -57,14 +64,20 @@ export default function MultiPlatformLiveScreen({ events }: { events?: WorldEven
   const [searchParams] = useSearchParams();
   const [loadedEvents, setLoadedEvents] = useState<WorldEvent[]>([]);
   const [personViews, setPersonViews] = useState<PersonView[]>([]);
+  const [nextAfter, setNextAfter] = useState(0);
+  const [clockTick, setClockTick] = useState(0);
+  const [launchStatus, setLaunchStatus] = useState<LaunchStatus>(null);
   const [loadState, setLoadState] = useState<LoadState>(events ? "idle" : "loading");
   const runIds = useMemo(() => searchParams.getAll("run_id"), [searchParams]);
 
-  const loadWorldEvents = useCallback(async (options: { silent?: boolean } = {}) => {
+  const loadWorldEvents = useCallback(async (options: { silent?: boolean; append?: boolean; after?: number } = {}) => {
     if (events !== undefined) return;
     const worldId = params.id;
     if (!worldId) {
       setLoadedEvents([]);
+      setNextAfter(0);
+      setClockTick(0);
+      setLaunchStatus(null);
       setLoadState("idle");
       return;
     }
@@ -73,7 +86,15 @@ export default function MultiPlatformLiveScreen({ events }: { events?: WorldEven
     }
     try {
       // review:P11-T4
-      setLoadedEvents(await getWorldEvents(worldId, runIds));
+      const page = options.after === undefined
+        ? await getWorldEvents(worldId, runIds)
+        : await getWorldEvents(worldId, runIds, options.after);
+      setLoadedEvents((current) => (
+        options.append ? mergeEvents(current, page.frames) : page.frames
+      ));
+      setNextAfter(page.next_after);
+      setClockTick(page.clock_tick);
+      setLaunchStatus(page.launch_status);
       setLoadState("idle");
     } catch {
       setLoadState("error");
@@ -103,20 +124,32 @@ export default function MultiPlatformLiveScreen({ events }: { events?: WorldEven
   }, [events, params.id]);
 
   useEffect(() => {
-    if (events !== undefined || !params.id || loadState !== "idle") return undefined;
+    if (
+      events !== undefined
+      || !params.id
+      || loadState !== "idle"
+      || launchStatus === "done"
+      || launchStatus === "error"
+    ) {
+      return undefined;
+    }
     const timer = window.setInterval(() => {
-      void loadWorldEvents({ silent: true });
+      void loadWorldEvents({ silent: true, append: true, after: nextAfter });
     }, WORLD_EVENT_POLL_MS);
     return () => window.clearInterval(timer);
-  }, [events, loadState, loadWorldEvents, params.id]);
+  }, [events, launchStatus, loadState, loadWorldEvents, nextAfter, params.id]);
 
   const activeEvents = events ?? loadedEvents;
   const view = useMemo(
     () => multiPlatformView(activeEvents, personViews),
     [activeEvents, personViews],
   );
+  const displayedClockTick = events ? view.clockTick : Math.max(clockTick, view.clockTick);
+  const modeLabel = runIds.length > 0
+    ? `本次发起 · ${view.columns.length} 平台`
+    : `世界全景 · 共 ${view.columns.length} 平台`;
+  const liveStatusLabel = statusLabel(launchStatus, displayedClockTick);
   const hasBridges = view.bridges.length > 0;
-  const columnIndex = new Map(view.columns.map((column, index) => [column.platform, index]));
 
   return (
     <div
@@ -132,10 +165,18 @@ export default function MultiPlatformLiveScreen({ events }: { events?: WorldEven
             <h1 className="text-2xl font-black tracking-normal">多平台围观</h1>
             <p className="mt-1 text-sm text-white/60">同一条内容在不同平台各自发酵，桥接线表示讨论外溢。</p>
           </div>
-          <div className="rounded-card border border-white/10 bg-white/[0.08] px-5 py-3 text-right shadow-sm">
-            <span className="sr-only">世界时钟 · 第 {view.clockTick} 拍</span>
-            <div className="text-xs font-semibold text-white/45">世界时钟</div>
-            <div className="mt-1 text-xl font-black tabular">第 {view.clockTick} 拍</div>
+          <div className="flex flex-wrap items-center justify-end gap-2 text-sm font-bold">
+            <span className="rounded-full border border-white/10 bg-white/[0.08] px-3 py-2 text-white/75">
+              {modeLabel}
+            </span>
+            <div className="rounded-card border border-white/10 bg-white/[0.08] px-5 py-3 text-right shadow-sm">
+              <span className="sr-only">世界时钟 · 第 {displayedClockTick} 拍</span>
+              <div className="text-xs font-semibold text-white/45">世界时钟</div>
+              <div className="mt-1 text-xl font-black tabular">第 {displayedClockTick} 拍</div>
+              {events === undefined && (
+                <div className="mt-1 text-xs font-bold text-white/60">{liveStatusLabel}</div>
+              )}
+            </div>
           </div>
         </div>
       </section>
@@ -161,10 +202,11 @@ export default function MultiPlatformLiveScreen({ events }: { events?: WorldEven
       )}
 
       {loadState === "idle" && hasBridges && (
-        <div className="mb-4 flex flex-wrap gap-2 lg:hidden">
+        <div className="mb-4 flex flex-wrap gap-2">
           {view.bridges.map((bridge, index) => (
             <div
               key={`${bridge.fromPlatform}-${bridge.toPlatform}-${bridge.tick}-${index}`}
+              aria-label={`跨平台桥 ${bridge.fromPlatform} 到 ${bridge.toPlatform}`}
               data-from-platform={bridge.fromPlatform}
               data-to-platform={bridge.toPlatform}
               className="rounded-full border bg-white px-3 py-1 text-xs font-bold"
@@ -179,43 +221,10 @@ export default function MultiPlatformLiveScreen({ events }: { events?: WorldEven
       {loadState === "idle" && (
         <div
           className={[
-            "relative grid gap-3",
+            "grid gap-3",
             view.columns.length > 1 ? "lg:grid-cols-3" : "max-w-4xl",
           ].join(" ")}
         >
-          {hasBridges && view.columns.length > 1 && (
-            <div className="pointer-events-none absolute inset-x-0 top-[74px] z-10 hidden h-14 lg:block">
-              {view.bridges.map((bridge, index) => {
-                const fromIndex = columnIndex.get(bridge.fromPlatform) ?? 0;
-                const toIndex = columnIndex.get(bridge.toPlatform) ?? fromIndex + 1;
-                const left = `${Math.min(fromIndex, toIndex) * 33.333 + 28}%`;
-                const width = `${Math.max(18, Math.abs(toIndex - fromIndex) * 33.333 - 22)}%`;
-                return (
-                  <div
-                    key={`line-${bridge.fromPlatform}-${bridge.toPlatform}-${bridge.tick}-${index}`}
-                    aria-label={`跨平台桥 ${bridge.fromPlatform} 到 ${bridge.toPlatform}`}
-                    data-from-platform={bridge.fromPlatform}
-                    data-to-platform={bridge.toPlatform}
-                    className="absolute top-3 flex items-center justify-center"
-                    style={{
-                      left,
-                      width,
-                      borderColor: world.line,
-                      color: world.line,
-                    }}
-                  >
-                    <span className="h-3 w-3 rounded-full border-2 bg-white shadow-sm" style={{ borderColor: world.line }} />
-                    <span className="h-0.5 flex-1" style={{ backgroundColor: world.line }} />
-                    <span className="rounded-card border bg-white px-2 py-1 text-[11px] font-bold shadow-sm" style={{ borderColor: world.line }}>
-                      {platformName(bridge.fromPlatform)} → {platformName(bridge.toPlatform)}
-                    </span>
-                    <span className="h-0.5 flex-1" style={{ backgroundColor: world.line }} />
-                    <span className="h-3 w-3 rounded-full border-2 bg-white shadow-sm" style={{ borderColor: world.line }} />
-                  </div>
-                );
-              })}
-            </div>
-          )}
           {view.columns.map((column) => {
             const skin = skinForPlatform(column.platform);
             return (

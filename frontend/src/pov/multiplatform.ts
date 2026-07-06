@@ -77,6 +77,23 @@ export function resolveWorldDisplayName({
   return aliasForAccount(accountId, actorId);
 }
 
+export function mergeEvents(existing: WorldEvent[], incoming: WorldEvent[]): WorldEvent[] {  // review:P13-T3
+  const byId = new Map<string, WorldEvent>();
+  for (const event of existing) {
+    byId.set(event.event_id, event);
+  }
+  for (const event of incoming) {
+    if (!byId.has(event.event_id)) {
+      byId.set(event.event_id, event);
+    }
+  }
+  return Array.from(byId.values()).sort((a, b) => (
+    a.tick - b.tick
+    || a.created_at.localeCompare(b.created_at)
+    || a.event_id.localeCompare(b.event_id)
+  ));
+}
+
 function ensureSnapshot(map: Map<Platform, RunSnapshot>, platform: Platform): RunSnapshot {
   const existing = map.get(platform);
   if (existing) return existing;

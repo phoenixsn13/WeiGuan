@@ -1,5 +1,5 @@
 import type { WorldEvent } from "../api/client";
-import { cleanDisplayName, multiPlatformView, resolveWorldDisplayName } from "./multiplatform";
+import { cleanDisplayName, mergeEvents, multiPlatformView, resolveWorldDisplayName } from "./multiplatform";
 
 const seed = (platform: "twitter" | "reddit", postId: number, content: string): WorldEvent => ({
   event_id: `${platform}-seed-${postId}`,
@@ -129,4 +129,21 @@ test("multiPlatformView uses display-name chain without rendering bare account i
 
   expect(view.columns[0].view.me?.name).toBe("韭菜观察员");
   expect(JSON.stringify(view)).not.toMatch(/[0-9a-f]{12,}/);
+});
+
+test("mergeEvents deduplicates and sorts by tick created_at and id", () => {  // review:P13-T3
+  const merged = mergeEvents(
+    [
+      { ...seed("twitter", 3, "旧三"), event_id: "same", tick: 3, created_at: "2026-07-03T00:03:00Z" },
+      { ...seed("twitter", 1, "旧一"), event_id: "old-1", tick: 1, created_at: "2026-07-03T00:02:00Z" },
+    ],
+    [
+      { ...seed("twitter", 2, "新二"), event_id: "new-2b", tick: 2, created_at: "2026-07-03T00:02:00Z" },
+      { ...seed("twitter", 2, "新二"), event_id: "new-2a", tick: 2, created_at: "2026-07-03T00:01:00Z" },
+      { ...seed("twitter", 4, "重复"), event_id: "same", tick: 4, created_at: "2026-07-03T00:04:00Z" },
+    ],
+  );
+
+  expect(merged.map((event) => event.event_id)).toEqual(["old-1", "new-2a", "new-2b", "same"]);
+  expect(merged.find((event) => event.event_id === "same")?.tick).toBe(3);
 });

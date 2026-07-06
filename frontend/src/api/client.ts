@@ -139,6 +139,13 @@ export interface WorldEvent {
   run_id?: string | null;
 }
 
+export interface WorldEventsPage {
+  frames: WorldEvent[];
+  next_after: number;
+  clock_tick: number;
+  launch_status: "running" | "done" | "error" | string | null;
+}
+
 export interface PlatformRunSpec {
   platform: "twitter" | "reddit";
   poster_account_id: string;
@@ -294,10 +301,17 @@ export async function orchestrateWorld(  // review:P9-T6
   return response.json();
 }
 
-export async function getWorldEvents(worldId: string, runIds: string[] = []): Promise<WorldEvent[]> {  // review:P11-T4
+export async function getWorldEvents(
+  worldId: string,
+  runIds: string[] = [],
+  after?: number,
+): Promise<WorldEventsPage> {  // review:P11-T4
   const query = new URLSearchParams();
   for (const runId of runIds) {
     query.append("run_id", runId);
+  }
+  if (after !== undefined) {
+    query.set("after", String(after));
   }
   const suffix = query.toString() ? `?${query.toString()}` : "";
   const response = await fetch(`/api/worlds/${worldId}/events${suffix}`);
@@ -305,7 +319,13 @@ export async function getWorldEvents(worldId: string, runIds: string[] = []): Pr
     throw new Error("failed to load world events");
   }
   const data = await response.json();
-  return data.frames ?? [];
+  const frames = Array.isArray(data.frames) ? data.frames : [];
+  return {
+    frames,
+    next_after: typeof data.next_after === "number" ? data.next_after : 0,
+    clock_tick: typeof data.clock_tick === "number" ? data.clock_tick : 0,
+    launch_status: typeof data.launch_status === "string" ? data.launch_status : null,
+  };
 }
 
 // review:P5-T3

@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import type { ReactElement } from "react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
-import type { WorldEvent } from "../api/client";
+import type { WorldEvent, WorldEventsPage } from "../api/client";
 import { getWorldEvents, listPersons } from "../api/client";
 import MultiPlatformLiveScreen from "./MultiPlatformLiveScreen";
 
@@ -80,6 +80,18 @@ const events: WorldEvent[] = [
   },
 ];
 
+function eventsPage(
+  frames: WorldEvent[],
+  overrides: Partial<WorldEventsPage> = {},
+): WorldEventsPage {
+  return {
+    frames,
+    next_after: overrides.next_after ?? frames.reduce((max, event) => Math.max(max, event.tick), 0),
+    clock_tick: overrides.clock_tick ?? frames.reduce((max, event) => Math.max(max, event.tick), 0),
+    launch_status: overrides.launch_status ?? null,
+  };
+}
+
 function renderWorldLive(node: ReactElement, initialEntry = "/world/w_1/live") {
   return render(<MemoryRouter initialEntries={[initialEntry]}>{node}</MemoryRouter>);
 }
@@ -96,7 +108,7 @@ test("multi-platform live renders columns clock and bridge links", () => {  // r
 });
 
 test("multi-platform route fetches world events and renders data", async () => {  // review:P11-T4-AC2
-  vi.mocked(getWorldEvents).mockResolvedValueOnce(events);
+  vi.mocked(getWorldEvents).mockResolvedValueOnce(eventsPage(events));
 
   render(
     <MemoryRouter initialEntries={["/world/w_1/live"]}>
@@ -110,10 +122,11 @@ test("multi-platform route fetches world events and renders data", async () => {
   expect(await screen.findByText("世界时钟 · 第 2 拍")).toBeInTheDocument();
   expect(getWorldEvents).toHaveBeenCalledWith("w_1", []);
   expect(screen.getByText("同一条内容到了 Reddit")).toBeInTheDocument();
+  expect(screen.getByText("世界全景 · 共 2 平台")).toBeInTheDocument();
 });
 
 test("multi-platform route filters replay to the launched run ids", async () => {  // review:P11-T9-AC2
-  vi.mocked(getWorldEvents).mockResolvedValueOnce(events);
+  vi.mocked(getWorldEvents).mockResolvedValueOnce(eventsPage(events));
 
   render(
     <MemoryRouter initialEntries={["/world/w_1/live?run_id=run-twitter&run_id=run-reddit"]}>
@@ -125,10 +138,11 @@ test("multi-platform route filters replay to the launched run ids", async () => 
 
   expect(await screen.findByText("世界时钟 · 第 2 拍")).toBeInTheDocument();
   expect(getWorldEvents).toHaveBeenCalledWith("w_1", ["run-twitter", "run-reddit"]);
+  expect(screen.getByText("本次发起 · 2 平台")).toBeInTheDocument();
 });
 
 test("multi-platform route renders honest empty state for empty worlds", async () => {  // review:P11-T4-AC3
-  vi.mocked(getWorldEvents).mockResolvedValueOnce([]);
+  vi.mocked(getWorldEvents).mockResolvedValueOnce(eventsPage([]));
 
   render(
     <MemoryRouter initialEntries={["/world/w_empty/live"]}>
@@ -144,8 +158,8 @@ test("multi-platform route renders honest empty state for empty worlds", async (
 test("multi-platform route keeps polling while a new world is still warming up", async () => {  // review:P11-T7-AC2
   vi.useFakeTimers();
   vi.mocked(getWorldEvents)
-    .mockResolvedValueOnce([])
-    .mockResolvedValueOnce(events);
+    .mockResolvedValueOnce(eventsPage([], { next_after: 0, clock_tick: 0, launch_status: "running" }))
+    .mockResolvedValueOnce(eventsPage(events, { next_after: 2, clock_tick: 2, launch_status: "running" }));
 
   render(
     <MemoryRouter initialEntries={["/world/w_pending/live"]}>
@@ -165,13 +179,43 @@ test("multi-platform route keeps polling while a new world is still warming up",
   });
 
   expect(getWorldEvents).toHaveBeenCalledTimes(2);
+  expect(getWorldEvents).toHaveBeenNthCalledWith(2, "w_pending", [], 0);
   expect(screen.getByText("世界时钟 · 第 2 拍")).toBeInTheDocument();
+});
+
+test("multi-platform route stops polling after launch is done", async () => {  // review:P13-T3
+  vi.useFakeTimers();
+  vi.mocked(getWorldEvents)
+    .mockResolvedValueOnce(eventsPage([], { next_after: 1, clock_tick: 1, launch_status: "running" }))
+    .mockResolvedValueOnce(eventsPage(events, { next_after: 2, clock_tick: 2, launch_status: "done" }));
+
+  render(
+    <MemoryRouter initialEntries={["/world/w_done/live?run_id=run-twitter&run_id=run-reddit"]}>
+      <Routes>
+        <Route path="/world/:id/live" element={<MultiPlatformLiveScreen />} />
+      </Routes>
+    </MemoryRouter>,
+  );
+
+  await act(async () => {
+    await Promise.resolve();
+  });
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(1500);
+  });
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(3000);
+  });
+
+  expect(getWorldEvents).toHaveBeenCalledTimes(2);
+  expect(getWorldEvents).toHaveBeenNthCalledWith(2, "w_done", ["run-twitter", "run-reddit"], 1);
+  expect(screen.getByText("已完成 · 共 2 拍")).toBeInTheDocument();
 });
 
 test("multi-platform route shows retry when world events fail", async () => {  // review:P11-T4-AC4
   vi.mocked(getWorldEvents)
     .mockRejectedValueOnce(new Error("network down"))
-    .mockResolvedValueOnce(events);
+    .mockResolvedValueOnce(eventsPage(events));
 
   render(
     <MemoryRouter initialEntries={["/world/w_retry/live"]}>
@@ -231,7 +275,7 @@ test("multi-platform live resolves person names and never renders bare long ids"
       payload: { ...events[0].payload, author_display_name: undefined },
     },
   ];
-  vi.mocked(getWorldEvents).mockResolvedValueOnce(rawEvents);
+  vi.mocked(getWorldEvents).mockResolvedValueOnce(eventsPage(rawEvents));
   vi.mocked(listPersons).mockResolvedValueOnce([
     {
       person: {

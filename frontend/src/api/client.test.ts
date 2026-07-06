@@ -376,10 +376,13 @@ test("getWorldEvents reads persisted world timeline frames", async () => {  // r
   }));
   vi.stubGlobal("fetch", spy);
 
-  const events = await getWorldEvents("w_1");
+  const page = await getWorldEvents("w_1");
 
   expect(spy).toHaveBeenCalledWith("/api/worlds/w_1/events");
-  expect(events[0].event_id).toBe("e_1");
+  expect(page.frames[0].event_id).toBe("e_1");
+  expect(page.next_after).toBe(0);
+  expect(page.clock_tick).toBe(0);
+  expect(page.launch_status).toBeNull();
 });
 
 test("getWorldEvents can filter by launched run ids", async () => {  // review:P11-T9-AC4
@@ -394,6 +397,21 @@ test("getWorldEvents can filter by launched run ids", async () => {  // review:P
   expect(spy).toHaveBeenCalledWith(
     "/api/worlds/w_1/events?run_id=run-twitter&run_id=run-reddit",
   );
+});
+
+test("getWorldEvents can request frames after a cursor", async () => {  // review:P13-T3
+  const spy = vi.fn(async () => ({
+    ok: true,
+    json: async () => ({ frames: [], next_after: 9, clock_tick: 9, launch_status: "running" }),
+  }));
+  vi.stubGlobal("fetch", spy);
+
+  const page = await getWorldEvents("w_1", ["run-twitter"], 4);
+
+  expect(spy).toHaveBeenCalledWith("/api/worlds/w_1/events?run_id=run-twitter&after=4");
+  expect(page.next_after).toBe(9);
+  expect(page.clock_tick).toBe(9);
+  expect(page.launch_status).toBe("running");
 });
 
 test("getAnalysis reads professional social analysis projection", async () => {  // review:P8-T7
