@@ -2,7 +2,7 @@ import type { Platform, RunSnapshot } from "../model/canonical";
 import { emptySnapshot } from "../model/accumulate";
 import type { PosterViewModel } from "./poster";
 import { posterView } from "./poster";
-import type { WorldEvent } from "../api/client";
+import type { PersonView, WorldEvent } from "../api/client";
 
 export type PlatformColumn = { platform: Platform; view: PosterViewModel };
 export type BridgeEdge = {
@@ -33,11 +33,48 @@ function payloadString(payload: Record<string, unknown>, key: string, fallback =
   return typeof value === "string" ? value : fallback;
 }
 
-function actorName(event: WorldEvent, actorId: number): string {
-  const account = event.actor_account_id ?? "";
-  const parts = account.split(/[_-]/).filter(Boolean);
-  const last = parts[parts.length - 1];
-  return last && !/^\d+$/.test(last) ? last : `用户 ${actorId}`;
+const DATASET_PREFIX = /^.{1,3}\d{1,3}_/u;
+
+export function cleanDisplayName(value?: string | null): string | null {
+  const label = value?.trim();
+  if (!label) return null;
+  return label.replace(DATASET_PREFIX, "");
+}
+
+function personNameForAccount(accountId: string, personViews: PersonView[]): string | null {
+  for (const view of personViews) {
+    const account = view.person.accounts.find((item) => item.account_id === accountId);
+    if (account) return cleanDisplayName(view.person.display_name);
+  }
+  return null;
+}
+
+function aliasForAccount(accountId: string | null | undefined, actorId?: number): string {
+  const cleaned = accountId?.trim();
+  if (cleaned) return `围观者·${cleaned.slice(-4)}`;
+  return `围观者·${actorId ?? "未知"}`;
+}
+
+export function resolveWorldDisplayName({
+  payloadName,
+  accountId,
+  personViews = [],
+  actorId,
+}: {
+  payloadName?: unknown;
+  accountId?: string | null;
+  personViews?: PersonView[];
+  actorId?: number;
+}): string {
+  if (typeof payloadName === "string") {
+    const cleaned = cleanDisplayName(payloadName);
+    if (cleaned) return cleaned;
+  }
+  if (accountId) {
+    const personName = personNameForAccount(accountId, personViews);
+    if (personName) return personName;
+  }
+  return aliasForAccount(accountId, actorId);
 }
 
 function ensureSnapshot(map: Map<Platform, RunSnapshot>, platform: Platform): RunSnapshot {
@@ -48,19 +85,30 @@ function ensureSnapshot(map: Map<Platform, RunSnapshot>, platform: Platform): Ru
   return snap;
 }
 
-function ensureActor(snap: RunSnapshot, event: WorldEvent, actorId: number) {
+function ensureActor(
+  snap: RunSnapshot,
+  event: WorldEvent,
+  actorId: number,
+  personViews: PersonView[],
+) {
   if (snap.actors.some((actor) => actor.user_id === actorId)) return;
+  const name = resolveWorldDisplayName({
+    payloadName: event.payload.author_display_name,
+    accountId: event.actor_account_id,
+    personViews,
+    actorId,
+  });
   snap.actors.push({
     user_id: actorId,
-    name: actorName(event, actorId),
-    user_name: actorName(event, actorId),
+    name,
+    user_name: name,
     num_followers: 0,
     num_followings: 0,
   });
 }
 
 // review:P9-T6
-export function multiPlatformView(events: WorldEvent[]): MultiPlatformView {
+export function multiPlatformView(events: WorldEvent[], personViews: PersonView[] = []): MultiPlatformView {
   const snapshots = new Map<Platform, RunSnapshot>();
   const bridges: BridgeEdge[] = [];
 
@@ -84,7 +132,7 @@ export function multiPlatformView(events: WorldEvent[]): MultiPlatformView {
     if (event.kind === "seed" || event.kind === "post") {
       const authorId = payloadNumber(event.payload, "author_id", 1);
       const postId = payloadNumber(event.payload, "post_id", snap.posts.length + 1);
-      ensureActor(snap, event, authorId);
+      ensureActor(snap, event, authorId, personViews);
       snap.posts.push({
         post_id: postId,
         author_id: authorId,
@@ -105,7 +153,7 @@ export function multiPlatformView(events: WorldEvent[]): MultiPlatformView {
 
     if (event.kind === "reply") {
       const authorId = payloadNumber(event.payload, "author_id", 1);
-      ensureActor(snap, event, authorId);
+      ensureActor(snap, event, authorId, personViews);
       snap.replies.push({
         comment_id: payloadNumber(event.payload, "comment_id", snap.replies.length + 1),
         post_id: payloadNumber(event.payload, "post_id", snap.seed_post_id ?? 1),

@@ -5,6 +5,7 @@ from weiguan.api.store import RunStore
 from weiguan.canonical import (
     Actor,
     Platform,
+    Post,
     Reaction,
     ReactionKind,
     Reply,
@@ -61,6 +62,34 @@ def test_delta_to_events_maps_actions():  # review:P6-T6-AC1
     ]
     assert {event.run_id for event in events} == {"r_1"}
     assert {event.world_id for event in events} == {"w_1"}
+
+
+def test_delta_to_events_enriches_author_display_names():  # review:P13-T1
+    delta = RunDelta(
+        step=1,
+        snapshot=RunSnapshot(
+            seed_post_id=1,
+            actors=[
+                Actor(user_id=1, name="码05_产品懂点码", user_name="poster"),
+                Actor(user_id=2, name=None, user_name="估值洁癖2"),
+            ],
+            posts=[Post(post_id=1, author_id=1, content="主帖")],
+            replies=[Reply(comment_id=7, post_id=1, author_id=2, content="评论")],
+        ),
+    )
+
+    events = delta_to_events(
+        delta,
+        world_id="w_1",
+        run_id="r_1",
+        platform=Platform.TWITTER,
+        account_of={1: "acct_1", 2: "acct_2"},
+    )
+
+    seed = next(event for event in events if event.kind == WorldEventKind.SEED)
+    reply = next(event for event in events if event.kind == WorldEventKind.REPLY)
+    assert seed.payload["author_display_name"] == "码05_产品懂点码"
+    assert reply.payload["author_display_name"] == "估值洁癖2"
 
 
 def test_ephemeral_world_when_no_world_id(tmp_path):  # review:P6-T6-AC2

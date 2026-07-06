@@ -3,7 +3,7 @@ import type { ReactElement } from "react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 import type { WorldEvent } from "../api/client";
-import { getWorldEvents } from "../api/client";
+import { getWorldEvents, listPersons } from "../api/client";
 import MultiPlatformLiveScreen from "./MultiPlatformLiveScreen";
 
 vi.mock("../api/client", async (importOriginal) => {
@@ -11,12 +11,14 @@ vi.mock("../api/client", async (importOriginal) => {
   return {
     ...actual,
     getWorldEvents: vi.fn(),
+    listPersons: vi.fn(),
   };
 });
 
 beforeEach(() => {
   vi.resetAllMocks();
   vi.useRealTimers();
+  vi.mocked(listPersons).mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -218,4 +220,52 @@ test("platform columns use bounded scroll viewports instead of stretching the pa
     expect(viewport.className).toContain("max-h-[760px]");
     expect(viewport.className).toContain("overflow-y-auto");
   }
+});
+
+test("multi-platform live resolves person names and never renders bare long ids", async () => {  // review:P13-T1
+  const longAccountId = "7bb2eb80803d4d44afacf6b9994d0c4e";
+  const rawEvents: WorldEvent[] = [
+    {
+      ...events[0],
+      actor_account_id: longAccountId,
+      payload: { ...events[0].payload, author_display_name: undefined },
+    },
+  ];
+  vi.mocked(getWorldEvents).mockResolvedValueOnce(rawEvents);
+  vi.mocked(listPersons).mockResolvedValueOnce([
+    {
+      person: {
+        person_id: "p_1",
+        display_name: "码05_产品懂点码",
+        persona_kind: "ordinary",
+        accounts: [
+          {
+            account_id: longAccountId,
+            person_id: "p_1",
+            platform: "twitter",
+            handle: "h",
+            avatar_seed: "p_1",
+            num_followers: 20,
+            influence_score: 1,
+          },
+        ],
+      },
+      stance: { stance_counts: {}, dominant: "neutral" },
+      total_influence: 0,
+      run_ids: [],
+      standing_timeline: [],
+    },
+  ]);
+
+  const { container } = render(
+    <MemoryRouter initialEntries={["/world/w_1/live"]}>
+      <Routes>
+        <Route path="/world/:id/live" element={<MultiPlatformLiveScreen />} />
+      </Routes>
+    </MemoryRouter>,
+  );
+
+  expect(await screen.findByText("产品懂点码")).toBeInTheDocument();
+  expect(container.textContent ?? "").not.toMatch(/[0-9a-f]{12,}/);
+  expect(listPersons).toHaveBeenCalledWith("w_1");
 });

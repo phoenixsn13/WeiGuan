@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 
-import { getWorldEvents, type WorldEvent } from "../api/client";
+import { getWorldEvents, listPersons, type PersonView, type WorldEvent } from "../api/client";
 import { world } from "../design/tokens";
 import { multiPlatformView } from "../pov/multiplatform";
 import { PlatformSkinFeed, skinForPlatform } from "../skins/skin";
@@ -56,6 +56,7 @@ export default function MultiPlatformLiveScreen({ events }: { events?: WorldEven
   const params = useParams();
   const [searchParams] = useSearchParams();
   const [loadedEvents, setLoadedEvents] = useState<WorldEvent[]>([]);
+  const [personViews, setPersonViews] = useState<PersonView[]>([]);
   const [loadState, setLoadState] = useState<LoadState>(events ? "idle" : "loading");
   const runIds = useMemo(() => searchParams.getAll("run_id"), [searchParams]);
 
@@ -84,6 +85,24 @@ export default function MultiPlatformLiveScreen({ events }: { events?: WorldEven
   }, [loadWorldEvents]);
 
   useEffect(() => {
+    if (events !== undefined || !params.id) {
+      setPersonViews([]);
+      return;
+    }
+    let alive = true;
+    listPersons(params.id)
+      .then((items) => {
+        if (alive) setPersonViews(items);
+      })
+      .catch(() => {
+        if (alive) setPersonViews([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [events, params.id]);
+
+  useEffect(() => {
     if (events !== undefined || !params.id || loadState !== "idle") return undefined;
     const timer = window.setInterval(() => {
       void loadWorldEvents({ silent: true });
@@ -92,7 +111,10 @@ export default function MultiPlatformLiveScreen({ events }: { events?: WorldEven
   }, [events, loadState, loadWorldEvents, params.id]);
 
   const activeEvents = events ?? loadedEvents;
-  const view = useMemo(() => multiPlatformView(activeEvents), [activeEvents]);
+  const view = useMemo(
+    () => multiPlatformView(activeEvents, personViews),
+    [activeEvents, personViews],
+  );
   const hasBridges = view.bridges.length > 0;
   const columnIndex = new Map(view.columns.map((column, index) => [column.platform, index]));
 

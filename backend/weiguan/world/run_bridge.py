@@ -27,6 +27,27 @@ def _event_id(run_id: str, step: int, label: str, item_id: object) -> str:
     return f"{run_id}:{step}:{label}:{item_id}"
 
 
+def _actor_display_names(snapshot: RunSnapshot) -> dict[int, str]:
+    names: dict[int, str] = {}
+    for actor in snapshot.actors:
+        display_name = actor.name or actor.user_name
+        if display_name:
+            names[actor.user_id] = display_name
+    return names
+
+
+def _payload_with_author_name(
+    payload: dict[str, object],
+    *,
+    author_id: int,
+    actor_names: dict[int, str],
+) -> dict[str, object]:
+    display_name = actor_names.get(author_id)
+    if not display_name:
+        return payload
+    return {**payload, "author_display_name": display_name}
+
+
 def _account_id(world_id: str, platform: Platform, actor_id: int) -> str:
     return f"acct_{world_id}_{platform.value}_{actor_id}"
 
@@ -101,6 +122,7 @@ def delta_to_events(  # review:P6-T6
     snapshot: RunSnapshot = delta.snapshot
     events: list[WorldEvent] = []
     created_at = _now()
+    actor_names = _actor_display_names(snapshot)
 
     for post in snapshot.posts:
         kind = (
@@ -117,7 +139,11 @@ def delta_to_events(  # review:P6-T6
                 platform=platform,
                 actor_account_id=account_of.get(post.author_id),
                 kind=kind,
-                payload=post.model_dump(mode="json"),
+                payload=_payload_with_author_name(
+                    post.model_dump(mode="json"),
+                    author_id=post.author_id,
+                    actor_names=actor_names,
+                ),
                 run_id=run_id,
             )
         )
@@ -132,7 +158,11 @@ def delta_to_events(  # review:P6-T6
                 platform=platform,
                 actor_account_id=account_of.get(reply.author_id),
                 kind=WorldEventKind.REPLY,
-                payload=reply.model_dump(mode="json"),
+                payload=_payload_with_author_name(
+                    reply.model_dump(mode="json"),
+                    author_id=reply.author_id,
+                    actor_names=actor_names,
+                ),
                 run_id=run_id,
             )
         )
