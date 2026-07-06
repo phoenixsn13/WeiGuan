@@ -1,5 +1,5 @@
-import type { IdentitySummary, PersonView, RunSummary } from "../api/client";
-import { groupWorldCards } from "./worlds";
+import type { IdentitySummary, PersonView, RunSummary, WorldSummary } from "../api/client";
+import { groupWorldCards, worldCardsFromSummaries } from "./worlds";
 
 const identities: IdentitySummary[] = [
   {
@@ -121,4 +121,44 @@ test("groups persistent identities into world overview cards", () => {  // revie
     latestRunContent: "AI 政策会改变商业模式吗",
     totals: { replies: 10, reposts: 3, likes: 7 },
   });
+});
+
+test("maps API world summaries without exposing storage ids", () => {  // review:P14-T5
+  const summaries: WorldSummary[] = [
+    {
+      world_id: "w_abcdef123456",
+      name: "财经吐槽圈",
+      identity_count: 3,
+      total_influence: 68,
+      platform_count: 2,
+      run_count: 4,
+      latest: {
+        content: "AI 政策会改变商业模式吗",
+        created_at: "2026-07-04T08:00:00Z",
+        status: "running",
+        run_ids: ["run-twitter", "run-reddit"],
+        launch_id: "launch_1",
+      },
+      created_at: "2026-07-02T08:00:00Z",
+    },
+  ];
+
+  const cards = worldCardsFromSummaries(summaries);
+
+  expect(cards).toEqual([
+    expect.objectContaining({
+      worldId: "w_abcdef123456",
+      worldName: "财经吐槽圈",
+      identityCount: 3,
+      runCount: 4,
+      totalInfluence: 68,
+      platformCount: 2,
+      latestRunContent: "AI 政策会改变商业模式吗",
+      latestRunId: "run-twitter",
+      latestLaunchRunIds: ["run-twitter", "run-reddit"],
+      latestCreatedAt: "2026-07-04T08:00:00Z",
+      status: "running",
+    }),
+  ]);
+  expect(cards[0].worldName).not.toMatch(/w_[0-9a-f]{6,}|[0-9a-f]{12,}/);
 });

@@ -2,17 +2,11 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import {
-  fetchLaunches,
-  fetchRuns,
-  getIdentities,
-  listPersons,
-  type IdentitySummary,
-  type PersonView,
-  type RunSummary,
+  fetchWorlds,
 } from "../api/client";
 import { Button } from "../components/Button";
 import { world } from "../design/tokens";
-import { groupWorldCards, type WorldCardView } from "../pov/worlds";
+import { worldCardsFromSummaries, type WorldCardView } from "../pov/worlds";
 
 function statusLabel(status: string): string {
   if (status === "done") return "已完成";
@@ -22,23 +16,7 @@ function statusLabel(status: string): string {
 }
 
 async function loadWorldCards(): Promise<WorldCardView[]> {
-  const identities = await getIdentities();
-  if (identities.length === 0) return [];
-
-  const [runs, launches] = await Promise.all([fetchRuns(), fetchLaunches()]);
-  const worldIds = [...new Set(identities.map((identity) => identity.world_id))];
-  const personEntries = await Promise.all(
-    worldIds.map(async (worldId): Promise<[string, PersonView[]]> => [
-      worldId,
-      await listPersons(worldId).catch(() => []),
-    ]),
-  );
-  return groupWorldCards(
-    identities,
-    runs,
-    Object.fromEntries(personEntries),
-    launches,
-  );
+  return worldCardsFromSummaries(await fetchWorlds());
 }
 
 function totalIdentities(cards: WorldCardView[]): number {
@@ -129,13 +107,13 @@ export default function WorldOverviewScreen() {  // review:P11-T6
                   <span>{card.identityCount} 个持续身份</span>
                   <span>{card.platformCount} 个平台现场</span>
                 </div>
-                <h2 className="mt-3 text-xl font-black tracking-normal">{card.primaryIdentityName}</h2>
+                <h2 className="mt-3 text-xl font-black tracking-normal">{card.worldName}</h2>
                 <p className="mt-2 line-clamp-2 text-lg font-bold leading-7">{card.latestRunContent}</p>
                 <div className="mt-4 flex flex-wrap gap-4 text-sm text-slate-500">
-                  <span>评论 <span className="tabular font-semibold text-slate-950">{card.totals.replies}</span></span>
-                  <span>转发 <span className="tabular font-semibold text-slate-950">{card.totals.reposts}</span></span>
-                  <span>点赞 <span className="tabular font-semibold text-slate-950">{card.totals.likes}</span></span>
-                  <span>围观 <span className="tabular font-semibold text-slate-950">{card.runCount}</span></span>
+                  <span>身份 <span className="tabular font-semibold text-slate-950">{card.identityCount}</span></span>
+                  <span>平台 <span className="tabular font-semibold text-slate-950">{card.platformCount}</span></span>
+                  <span>发起 <span className="tabular font-semibold text-slate-950">{card.runCount}</span></span>
+                  <span>影响力 <span className="tabular font-semibold text-slate-950">{Math.round(card.totalInfluence)}</span></span>
                 </div>
               </div>
               <div className="grid content-start gap-2 sm:grid-cols-2 lg:w-48 lg:grid-cols-1">

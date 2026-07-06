@@ -1,7 +1,8 @@
-import type { IdentitySummary, LaunchSummary, PersonView, RunSummary } from "../api/client";
+import type { IdentitySummary, LaunchSummary, PersonView, RunSummary, WorldSummary } from "../api/client";
 
 export interface WorldCardView {
   worldId: string;
+  worldName: string;
   primaryIdentityName: string;
   identityCount: number;
   runCount: number;
@@ -72,6 +73,7 @@ export function groupWorldCards(
 
       return {
         worldId,
+        worldName: primary?.display_name ?? "未命名世界",
         primaryIdentityName: primary?.display_name ?? "未命名世界",
         identityCount: worldIdentities.length,
         runCount: worldIdentities.reduce((sum, identity) => sum + identity.run_count, 0),
@@ -94,5 +96,29 @@ export function groupWorldCards(
       const rightTime = right.latestCreatedAt ? Date.parse(right.latestCreatedAt) : 0;
       const byTime = (Number.isNaN(rightTime) ? 0 : rightTime) - (Number.isNaN(leftTime) ? 0 : leftTime);
       return byTime || right.totalInfluence - left.totalInfluence || left.worldId.localeCompare(right.worldId);
+    });
+}
+
+export function worldCardsFromSummaries(summaries: WorldSummary[]): WorldCardView[] {  // review:P14-T5
+  return summaries
+    .map((summary) => ({
+      worldId: summary.world_id,
+      worldName: summary.name,
+      primaryIdentityName: summary.name,
+      identityCount: summary.identity_count,
+      runCount: summary.run_count,
+      totalInfluence: summary.total_influence,
+      platformCount: summary.platform_count,
+      latestRunContent: summary.latest?.content ?? "还没有内容",
+      latestRunId: summary.latest?.run_ids[0],
+      latestLaunchRunIds: summary.latest?.run_ids,
+      latestCreatedAt: summary.latest?.created_at ?? summary.created_at,
+      totals: { replies: 0, reposts: 0, likes: 0 },
+      status: summary.latest?.status ?? "created",
+    }))
+    .sort((left, right) => {
+      const leftTime = left.latestCreatedAt ? Date.parse(left.latestCreatedAt) : 0;
+      const rightTime = right.latestCreatedAt ? Date.parse(right.latestCreatedAt) : 0;
+      return (Number.isNaN(rightTime) ? 0 : rightTime) - (Number.isNaN(leftTime) ? 0 : leftTime);
     });
 }

@@ -15,6 +15,7 @@ export interface CreateRunBody {
   steps: number;
   platform: "twitter" | "reddit";
   world_id?: string;
+  world_name?: string;
   poster_persona?: PersonaKind;
   poster_person_id?: string;
   person_memory_budget?: number;
@@ -27,6 +28,7 @@ export interface CreateMultiRunBody {
   persona: PersonaKind;
   platforms: Array<"twitter" | "reddit">;
   world_id?: string;
+  world_name?: string;
   poster_person_id?: string;
   person_memory_budget?: number;
 }
@@ -70,6 +72,25 @@ export interface LaunchSummary {
   poster_persona?: PersonaKind;
   error?: string | null;
   created_at?: string;
+}
+
+export interface WorldLatestSummary {
+  content: string;
+  created_at: string;
+  status: "created" | "running" | "done" | "error" | string;
+  run_ids: string[];
+  launch_id: string;
+}
+
+export interface WorldSummary {  // review:P14-T5
+  world_id: string;
+  name: string;
+  identity_count: number;
+  total_influence: number;
+  platform_count: number;
+  run_count: number;
+  latest: WorldLatestSummary | null;
+  created_at: string;
 }
 
 export interface Account {
@@ -116,6 +137,7 @@ export interface IdentitySummary {
 
 export interface CreatePersonBody {
   world_id?: string;
+  world_name?: string;
   display_name: string;
   persona_kind: PersonaKind;
   platform: "twitter" | "reddit";
@@ -222,6 +244,15 @@ export async function fetchLaunches(): Promise<LaunchSummary[]> {  // review:P13
     return data.map((run) => launchFromRun(run));
   }
   return Array.isArray(data.launches) ? data.launches : [];
+}
+
+export async function fetchWorlds(): Promise<WorldSummary[]> {  // review:P14-T5
+  const response = await fetch("/api/worlds");
+  if (!response.ok) {
+    throw new Error("failed to load worlds");
+  }
+  const data = await response.json();
+  return Array.isArray(data.worlds) ? data.worlds : [];
 }
 
 export async function fetchRunSummary(runId: string): Promise<RunSummary> {
