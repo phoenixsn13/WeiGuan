@@ -21,6 +21,7 @@ from weiguan.canonical import Platform
 from weiguan.engine.config import Audience, RunConfig
 from weiguan.engine.crowds import list_crowds
 from weiguan.obs.collect import collect
+from weiguan.world.naming import resolve_world_name
 from weiguan.world.models import Launch, PersonaKind
 from weiguan.world.orchestrator import PlatformRunSpec, WorldOrchestrator
 from weiguan.world.run_bridge import ensure_world_for_run
@@ -311,6 +312,72 @@ def _multi_launch_summary(launch: Launch) -> dict:  # review:P12-T5
     return data
 
 
+def _latest_launch_item(launch: Launch) -> dict:
+    return {
+        "content": launch.content,
+        "created_at": launch.created_at,
+        "status": launch.status,
+        "run_ids": launch.run_ids,
+        "launch_id": launch.launch_id,
+    }
+
+
+def _latest_run_item(record) -> dict:
+    return {
+        "content": record.config.content,
+        "created_at": record.created_at,
+        "status": record.status,
+        "run_ids": [record.run_id],
+        "launch_id": record.run_id,
+    }
+
+
+def _world_summary(world, *, world_store, run_store) -> dict:  # review:P14-T2
+    launches = world_store.list_launches(world.world_id)
+    records = [
+        record
+        for record in run_store.list()
+        if record.config.world_id == world.world_id
+    ]
+    latest_launch = launches[0] if launches else None
+    latest_record = records[0] if records else None
+    if latest_launch is not None and (
+        latest_record is None or latest_launch.created_at >= latest_record.created_at
+    ):
+        latest = _latest_launch_item(latest_launch)
+    elif latest_record is not None:
+        latest = _latest_run_item(latest_record)
+    else:
+        latest = None
+
+    persons = world_store.list_persons(world.world_id)
+    primary = max(
+        persons,
+        key=lambda view: (view.total_influence, view.person.display_name),
+        default=None,
+    )
+    run_ids = {run_id for launch in launches for run_id in launch.run_ids}
+    run_ids.update(record.run_id for record in records)
+    platforms = {platform for launch in launches for platform in launch.platforms}
+    platforms.update(record.config.platform for record in records)
+    name = resolve_world_name(
+        name=world.name,
+        latest_content=latest["content"] if latest else None,
+        primary_identity_name=primary.person.display_name if primary else None,
+        created_at=world.created_at,
+    )
+    return {
+        "world_id": world.world_id,
+        "name": name,
+        "identity_count": len(persons),
+        "total_influence": sum(view.total_influence for view in persons),
+        "platform_count": len(platforms),
+        "run_count": len(run_ids),
+        "latest": latest,
+        "created_at": world.created_at,
+    }
+
+
 def _bridge_notes(request: Request, world_id: str | None) -> list[str]:
     if world_id is None or request.app.state.world_store.get_world(world_id) is None:
         return []
@@ -346,6 +413,23 @@ async def create_world(body: _CreateWorldBody, request: Request):  # review:P6-T
     return request.app.state.world_store.create_world(
         persistent=body.persistent
     ).model_dump(mode="json")
+
+
+@router.get("/worlds")
+def world_list(request: Request):  # review:P14-T2
+    world_store = request.app.state.world_store
+    run_store = request.app.state.store
+    worlds = [
+        _world_summary(world, world_store=world_store, run_store=run_store)
+        for world in world_store.list_worlds(persistent=True)
+    ]
+    return {
+        "worlds": sorted(
+            worlds,
+            key=lambda item: (item["latest"] or {}).get("created_at") or item["created_at"],
+            reverse=True,
+        )
+    }
 
 
 @router.get("/worlds/{world_id}")

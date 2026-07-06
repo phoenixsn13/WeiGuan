@@ -30,11 +30,14 @@ class WorldStore:
             tuple[tuple[int, int], dict[str, PersonView]],
         ] = {}  # review:P12-T2
 
-    def create_world(self, *, persistent: bool) -> World:  # review:P6-T4
+    def create_world(
+        self, *, persistent: bool, name: str | None = None
+    ) -> World:  # review:P6-T4
         world = World(
             world_id=f"w_{uuid4().hex}",
             created_at=datetime.now(timezone.utc).isoformat(),
             persistent=persistent,
+            name=name,
         )
         self._world_dir(world.world_id).mkdir(parents=True, exist_ok=True)
         self._write_json(self._world_path(world.world_id), world.model_dump(mode="json"))
@@ -47,6 +50,19 @@ class WorldStore:
         if not path.exists():
             return None
         return World.model_validate(self._read_json(path))
+
+    def list_worlds(self, *, persistent: bool | None = None) -> list[World]:  # review:P14-T2
+        worlds: list[World] = []
+        for world_dir in self.root.glob("w_*"):
+            if not world_dir.is_dir():
+                continue
+            world = self.get_world(world_dir.name)
+            if world is None:
+                continue
+            if persistent is not None and world.persistent is not persistent:
+                continue
+            worlds.append(world)
+        return sorted(worlds, key=lambda world: world.created_at, reverse=True)
 
     def persist_world(self, world_id: str) -> World | None:
         world = self.get_world(world_id)
