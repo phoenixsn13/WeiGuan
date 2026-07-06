@@ -1,4 +1,5 @@
 import tailwindConfigSource from "../../tailwind.config.ts?raw";
+import tailwindConfig from "../../tailwind.config";
 import { POV, colors, sentimentColor, world } from "./tokens";
 
 function relativeLuminance(hex: string): number {
@@ -62,4 +63,13 @@ test("semantic text and scrim tokens are explicit hex values", () => {  // revie
 test("tailwind color palette is sourced from design tokens", () => {  // review:P13-T8-AC2
   expect(tailwindConfigSource).not.toMatch(/#[0-9A-Fa-f]{6}/);
   expect(tailwindConfigSource).toContain('from "./src/design/tokens"');
+});
+
+test("tailwind line keeps light shell hairline separate from world connector line", () => {  // review:P13-T8-AC3
+  const palette = tailwindConfig.theme.extend.colors;
+  expect(colors.hairline).toBe("#E4E8F0");
+  expect(world.line).toBe("#2C4A7C");
+  expect(palette.line).toBe(colors.hairline);
+  expect(palette.line).not.toBe(world.line);
+  expect(palette.sentiment.contestedFrom).toBe("#B4552F");
 });

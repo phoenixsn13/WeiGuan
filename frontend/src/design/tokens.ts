@@ -4,10 +4,12 @@ export const colors = {
   cream: "#F7F4EC",
   brand: "#E8A13A",
   accent: "#2C4A7C",
+  hairline: "#E4E8F0",
   textPrimary: "#14140F",
   textMuted: "#5B5B52",
   textSubtle: "#7A7468",
   nightScrim: "#070B14",
+  contestedFrom: "#B4552F",
 } as const;
 
 // review:P7-T4
@@ -30,7 +32,7 @@ export function sentimentColor(kind: Sentiment): string {
     case "neutral":
       return "#8A8578";
     case "contested":
-      return "linear-gradient(90deg, #B4552F, #E8A13A)";
+      return `linear-gradient(90deg, ${colors.contestedFrom}, ${colors.brand})`;
   }
 }
 
