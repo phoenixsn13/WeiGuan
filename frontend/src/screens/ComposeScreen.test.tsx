@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 
 import ComposeScreen from "./ComposeScreen";
@@ -62,6 +62,25 @@ function multiRunPostBody(spy: ReturnType<typeof vi.fn>) {
   return JSON.parse(call[1].body as string);
 }
 
+function worldSummaries(count: number) {
+  return Array.from({ length: count }, (_, index) => ({
+    world_id: index === 18 ? "w_finance" : `w_${index}`,
+    name: index === 18 ? "财经吐槽场" : `测试世界${index}`,
+    identity_count: index + 1,
+    total_influence: 100 - index,
+    platform_count: index % 2 === 0 ? 2 : 1,
+    run_count: index + 2,
+    created_at: "2026-07-06T00:00:00Z",
+    latest: {
+      content: index === 18 ? "关于财报泡沫的讨论" : `世界摘要${index}`,
+      created_at: "2026-07-06T00:00:00Z",
+      status: "done",
+      run_ids: [`r_${index}`],
+      launch_id: `l_${index}`,
+    },
+  }));
+}
+
 test("submits content and navigates to live", async () => {  // review:P4-T6-AC1
   const spy = vi.fn(async (url: string) => ({
     ok: true,
@@ -89,6 +108,100 @@ test("submits content and navigates to live", async () => {  // review:P4-T6-AC1
   expect(body.content).toBe("构建砍到3秒");
   expect(body.steps).toBe(10);
   expect(spy.mock.calls.some(([url]) => url === "/api/multi-runs")).toBe(false);
+});
+
+test("new world name is sent when creating the first identity", async () => {  // review:P14-T6
+  const spy = vi.fn(async (url: string) => ({
+    ok: true,
+    json: async () => {
+      if (url.includes("preview-cost")) {
+        return { estimated_rmb: 1.8, budgeted_agents: 8, decision_steps: 9 };
+      }
+      if (url === "/api/persons") {
+        return {
+          world_id: "w_named",
+          person: {
+            person_id: "p_named",
+            display_name: "普通人test",
+            persona_kind: "ordinary",
+            accounts: [],
+          },
+        };
+      }
+      return { run_id: "r_named" };
+    },
+  }));
+  vi.stubGlobal("fetch", spy);
+  mount();
+
+  fireEvent.change(screen.getByLabelText("世界名称"), { target: { value: "财经吐槽场" } });
+  fireEvent.change(screen.getByPlaceholderText(/有什么新鲜事/), {
+    target: { value: "新世界发帖" },
+  });
+  fireEvent.click(screen.getByText(/开始围观/));
+
+  await waitFor(() => expect(screen.getByText("进行时页")).toBeInTheDocument());
+  expect(personPostBody(spy)).toMatchObject({
+    world_name: "财经吐槽场",
+  });
+  expect(personPostBody(spy)).not.toHaveProperty("world_id");
+  expect(runPostBody(spy)).toMatchObject({
+    world_id: "w_named",
+    poster_person_id: "p_named",
+  });
+});
+
+test("continuing a world uses a searchable bounded world picker", async () => {  // review:P14-T6
+  const worlds = worldSummaries(32);
+  const spy = vi.fn(async (url: string) => ({
+    ok: true,
+    json: async () => {
+      if (url.includes("preview-cost")) {
+        return { estimated_rmb: 1.8, budgeted_agents: 8, decision_steps: 9 };
+      }
+      if (url === "/api/worlds") {
+        return { worlds };
+      }
+      if (url === "/api/persons") {
+        return {
+          world_id: "w_finance",
+          person: {
+            person_id: "p_finance",
+            display_name: "普通人test",
+            persona_kind: "ordinary",
+            accounts: [],
+          },
+        };
+      }
+      return { run_id: "r_finance" };
+    },
+  }));
+  vi.stubGlobal("fetch", spy);
+  mount();
+
+  fireEvent.click(screen.getByLabelText("继续世界"));
+  expect(await screen.findByText(/已保存 32 个世界/)).toBeInTheDocument();
+  const list = screen.getByTestId("world-picker-list");
+  expect(list.className).toContain("max-h-72");
+  expect(within(list).getByText("测试世界0")).toBeInTheDocument();
+  expect(within(list).queryByText("财经吐槽场")).not.toBeInTheDocument();
+
+  fireEvent.change(screen.getByLabelText("搜索世界"), { target: { value: "财经" } });
+  fireEvent.click(await screen.findByLabelText(/财经吐槽场/));
+  fireEvent.change(screen.getByPlaceholderText(/有什么新鲜事/), {
+    target: { value: "继续世界发帖" },
+  });
+  fireEvent.click(screen.getByText(/开始围观/));
+
+  await waitFor(() => expect(screen.getByText("进行时页")).toBeInTheDocument());
+  expect(personPostBody(spy)).toMatchObject({
+    world_id: "w_finance",
+  });
+  expect(personPostBody(spy)).not.toHaveProperty("world_name");
+  expect(runPostBody(spy)).toMatchObject({
+    world_id: "w_finance",
+  });
+  expect(runPostBody(spy)).not.toHaveProperty("world_name");
 });
 
 test("selecting two platforms creates a multi-platform world run", async () => {  // review:P11-T5-AC2

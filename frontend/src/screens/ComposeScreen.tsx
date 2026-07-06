@@ -5,11 +5,13 @@ import {
   createMultiRun,
   createPerson,
   createRun,
+  fetchWorlds,
   getIdentities,
   previewCost,
   type IdentitySummary,
   type PersonaKind,
   type PreviewCost,
+  type WorldSummary,
 } from "../api/client";
 import { saveCurrentIdentity, useApiKey } from "../api/useApiKey";
 import { Button } from "../components/Button";
@@ -26,6 +28,7 @@ const ROUNDS = [
 
 const MAX_CUSTOM_STEPS = 1000;
 const IDENTITY_VISIBLE_LIMIT = 20;
+const WORLD_VISIBLE_LIMIT = 8;
 const DEFAULT_MEMORY_BUDGET = 4;
 const DEFAULT_VISIBLE_PEOPLE = 8;
 const DEFAULT_COMMENT_BUDGET = 12;
@@ -84,6 +87,11 @@ export default function ComposeScreen() {
   const [steps, setSteps] = useState(10);
   const [customSteps, setCustomSteps] = useState(30);
   const [customMode, setCustomMode] = useState(false);
+  const [worldMode, setWorldMode] = useState<"new" | "continue">("new");
+  const [worldName, setWorldName] = useState("");
+  const [worlds, setWorlds] = useState<WorldSummary[]>([]);
+  const [selectedWorldId, setSelectedWorldId] = useState("");
+  const [worldSearch, setWorldSearch] = useState("");
   const [posterPersona, setPosterPersona] = useState<PersonaKind>("ordinary");
   const [identityMode, setIdentityMode] = useState<"new" | "continue">("new");
   const [identityName, setIdentityName] = useState("");
@@ -96,6 +104,17 @@ export default function ComposeScreen() {
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
   const selectedSteps = customMode ? clampSteps(customSteps) : steps;
+  const selectedWorld = worlds.find((item) => item.world_id === selectedWorldId);
+  const normalizedWorldSearch = worldSearch.trim().toLowerCase();
+  const filteredWorlds = useMemo(
+    () =>
+      worlds.filter((item) => {
+        if (!normalizedWorldSearch) return true;
+        return [item.name, item.latest?.content ?? ""].join(" ").toLowerCase().includes(normalizedWorldSearch);
+      }),
+    [worlds, normalizedWorldSearch],
+  );
+  const visibleWorlds = filteredWorlds.slice(0, WORLD_VISIBLE_LIMIT);
   const selectedIdentity = identities.find((identity) => identity.person_id === selectedIdentityId);
   const normalizedIdentitySearch = identitySearch.trim().toLowerCase();
   const filteredIdentities = useMemo(
@@ -143,6 +162,25 @@ export default function ComposeScreen() {
   }, [selectedSteps]);
 
   useEffect(() => {
+    if (worldMode !== "continue") {
+      return;
+    }
+    let active = true;
+    fetchWorlds()
+      .then((items) => {
+        if (!active) return;
+        setWorlds(items);
+        setSelectedWorldId((current) => current || items[0]?.world_id || "");
+      })
+      .catch(() => {
+        if (active) setWorlds([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [worldMode]);
+
+  useEffect(() => {
     if (identityMode !== "continue") {
       return;
     }
@@ -172,9 +210,16 @@ export default function ComposeScreen() {
       let worldId: string | undefined;
       let personId: string | undefined;
       let runPersona = posterPersona;
+      const chosenWorldId = worldMode === "continue" ? selectedWorldId : undefined;
+      const chosenWorldName = worldMode === "new" ? worldName.trim() : "";
+      if (worldMode === "continue" && !chosenWorldId) {
+        throw new Error("请选择要继续的世界");
+      }
       if (identityMode === "new") {  // review:P7-T12
         const displayName = identityName.trim() || defaultIdentityName(posterPersona);
         const created = await createPerson({
+          ...(chosenWorldId ? { world_id: chosenWorldId } : {}),
+          ...(!chosenWorldId && chosenWorldName ? { world_name: chosenWorldName } : {}),
           display_name: displayName,
           persona_kind: posterPersona,
           platform: selectedPlatforms[0],
@@ -187,6 +232,9 @@ export default function ComposeScreen() {
         const selected = identities.find((item) => item.person_id === selectedIdentityId);
         if (!selected) {
           throw new Error("请选择要继续的身份");
+        }
+        if (chosenWorldId && selected.world_id !== chosenWorldId) {
+          throw new Error("请选择这个世界里的身份，或改用新身份");
         }
         worldId = selected.world_id;
         personId = selected.person_id;
@@ -245,6 +293,17 @@ export default function ComposeScreen() {
           detail: `${personaLabel(posterPersona)} · ${selectedPlatforms.map((platform) => labelForPlatform(platform)).join(" + ")}`,
         };
 
+  const worldSummary =
+    worldMode === "continue" && selectedWorld
+      ? {
+          label: selectedWorld.name,
+          detail: `${selectedWorld.identity_count} 个身份 · ${selectedWorld.run_count} 次发起`,
+        }
+      : {
+          label: worldName.trim() || "自动命名新世界",
+          detail: worldName.trim() ? "发起后保存为新世界" : "留空时会按内容自动命名",
+        };
+
   return (
     <div className="mx-auto grid max-w-6xl gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
       <section className="rounded-card border border-line bg-white p-6 shadow-spotlight">
@@ -257,6 +316,143 @@ export default function ComposeScreen() {
           rows={7}
           className="mt-5 w-full resize-none rounded-card border border-line p-4 text-[16px] leading-7 focus:border-accent focus:outline-none"
         />
+        <div className="mt-4 rounded-card border border-line bg-white p-4"> {/* review:P14-T6 */}
+          <div className="text-sm font-bold text-slate-950">世界</div>
+          <p className="mt-1 text-sm text-slate-500">
+            决定这条内容进入一个新讨论，还是接着已有讨论继续发酵。
+          </p>
+          <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+            <label
+              className={[
+                "cursor-pointer rounded-card border p-3",
+                worldMode === "new" ? "border-accent bg-blue-50 text-accent" : "border-line text-slate-600",
+              ].join(" ")}
+            >
+              <span className="flex items-center justify-between gap-3">
+                <span className="font-semibold">新建世界</span>
+                <input
+                  type="radio"
+                  name="world_mode"
+                  checked={worldMode === "new"}
+                  onChange={() => {
+                    setWorldMode("new");
+                    setIdentityMode("new");
+                  }}
+                />
+              </span>
+              <span className="mt-1 block text-xs text-slate-400">从这条内容开始新的讨论脉络</span>
+            </label>
+            <label
+              className={[
+                "cursor-pointer rounded-card border p-3",
+                worldMode === "continue" ? "border-accent bg-blue-50 text-accent" : "border-line text-slate-600",
+              ].join(" ")}
+            >
+              <span className="flex items-center justify-between gap-3">
+                <span className="font-semibold">继续世界</span>
+                <input
+                  aria-label="继续世界"
+                  type="radio"
+                  name="world_mode"
+                  checked={worldMode === "continue"}
+                  onChange={() => setWorldMode("continue")}
+                />
+              </span>
+              <span className="mt-1 block text-xs text-slate-400">把内容放进已有讨论里继续观察</span>
+            </label>
+          </div>
+          {worldMode === "new" && (
+            <label className="mt-3 grid max-w-sm gap-2 text-sm font-semibold text-slate-700">
+              世界名称
+              <input
+                value={worldName}
+                onChange={(event) => setWorldName(event.target.value)}
+                placeholder="可不填，发起后自动命名"
+                className="rounded-card border border-line px-3 py-2 text-base text-slate-950 focus:border-accent focus:outline-none"
+              />
+            </label>
+          )}
+          {worldMode === "continue" && (
+            <div className="mt-3 rounded-card border border-line bg-slate-50 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <div className="text-sm font-bold text-slate-950">
+                    {selectedWorld ? "当前世界" : "选择一个保存的世界"}
+                  </div>
+                  <div className="mt-1 text-xs text-slate-500">
+                    已保存 {worlds.length} 个世界
+                    {selectedWorld && (
+                      <>
+                        {" · "}
+                        {selectedWorld.identity_count}
+                        {" 个身份 · "}
+                        {selectedWorld.run_count}
+                        {" 次发起"}
+                      </>
+                    )}
+                  </div>
+                </div>
+                {filteredWorlds.length > WORLD_VISIBLE_LIMIT && (
+                  <div className="rounded-full bg-white px-2 py-1 text-xs font-semibold text-slate-500">
+                    显示前 {WORLD_VISIBLE_LIMIT} 个，搜索可定位更多
+                  </div>
+                )}
+              </div>
+              <label className="mt-3 grid gap-2 text-sm font-semibold text-slate-700">
+                搜索世界
+                <input
+                  value={worldSearch}
+                  onChange={(event) => setWorldSearch(event.target.value)}
+                  placeholder="输入世界名或最近内容"
+                  className="rounded-card border border-line px-3 py-2 text-base text-slate-950 focus:border-accent focus:outline-none"
+                />
+              </label>
+              {worlds.length === 0 && (
+                <div className="mt-3 rounded-card border border-dashed border-line p-3 text-sm text-slate-500">
+                  还没有保存的世界。可以先新建一个。
+                </div>
+              )}
+              {worlds.length > 0 && filteredWorlds.length === 0 && (
+                <div className="mt-3 rounded-card border border-dashed border-line p-3 text-sm text-slate-500">
+                  没有匹配的世界。
+                </div>
+              )}
+              {filteredWorlds.length > 0 && (
+                <div
+                  data-testid="world-picker-list"
+                  className="mt-3 grid max-h-72 gap-2 overflow-y-auto pr-1"
+                >
+                  {visibleWorlds.map((item) => (
+                    <label
+                      key={item.world_id}
+                      className={[
+                        "cursor-pointer rounded-card border bg-white p-3 text-sm",
+                        selectedWorldId === item.world_id
+                          ? "border-accent bg-blue-50 text-accent"
+                          : "border-line text-slate-600",
+                      ].join(" ")}
+                    >
+                      <span className="flex items-center justify-between gap-3">
+                        <span className="min-w-0">
+                          <span className="block truncate font-bold">{item.name}</span>
+                          <span className="mt-1 block truncate text-xs text-slate-500">
+                            {item.latest?.content ?? "暂无最近内容"}
+                          </span>
+                        </span>
+                        <input
+                          type="radio"
+                          name="world_picker"
+                          checked={selectedWorldId === item.world_id}
+                          onChange={() => setSelectedWorldId(item.world_id)}
+                        />
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
         <div className="mt-4 rounded-card border border-line bg-white p-4"> {/* review:P11-T5 */}
           <div className="text-sm font-bold text-slate-950">平台</div>
           <p className="mt-1 text-sm text-slate-500">选择这条内容会出现在哪些现场。</p>
@@ -593,6 +789,11 @@ export default function ComposeScreen() {
           ) : (
             <div className="mt-2 leading-6">正在根据轮次和可见人物估算。</div>
           )}
+        </div>
+        <div className="mt-3 rounded-card border border-line bg-cream p-3 text-sm">
+          <div className="text-xs font-bold text-slate-500">当前世界</div>
+          <div className="mt-2 font-black text-slate-950">{worldSummary.label}</div>
+          <div className="mt-1 leading-6 text-slate-500">{worldSummary.detail}</div>
         </div>
         <div className="mt-3 rounded-card border border-line bg-cream p-3 text-sm">
           <div className="text-xs font-bold text-slate-500">当前身份</div>
