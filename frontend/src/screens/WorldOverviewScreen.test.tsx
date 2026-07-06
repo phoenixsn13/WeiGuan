@@ -22,6 +22,15 @@ function mount() {
   );
 }
 
+test("renders a structured skeleton while loading worlds", () => {  // review:P13-T7
+  vi.stubGlobal("fetch", vi.fn(() => new Promise(() => undefined)));
+
+  mount();
+
+  expect(screen.getByTestId("world-overview-skeleton")).toBeInTheDocument();
+  expect(screen.queryByText("正在加载世界…")).not.toBeInTheDocument();
+});
+
 test("renders persistent worlds and opens the world live view", async () => {  // review:P11-T6-AC2
   vi.stubGlobal(
     "fetch",

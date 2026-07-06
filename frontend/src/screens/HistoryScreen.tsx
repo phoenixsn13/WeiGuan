@@ -166,7 +166,7 @@ export default function HistoryScreen() {
         <Button onClick={() => navigate("/")}>发起新的围观</Button>
       </div>
 
-      {!loaded && <div className="text-sm text-ink/50">正在加载历史记录…</div>}
+      {!loaded && <HistorySkeleton />}
       {loaded && launches.length === 0 && runs.length === 0 && (
         <div className="rounded-card border border-line bg-white p-8 text-sm text-slate-500 shadow-spotlight">
           还没有历史推演。先发一条内容，让一群人围观一下。
@@ -311,5 +311,50 @@ export default function HistoryScreen() {
         </div>
       )}
     </section>
+  );
+}
+
+function HistorySkeleton() {
+  return (
+    <div data-testid="history-skeleton" className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]" aria-label="历史正在读取">
+      <div className="grid gap-4">
+        {[0, 1, 2].map((item) => (
+          <article key={item} className="rounded-card border border-line bg-white p-5 shadow-sm">
+            <div className="flex items-center gap-3 border-b border-line pb-4">
+              <div className="h-11 w-11 rounded-full bg-cream" />
+              <div className="min-w-0 flex-1">
+                <div className="h-5 w-36 rounded-full bg-cream" />
+                <div className="mt-2 h-4 w-48 rounded-full bg-cream" />
+              </div>
+            </div>
+            <div className="mt-4 grid gap-3">
+              <div className="grid gap-4 rounded-card border border-line p-4 sm:grid-cols-[minmax(0,1fr)_auto]">
+                <div>
+                  <div className="h-5 w-28 rounded-full bg-cream" />
+                  <div className="mt-4 h-6 w-full max-w-lg rounded-full bg-cream" />
+                  <div className="mt-4 flex gap-4">
+                    <div className="h-4 w-16 rounded-full bg-cream" />
+                    <div className="h-4 w-16 rounded-full bg-cream" />
+                    <div className="h-4 w-16 rounded-full bg-cream" />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <div className="h-10 w-20 rounded-card bg-cream" />
+                  <div className="h-10 w-20 rounded-card bg-cream" />
+                </div>
+              </div>
+            </div>
+          </article>
+        ))}
+      </div>
+      <div className="hidden rounded-card border border-line bg-white p-5 shadow-sm lg:block">
+        <div className="h-6 w-28 rounded-full bg-cream" />
+        <div className="mt-5 grid gap-3">
+          {[0, 1, 2, 3].map((item) => (
+            <div key={item} className="h-8 rounded-full bg-cream" />
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }

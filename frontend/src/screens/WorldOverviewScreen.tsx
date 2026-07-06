@@ -99,7 +99,7 @@ export default function WorldOverviewScreen() {  // review:P11-T6
         )}
       </div>
 
-      {!loaded && <div className="rounded-card border border-line bg-white p-8 text-sm text-slate-500">正在加载世界…</div>}
+      {!loaded && <WorldOverviewSkeleton />}
       {loaded && failed && (
         <div className="rounded-card border border-line bg-white p-8 text-sm text-slate-500">
           世界读取失败，请稍后重试。
@@ -158,6 +158,35 @@ export default function WorldOverviewScreen() {  // review:P11-T6
         </div>
       )}
     </section>
+  );
+}
+
+function WorldOverviewSkeleton() {
+  return (
+    <div data-testid="world-overview-skeleton" className="grid gap-4" aria-label="世界正在读取">
+      {[0, 1].map((item) => (
+        <div key={item} className="grid gap-5 rounded-card border border-line bg-white p-5 shadow-sm lg:grid-cols-[minmax(0,1fr)_auto]">
+          <div className="min-w-0">
+            <div className="flex gap-2">
+              <div className="h-6 w-20 rounded-full bg-cream" />
+              <div className="h-6 w-28 rounded-full bg-cream" />
+              <div className="h-6 w-24 rounded-full bg-cream" />
+            </div>
+            <div className="mt-4 h-7 w-40 rounded-full bg-cream" />
+            <div className="mt-3 h-6 w-full max-w-xl rounded-full bg-cream" />
+            <div className="mt-5 flex gap-4">
+              <div className="h-5 w-16 rounded-full bg-cream" />
+              <div className="h-5 w-16 rounded-full bg-cream" />
+              <div className="h-5 w-16 rounded-full bg-cream" />
+            </div>
+          </div>
+          <div className="grid content-start gap-2 sm:grid-cols-2 lg:w-48 lg:grid-cols-1">
+            <div className="h-10 rounded-card bg-cream" />
+            <div className="h-10 rounded-card bg-cream" />
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 

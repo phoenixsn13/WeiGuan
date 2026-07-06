@@ -21,6 +21,15 @@ function mount(path = "/identity/p_author?world_id=w_1") {
   );
 }
 
+test("renders a structured skeleton while loading identity details", () => {  // review:P13-T7
+  vi.stubGlobal("fetch", vi.fn(() => new Promise(() => undefined)));
+
+  mount();
+
+  expect(screen.getByTestId("identity-skeleton")).toBeInTheDocument();
+  expect(screen.queryByText("正在读取身份…")).not.toBeInTheDocument();
+});
+
 test("renders identity card, stance timeline, influence curve, and accounts", async () => {  // review:P7-T7-AC2
   vi.stubGlobal(
     "fetch",

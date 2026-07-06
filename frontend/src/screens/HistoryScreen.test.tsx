@@ -29,6 +29,15 @@ function mount() {
   );
 }
 
+test("renders a structured skeleton while loading history", () => {  // review:P13-T7
+  vi.stubGlobal("fetch", vi.fn(() => new Promise(() => undefined)));
+
+  mount();
+
+  expect(screen.getByTestId("history-skeleton")).toBeInTheDocument();
+  expect(screen.queryByText("正在加载历史记录…")).not.toBeInTheDocument();
+});
+
 test("renders historical runs and opens live view", async () => {  // review:UI-P1-AC3
   vi.stubGlobal(
     "fetch",

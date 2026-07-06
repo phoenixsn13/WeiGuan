@@ -93,6 +93,7 @@ export default function ComposeScreen() {
   const [selectedPlatforms, setSelectedPlatforms] = useState<LaunchPlatform[]>(["twitter"]);
   const [cost, setCost] = useState<PreviewCost | null>(null);
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
   const selectedSteps = customMode ? clampSteps(customSteps) : steps;
   const selectedIdentity = identities.find((identity) => identity.person_id === selectedIdentityId);
@@ -161,7 +162,9 @@ export default function ComposeScreen() {
   }, [identityMode]);
 
   async function startRun() {
+    if (submitting) return;
     setError("");
+    setSubmitting(true);
     try {
       if (selectedPlatforms.length === 0) {
         throw new Error("至少选择一个平台");
@@ -227,8 +230,20 @@ export default function ComposeScreen() {
       navigate(`/run/${run_id}/live`);
     } catch (err) {
       setError((err as Error).message);
+      setSubmitting(false);
     }
   }
+
+  const identitySummary =
+    identityMode === "continue" && selectedIdentity
+      ? {
+          label: selectedIdentity.display_name,
+          detail: `${personaLabel(selectedIdentity.persona_kind)} · 影响力 ${Math.round(selectedIdentity.total_influence)} · ${selectedIdentity.run_count} 次`,
+        }
+      : {
+          label: identityName.trim() || `${personaLabel(posterPersona)}新身份`,
+          detail: `${personaLabel(posterPersona)} · ${selectedPlatforms.map((platform) => labelForPlatform(platform)).join(" + ")}`,
+        };
 
   return (
     <div className="mx-auto grid max-w-6xl gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -555,15 +570,35 @@ export default function ComposeScreen() {
         )}
         {error && <div className="mt-3 text-sm text-sentiment-negative">{error}</div>}
         <div className="mt-5">
-          <Button onClick={startRun}>开始围观</Button>
+          <Button onClick={startRun} disabled={submitting}>
+            {submitting ? "正在发起" : "开始围观"}
+          </Button>
         </div>
       </section>
 
       <aside className="rounded-card border border-line bg-white p-5 shadow-sm">
         <h2 className="font-bold">发布前设置</h2>
         <p className="mt-2 text-sm leading-6 text-slate-500">
-          不填前端字段时会使用后端 `.env` 默认值。
+          不填前端字段时会使用服务 `.env` 默认值。
         </p>
+        <div className="mt-4 rounded-card border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+          <div className="text-xs font-bold uppercase tracking-wide">费用预览</div>
+          {cost ? (
+            <>
+              <div className="mt-2 text-xl font-black tabular">¥{cost.estimated_rmb.toFixed(2)}</div>
+              <div className="mt-1 leading-6">
+                本次约 {cost.budgeted_agents} 个可见人物，{cost.decision_steps} 个决策拍。
+              </div>
+            </>
+          ) : (
+            <div className="mt-2 leading-6">正在根据轮次和可见人物估算。</div>
+          )}
+        </div>
+        <div className="mt-3 rounded-card border border-line bg-cream p-3 text-sm">
+          <div className="text-xs font-bold text-slate-500">当前身份</div>
+          <div className="mt-2 font-black text-slate-950">当前：{identitySummary.label}</div>
+          <div className="mt-1 leading-6 text-slate-500">{identitySummary.detail}</div>
+        </div>
         <details className="mt-4 min-w-0 rounded-card border border-line bg-slate-50 p-3 text-sm">
           <summary className="cursor-pointer font-medium">BYOK 设置</summary>
           <div className="mt-3 grid min-w-0 gap-3">

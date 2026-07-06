@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 
 import ComposeScreen from "./ComposeScreen";
 
@@ -8,6 +8,16 @@ afterEach(() => {
   vi.restoreAllMocks();
   localStorage.clear();
 });
+
+function WorldLiveProbe() {
+  const location = useLocation();
+  return (
+    <div>
+      <span>多平台现场页</span>
+      <span>{`URL${location.pathname}${location.search}`}</span>
+    </div>
+  );
+}
 
 function mount() {
   render(
@@ -19,7 +29,7 @@ function mount() {
       <Routes>
         <Route path="/compose" element={<ComposeScreen />} />
         <Route path="/run/:id/live" element={<div>进行时页</div>} />
-        <Route path="/world/:id/live" element={<div>多平台现场页</div>} />
+        <Route path="/world/:id/live" element={<WorldLiveProbe />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -112,6 +122,7 @@ test("selecting two platforms creates a multi-platform world run", async () => {
   fireEvent.click(screen.getByText(/开始围观/));
 
   await waitFor(() => expect(screen.getByText("多平台现场页")).toBeInTheDocument());
+  expect(screen.getByText("URL/world/w_multi/live?run_id=run-twitter&run_id=run-reddit")).toBeInTheDocument();
   expect(spy.mock.calls.some(([url]) => url === "/api/runs")).toBe(false);
   expect(multiRunPostBody(spy)).toMatchObject({
     content: "多平台同发",
@@ -119,6 +130,38 @@ test("selecting two platforms creates a multi-platform world run", async () => {
     world_id: "w_new",
     poster_person_id: "p_new",
   });
+});
+
+test("disables start button while the launch request is pending", async () => {  // review:P13-T7
+  const personPromise = new Promise<{ ok: boolean; json: () => Promise<unknown> }>(() => undefined);
+  const spy = vi.fn((url: string) => {
+    if (url.includes("preview-cost")) {
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ estimated_rmb: 1.8, budgeted_agents: 8, decision_steps: 9 }),
+      });
+    }
+    if (url === "/api/persons") {
+      return personPromise;
+    }
+    return Promise.resolve({
+      ok: true,
+      json: async () => ({ run_id: "r_pending" }),
+    });
+  });
+  vi.stubGlobal("fetch", spy);
+  mount();
+
+  fireEvent.change(screen.getByPlaceholderText(/有什么新鲜事/), {
+    target: { value: "观察提交态" },
+  });
+  fireEvent.click(screen.getByText(/开始围观/));
+
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "正在发起" })).toBeDisabled(),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "正在发起" }));
+  expect(spy.mock.calls.filter(([url]) => url === "/api/persons")).toHaveLength(1);
 });
 
 test("continuing an identity sends world and person ids to multi-platform run", async () => {  // review:P11-T5-AC3

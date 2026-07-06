@@ -63,7 +63,7 @@ export default function IdentityScreen() {
     : [];
 
   if (!loaded) {
-    return <div className="text-sm text-ink/50">正在读取身份…</div>;
+    return <IdentitySkeleton />;
   }
 
   if (!worldId) {
@@ -177,6 +177,53 @@ export default function IdentityScreen() {
               ))}
             </div>
           )}
+        </section>
+      </div>
+    </section>
+  );
+}
+
+function IdentitySkeleton() {
+  return (
+    <section data-testid="identity-skeleton" className="mx-auto grid max-w-6xl gap-5 lg:grid-cols-[320px_minmax(0,1fr)]" aria-label="身份正在读取">
+      <aside className="rounded-card border border-line bg-slate-950 p-5 shadow-spotlight">
+        <div className="flex items-center gap-3">
+          <div className="h-14 w-14 rounded-full bg-white/10" />
+          <div className="min-w-0 flex-1">
+            <div className="h-6 w-36 rounded-full bg-white/10" />
+            <div className="mt-2 h-4 w-20 rounded-full bg-white/10" />
+          </div>
+        </div>
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          <div className="h-24 rounded-card border border-white/10 bg-white/5" />
+          <div className="h-24 rounded-card border border-white/10 bg-white/5" />
+        </div>
+        <div className="mt-5 h-24 rounded-card border border-white/10 bg-white/5" />
+        <div className="mt-5 h-11 rounded-card bg-white/10" />
+      </aside>
+      <div className="grid gap-5">
+        <section className="rounded-card border border-line bg-white p-5 shadow-sm">
+          <div className="h-7 w-36 rounded-full bg-cream" />
+          <div className="mt-2 h-4 w-52 rounded-full bg-cream" />
+          <div className="mt-5 grid gap-3">
+            {[0, 1, 2].map((item) => (
+              <div key={item} className="rounded-card border border-line p-4">
+                <div className="h-4 w-24 rounded-full bg-cream" />
+                <div className="mt-3 h-5 w-full max-w-lg rounded-full bg-cream" />
+              </div>
+            ))}
+          </div>
+        </section>
+        <section className="rounded-card border border-line bg-white p-5 shadow-sm">
+          <div className="h-7 w-36 rounded-full bg-cream" />
+          <div className="mt-5 flex h-28 items-end gap-2">
+            {[0, 1, 2, 3, 4, 5].map((item) => (
+              <div key={item} className="flex flex-1 flex-col items-center gap-2">
+                <div className="w-full rounded-t bg-cream" style={{ height: `${35 + item * 10}%` }} />
+                <div className="h-3 w-8 rounded-full bg-cream" />
+              </div>
+            ))}
+          </div>
         </section>
       </div>
     </section>
