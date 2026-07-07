@@ -252,7 +252,9 @@ def test_launches_endpoint_lists_single_and_multi_runs(tmp_path):  # review:P12-
     payload = client.get("/api/launches").json()
     launches = payload["launches"]
     kinds = {item["launch_id"]: item["kind"] for item in launches}
-    assert kinds[single.json()["run_id"]] == "single"
+    single_body = single.json()
+    assert single_body["launch_id"] != single_body["run_id"]
+    assert kinds[single_body["launch_id"]] == "single"
     assert any(item["kind"] == "multi" for item in launches)
     assert launches == sorted(launches, key=lambda item: item["created_at"], reverse=True)
 
