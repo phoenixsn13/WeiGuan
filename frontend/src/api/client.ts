@@ -268,7 +268,7 @@ export async function fetchRunSummary(runId: string): Promise<RunSummary> {
 export async function createRun(
   body: CreateRunBody,
   creds: Creds,
-): Promise<{ run_id: string }> {
+): Promise<{ run_id: string; launch_id?: string; world_id?: string }> {
   const response = await fetch("/api/runs", {
     method: "POST",
     headers: {

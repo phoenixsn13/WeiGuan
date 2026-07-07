@@ -79,7 +79,7 @@ test("fetchRunSummary gets one run before events arrive", async () => {  // revi
 test("createRun posts with BYOK headers", async () => {  // review:P4-T4-AC2
   const spy = vi.fn(async () => ({
     ok: true,
-    json: async () => ({ run_id: "r_1" }),
+    json: async () => ({ run_id: "r_1", launch_id: "launch_1", world_id: "w_1" }),
   }));
   vi.stubGlobal("fetch", spy);
   const res = await createRun(
@@ -91,7 +91,11 @@ test("createRun posts with BYOK headers", async () => {  // review:P4-T4-AC2
     },
     { key: "sk-x", model: "gpt-4o-mini" },
   );
-  expect(res.run_id).toBe("r_1");
+  expect(res).toMatchObject({
+    run_id: "r_1",
+    launch_id: "launch_1",
+    world_id: "w_1",
+  });
   const [, init] = spy.mock.calls[0] as unknown as [unknown, RequestInit];
   expect((init.headers as Record<string, string>)["X-LLM-Key"]).toBe("sk-x");
 });

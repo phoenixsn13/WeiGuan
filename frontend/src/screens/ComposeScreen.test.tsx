@@ -81,7 +81,7 @@ function worldSummaries(count: number) {
   }));
 }
 
-test("submits content and navigates to live", async () => {  // review:P4-T6-AC1
+test("submits content and navigates to launch live", async () => {  // review:P4-T6-AC1
   const spy = vi.fn(async (url: string) => ({
     ok: true,
     json: async () =>
@@ -95,7 +95,7 @@ test("submits content and navigates to live", async () => {  // review:P4-T6-AC1
               accounts: [],
             },
           }
-        : { run_id: "r_9" },
+        : { run_id: "r_9", launch_id: "launch_9", world_id: "w_new" },
   }));
   vi.stubGlobal("fetch", spy);
   mount();
@@ -103,7 +103,8 @@ test("submits content and navigates to live", async () => {  // review:P4-T6-AC1
     target: { value: "构建砍到3秒" },
   });
   fireEvent.click(screen.getByText(/开始围观/));
-  await waitFor(() => expect(screen.getByText("进行时页")).toBeInTheDocument());
+  await waitFor(() => expect(screen.getByText("多平台现场页")).toBeInTheDocument());
+  expect(screen.getByText("URL/world/w_new/live?launch=launch_9")).toBeInTheDocument();
   const body = runPostBody(spy);
   expect(body.content).toBe("构建砍到3秒");
   expect(body.steps).toBe(10);
@@ -128,7 +129,7 @@ test("new world name is sent when creating the first identity", async () => {  /
           },
         };
       }
-      return { run_id: "r_named" };
+      return { run_id: "r_named", launch_id: "launch_named" };
     },
   }));
   vi.stubGlobal("fetch", spy);
@@ -140,7 +141,7 @@ test("new world name is sent when creating the first identity", async () => {  /
   });
   fireEvent.click(screen.getByText(/开始围观/));
 
-  await waitFor(() => expect(screen.getByText("进行时页")).toBeInTheDocument());
+  await waitFor(() => expect(screen.getByText("多平台现场页")).toBeInTheDocument());
   expect(personPostBody(spy)).toMatchObject({
     world_name: "财经吐槽场",
   });
@@ -173,7 +174,7 @@ test("continuing a world uses a searchable bounded world picker", async () => { 
           },
         };
       }
-      return { run_id: "r_finance" };
+      return { run_id: "r_finance", launch_id: "launch_finance" };
     },
   }));
   vi.stubGlobal("fetch", spy);
@@ -193,7 +194,7 @@ test("continuing a world uses a searchable bounded world picker", async () => { 
   });
   fireEvent.click(screen.getByText(/开始围观/));
 
-  await waitFor(() => expect(screen.getByText("进行时页")).toBeInTheDocument());
+  await waitFor(() => expect(screen.getByText("多平台现场页")).toBeInTheDocument());
   expect(personPostBody(spy)).toMatchObject({
     world_id: "w_finance",
   });
@@ -354,20 +355,20 @@ test("explains rounds and submits a custom long run", async () => {  // review:U
               accounts: [],
             },
           }
-        : { run_id: "r_1000" },
+        : { run_id: "r_1000", launch_id: "launch_1000" },
   }));
   vi.stubGlobal("fetch", spy);
   mount();
 
   expect(screen.getByText(/第 1 拍发布原帖/)).toBeInTheDocument();
-  fireEvent.click(screen.getByLabelText(/自定义轮次/));
+  fireEvent.click(screen.getByRole("radio", { name: "自定义轮次" }));
   fireEvent.change(screen.getByLabelText("自定义轮次数"), { target: { value: "1000" } });
   fireEvent.change(screen.getByPlaceholderText(/有什么新鲜事/), {
     target: { value: "长帖发酵测试" },
   });
   fireEvent.click(screen.getByText(/开始围观/));
 
-  await waitFor(() => expect(screen.getByText("进行时页")).toBeInTheDocument());
+  await waitFor(() => expect(screen.getByText("多平台现场页")).toBeInTheDocument());
   const body = runPostBody(spy);
   expect(body.steps).toBe(1000);
 });
@@ -403,7 +404,7 @@ test("saves provider settings locally and sends them when starting", async () =>
               accounts: [],
             },
           }
-        : { run_id: "r_9" },
+        : { run_id: "r_9", launch_id: "launch_9" },
   }));
   vi.stubGlobal("fetch", spy);
   localStorage.clear();
@@ -423,7 +424,7 @@ test("saves provider settings locally and sends them when starting", async () =>
   });
   fireEvent.click(screen.getByText(/开始围观/));
 
-  await waitFor(() => expect(screen.getByText("进行时页")).toBeInTheDocument());
+  await waitFor(() => expect(screen.getByText("多平台现场页")).toBeInTheDocument());
   expect(localStorage.getItem("wg_llm_base_url")).toBe("https://api.deepseek.com");
   expect(localStorage.getItem("wg_llm_reasoning")).toBe("high");
   expect(localStorage.getItem("wg_llm_thinking")).toBe("enabled");
@@ -452,6 +453,49 @@ test("byok settings stay inside the narrow settings rail", () => {  // review:UI
   expect(apiKey.className).toContain("min-w-0");
 });
 
+test("desktop compose follows P14 split layout with right launch stack", () => {  // review:P14-HIFI-AC2
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => ({
+      ok: true,
+      json: async () =>
+        url.includes("preview-cost")
+          ? { estimated_rmb: 54.73, budgeted_agents: 8, decision_steps: 9, estimated_tokens: 49823 }
+          : { worlds: worldSummaries(4) },
+    })),
+  );
+  mount();
+
+  expect(screen.getByTestId("compose-desktop-layout").className).toContain("lg:grid-cols-[minmax(0,1fr)_380px]");
+  const worldPanel = screen.getByTestId("compose-world-panel");
+  expect(worldPanel.className).toContain("lg:grid-cols-2");
+  expect(within(worldPanel).getByText("新建世界")).toBeInTheDocument();
+  expect(within(worldPanel).getByText("继续世界")).toBeInTheDocument();
+  const rail = screen.getByTestId("compose-launch-rail");
+  expect(within(rail).getByText("发帖身份")).toBeInTheDocument();
+  expect(within(rail).getByText("讨论轮次")).toBeInTheDocument();
+  expect(within(rail).getByText("预计消耗")).toBeInTheDocument();
+  expect(within(rail).getByRole("button", { name: "开始围观" })).toBeInTheDocument();
+});
+
+test("desktop compose uses product icons instead of raw glyph placeholders", () => {  // review:P14-HIFI-ICON
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => ({
+      ok: true,
+      json: async () =>
+        url.includes("preview-cost")
+          ? { estimated_rmb: 54.73, budgeted_agents: 8, decision_steps: 9, estimated_tokens: 49823 }
+          : { worlds: worldSummaries(4) },
+    })),
+  );
+  mount();
+
+  const layout = screen.getByTestId("compose-desktop-layout");
+  expect(layout.textContent).not.toMatch(/[◎⌁◈◌]/);
+  expect(within(screen.getByTestId("compose-platform-panel")).getAllByTestId(/platform-icon-/)).toHaveLength(3);
+});
+
 test("selecting KOL persona sends poster_persona", async () => {  // review:P7-T5-AC3
   const spy = vi.fn(async (url: string) => ({
     ok: true,
@@ -468,7 +512,7 @@ test("selecting KOL persona sends poster_persona", async () => {  // review:P7-T
                 accounts: [],
               },
             }
-          : { run_id: "r_kol" },
+          : { run_id: "r_kol", launch_id: "launch_kol" },
   }));
   vi.stubGlobal("fetch", spy);
   mount();
@@ -479,7 +523,7 @@ test("selecting KOL persona sends poster_persona", async () => {  // review:P7-T
   });
   fireEvent.click(screen.getByText(/开始围观/));
 
-  await waitFor(() => expect(screen.getByText("进行时页")).toBeInTheDocument());
+  await waitFor(() => expect(screen.getByText("多平台现场页")).toBeInTheDocument());
   expect(runPostBody(spy).poster_persona).toBe("kol");
 });
 
@@ -504,7 +548,7 @@ test("continuing an identity sends poster_person_id", async () => {  // review:P
           ],
         };
       }
-      return { run_id: "r_identity" };
+      return { run_id: "r_identity", launch_id: "launch_identity" };
     },
   }));
   vi.stubGlobal("fetch", spy);
@@ -517,7 +561,7 @@ test("continuing an identity sends poster_person_id", async () => {  // review:P
   });
   fireEvent.click(screen.getByText(/开始围观/));
 
-  await waitFor(() => expect(screen.getByText("进行时页")).toBeInTheDocument());
+  await waitFor(() => expect(screen.getByText("多平台现场页")).toBeInTheDocument());
   expect(runPostBody(spy).poster_person_id).toBe("p_author");
   expect(runPostBody(spy).world_id).toBe("w_1");
   expect(localStorage.getItem("wg_current_person_id")).toBe("p_author");
@@ -541,7 +585,7 @@ test("new identity creates a persistent person before starting run", async () =>
           },
         };
       }
-      return { run_id: "r_new_identity" };
+      return { run_id: "r_new_identity", launch_id: "launch_new_identity" };
     },
   }));
   vi.stubGlobal("fetch", spy);
@@ -554,7 +598,7 @@ test("new identity creates a persistent person before starting run", async () =>
   });
   fireEvent.click(screen.getByText(/开始围观/));
 
-  await waitFor(() => expect(screen.getByText("进行时页")).toBeInTheDocument());
+  await waitFor(() => expect(screen.getByText("多平台现场页")).toBeInTheDocument());
   const calls = spy.mock.calls as unknown as Array<[string, RequestInit | undefined]>;
   const personIndex = calls.findIndex(([url]) => url === "/api/persons");
   const runIndex = calls.findIndex(
@@ -597,7 +641,7 @@ test("continuing an identity uses picker world and person ids", async () => {  /
           ],
         };
       }
-      return { run_id: "r_continue_identity" };
+      return { run_id: "r_continue_identity", launch_id: "launch_continue_identity" };
     },
   }));
   vi.stubGlobal("fetch", spy);
@@ -612,7 +656,7 @@ test("continuing an identity uses picker world and person ids", async () => {  /
   });
   fireEvent.click(screen.getByText(/开始围观/));
 
-  await waitFor(() => expect(screen.getByText("进行时页")).toBeInTheDocument());
+  await waitFor(() => expect(screen.getByText("多平台现场页")).toBeInTheDocument());
   expect(runPostBody(spy)).toMatchObject({
     world_id: "w_1",
     poster_person_id: "p_author",
@@ -639,7 +683,7 @@ test("continuing many identities uses a bounded searchable picker", async () => 
       if (url === "/api/identities") {
         return { identities };
       }
-      return { run_id: "r_continue_large_identity" };
+      return { run_id: "r_continue_large_identity", launch_id: "launch_continue_large_identity" };
     },
   }));
   vi.stubGlobal("fetch", spy);
@@ -660,7 +704,7 @@ test("continuing many identities uses a bounded searchable picker", async () => 
   });
   fireEvent.click(screen.getByText(/开始围观/));
 
-  await waitFor(() => expect(screen.getByText("进行时页")).toBeInTheDocument());
+  await waitFor(() => expect(screen.getByText("多平台现场页")).toBeInTheDocument());
   expect(runPostBody(spy)).toMatchObject({
     world_id: "w_87",
     poster_person_id: "p_87",

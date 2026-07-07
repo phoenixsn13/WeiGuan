@@ -15,6 +15,17 @@ import {
 } from "../api/client";
 import { saveCurrentIdentity, useApiKey } from "../api/useApiKey";
 import { Button } from "../components/Button";
+import {
+  GlobeIcon,
+  MessageCircleIcon,
+  MultiPlatformIcon,
+  RedditIcon,
+  SearchIcon,
+  SendIcon,
+  ShieldIcon,
+  WalletIcon,
+  WeiboIcon,
+} from "../components/icons";
 import { world } from "../design/tokens";
 import { labelForPlatform } from "../skins/skin";
 
@@ -162,9 +173,6 @@ export default function ComposeScreen() {
   }, [selectedSteps]);
 
   useEffect(() => {
-    if (worldMode !== "continue") {
-      return;
-    }
     let active = true;
     fetchWorlds()
       .then((items) => {
@@ -178,7 +186,7 @@ export default function ComposeScreen() {
     return () => {
       active = false;
     };
-  }, [worldMode]);
+  }, []);
 
   useEffect(() => {
     if (identityMode !== "continue") {
@@ -262,7 +270,7 @@ export default function ComposeScreen() {
         navigate(`/world/${world_id}/live?${query.toString()}`);
         return;
       }
-      const { run_id } = await createRun(
+      const { launch_id, world_id: responseWorldId } = await createRun(
         {
           audience,
           content,
@@ -275,7 +283,10 @@ export default function ComposeScreen() {
         },
         { key, model, baseUrl, reasoningEffort, thinking },
       );
-      navigate(`/run/${run_id}/live`);
+      if (!launch_id) {
+        throw new Error("发起会话缺少 launch_id");
+      }
+      navigate(`/world/${responseWorldId ?? worldId}/live?launch=${launch_id}`); // review:P15-T4
     } catch (err) {
       setError((err as Error).message);
       setSubmitting(false);
@@ -305,31 +316,43 @@ export default function ComposeScreen() {
         };
 
   return (
-    <div className="mx-auto grid max-w-6xl gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
-      <section className="rounded-card border border-line bg-white p-6 shadow-spotlight">
+    <div
+      data-testid="compose-desktop-layout"
+      className="mx-auto grid max-w-[1340px] gap-5 lg:grid-cols-[minmax(0,1fr)_380px]"
+    >
+      <section className="rounded-card border border-line bg-white p-5 shadow-spotlight md:p-6">
         <h1 className="text-3xl font-black tracking-normal">写点什么</h1>
         <p className="mt-2 text-sm text-slate-500">像发微博一样输入正文，发出后看评论如何逐渐出现。</p>
-        <textarea
-          value={content}
-          onChange={(event) => setContent(event.target.value)}
-          placeholder="有什么新鲜事？"
-          rows={7}
-          className="mt-5 w-full resize-none rounded-card border border-line p-4 text-[16px] leading-7 focus:border-accent focus:outline-none"
-        />
+        <div className="mt-5 rounded-card border border-line bg-white">
+          <textarea
+            value={content}
+            onChange={(event) => setContent(event.target.value)}
+            placeholder="有什么新鲜事？"
+            rows={5}
+            className="h-44 w-full resize-none rounded-card border-0 p-4 text-[16px] leading-7 focus:outline-none"
+          />
+          <div className="border-t border-line px-4 py-2 text-right text-xs font-semibold text-slate-400">
+            {content.length}/2000
+          </div>
+        </div>
+
         <div className="mt-4 rounded-card border border-line bg-white p-4"> {/* review:P14-T6 */}
-          <div className="text-sm font-bold text-slate-950">世界</div>
-          <p className="mt-1 text-sm text-slate-500">
-            决定这条内容进入一个新讨论，还是接着已有讨论继续发酵。
-          </p>
-          <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-            <label
-              className={[
-                "cursor-pointer rounded-card border p-3",
-                worldMode === "new" ? "border-accent bg-accentSoft text-accent" : "border-line text-slate-600",
-              ].join(" ")}
-            >
-              <span className="flex items-center justify-between gap-3">
-                <span className="font-semibold">新建世界</span>
+          <div className="flex items-center gap-2 text-sm font-bold text-slate-950">
+            <GlobeIcon className="h-4 w-4" />
+            <span>世界</span>
+          </div>
+          <div
+            data-testid="compose-world-panel"
+            className="mt-3 grid overflow-hidden rounded-card border border-line lg:grid-cols-2"
+          >
+            <div className="border-b border-line p-4 lg:border-b-0 lg:border-r">
+              <label
+                className={[
+                  "flex cursor-pointer items-center justify-between rounded-md border px-3 py-2 text-sm",
+                  worldMode === "new" ? "border-accent bg-accentSoft text-accent" : "border-line text-slate-600",
+                ].join(" ")}
+              >
+                <span className="font-bold">新建世界</span>
                 <input
                   type="radio"
                   name="world_mode"
@@ -339,17 +362,34 @@ export default function ComposeScreen() {
                     setIdentityMode("new");
                   }}
                 />
-              </span>
-              <span className="mt-1 block text-xs text-slate-400">从这条内容开始新的讨论脉络</span>
-            </label>
-            <label
-              className={[
-                "cursor-pointer rounded-card border p-3",
-                worldMode === "continue" ? "border-accent bg-accentSoft text-accent" : "border-line text-slate-600",
-              ].join(" ")}
-            >
-              <span className="flex items-center justify-between gap-3">
-                <span className="font-semibold">继续世界</span>
+              </label>
+              <label className="mt-4 grid gap-2 text-sm font-semibold text-slate-700">
+                世界名称
+                <span className="relative">
+                  <input
+                    aria-label="世界名称"
+                    value={worldName}
+                    onChange={(event) => setWorldName(event.target.value.slice(0, 30))}
+                    placeholder="留空自动命名"
+                    className="w-full rounded-card border border-line px-3 py-2 pr-14 text-base text-slate-950 focus:border-accent focus:outline-none"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">
+                    {worldName.length}/30
+                  </span>
+                </span>
+              </label>
+              <p className="mt-4 text-sm leading-6 text-slate-500">
+                为你的讨论创建一个新的世界，所有内容将归于此世界。
+              </p>
+            </div>
+            <div className="p-4">
+              <label
+                className={[
+                  "flex cursor-pointer items-center justify-between rounded-md border px-3 py-2 text-sm",
+                  worldMode === "continue" ? "border-accent bg-accentSoft text-accent" : "border-line text-slate-600",
+                ].join(" ")}
+              >
+                <span className="font-bold">继续世界</span>
                 <input
                   aria-label="继续世界"
                   type="radio"
@@ -357,56 +397,21 @@ export default function ComposeScreen() {
                   checked={worldMode === "continue"}
                   onChange={() => setWorldMode("continue")}
                 />
-              </span>
-              <span className="mt-1 block text-xs text-slate-400">把内容放进已有讨论里继续观察</span>
-            </label>
-          </div>
-          {worldMode === "new" && (
-            <label className="mt-3 grid max-w-sm gap-2 text-sm font-semibold text-slate-700">
-              世界名称
-              <input
-                value={worldName}
-                onChange={(event) => setWorldName(event.target.value)}
-                placeholder="可不填，发起后自动命名"
-                className="rounded-card border border-line px-3 py-2 text-base text-slate-950 focus:border-accent focus:outline-none"
-              />
-            </label>
-          )}
-          {worldMode === "continue" && (
-            <div className="mt-3 rounded-card border border-line bg-slate-50 p-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <div className="text-sm font-bold text-slate-950">
-                    {selectedWorld ? "当前世界" : "选择一个保存的世界"}
-                  </div>
-                  <div className="mt-1 text-xs text-slate-500">
-                    已保存 {worlds.length} 个世界
-                    {selectedWorld && (
-                      <>
-                        {" · "}
-                        {selectedWorld.identity_count}
-                        {" 个身份 · "}
-                        {selectedWorld.run_count}
-                        {" 次发起"}
-                      </>
-                    )}
-                  </div>
-                </div>
-                {filteredWorlds.length > WORLD_VISIBLE_LIMIT && (
-                  <div className="rounded-full bg-white px-2 py-1 text-xs font-semibold text-slate-500">
-                    显示前 {WORLD_VISIBLE_LIMIT} 个，搜索可定位更多
-                  </div>
-                )}
-              </div>
-              <label className="mt-3 grid gap-2 text-sm font-semibold text-slate-700">
-                搜索世界
-                <input
-                  value={worldSearch}
-                  onChange={(event) => setWorldSearch(event.target.value)}
-                  placeholder="输入世界名或最近内容"
-                  className="rounded-card border border-line px-3 py-2 text-base text-slate-950 focus:border-accent focus:outline-none"
-                />
               </label>
+              <label className="mt-4 grid gap-2 text-sm font-semibold text-slate-700">
+                搜索世界
+                <span className="relative">
+                  <input
+                    aria-label="搜索世界"
+                    value={worldSearch}
+                    onChange={(event) => setWorldSearch(event.target.value)}
+                    placeholder="搜索已有世界"
+                    className="w-full rounded-card border border-line px-3 py-2 pr-9 text-base text-slate-950 focus:border-accent focus:outline-none"
+                  />
+                  <SearchIcon className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                </span>
+              </label>
+              <div className="mt-2 text-xs text-slate-500">已保存 {worlds.length} 个世界</div>
               {worlds.length === 0 && (
                 <div className="mt-3 rounded-card border border-dashed border-line p-3 text-sm text-slate-500">
                   还没有保存的世界。可以先新建一个。
@@ -436,14 +441,17 @@ export default function ComposeScreen() {
                         <span className="min-w-0">
                           <span className="block truncate font-bold">{item.name}</span>
                           <span className="mt-1 block truncate text-xs text-slate-500">
-                            {item.latest?.content ?? "暂无最近内容"}
+                            {item.identity_count} 人参与 · {item.latest?.content ?? "暂无最近内容"}
                           </span>
                         </span>
                         <input
                           type="radio"
                           name="world_picker"
                           checked={selectedWorldId === item.world_id}
-                          onChange={() => setSelectedWorldId(item.world_id)}
+                          onChange={() => {
+                            setWorldMode("continue");
+                            setSelectedWorldId(item.world_id);
+                          }}
                         />
                       </span>
                     </label>
@@ -451,27 +459,33 @@ export default function ComposeScreen() {
                 </div>
               )}
             </div>
-          )}
+          </div>
         </div>
-        <div className="mt-4 rounded-card border border-line bg-white p-4"> {/* review:P11-T5 */}
-          <div className="text-sm font-bold text-slate-950">平台</div>
-          <p className="mt-1 text-sm text-slate-500">选择这条内容会出现在哪些现场。</p>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+
+        <div data-testid="compose-platform-panel" className="mt-4 rounded-card border border-line bg-white p-4"> {/* review:P11-T5 */}
+          <div className="flex items-center gap-2 text-sm font-bold text-slate-950">
+            <SendIcon className="h-4 w-4" />
+            <span>发布到</span>
+          </div>
+          <div className="mt-3 grid gap-3 sm:grid-cols-3">
             {PLATFORMS.map((platform) => {
               const checked = selectedPlatforms.includes(platform.value);
+              const PlatformIcon = platform.value === "reddit" ? RedditIcon : WeiboIcon;
               return (
                 <label
                   key={platform.value}
                   className={[
-                    "cursor-pointer rounded-card border p-3 text-sm",
-                    checked ? "text-slate-950" : "border-line text-slate-600",
+                    "min-h-16 cursor-pointer rounded-card border p-3 text-sm",
+                    checked ? "border-accent bg-accentSoft text-slate-950" : "border-line text-slate-600",
                   ].join(" ")}
-                  style={checked ? { borderColor: world.line, backgroundColor: "#F8FAFC" } : undefined}
                 >
                   <span className="flex items-center justify-between gap-3">
-                    <span>
+                    <span className="flex min-w-0 items-center gap-3">
+                      <PlatformIcon data-testid={`platform-icon-${platform.value}`} className="h-8 w-8 shrink-0" />
+                      <span className="min-w-0">
                       <span className="block font-bold">{platform.label}</span>
                       <span className="mt-1 block text-xs text-slate-500">{platform.hint}</span>
+                      </span>
                     </span>
                     <input
                       aria-label={platform.label}
@@ -490,108 +504,133 @@ export default function ComposeScreen() {
                 </label>
               );
             })}
-          </div>
-          {selectedPlatforms.length >= 2 && (
             <div
-              className="mt-3 rounded-card border p-3 text-sm"
-              style={{ borderColor: world.line, backgroundColor: "#F8FAFC" }}
+              className={[
+                "min-h-16 rounded-card border p-3 text-sm",
+                selectedPlatforms.length >= 2 ? "border-accent bg-accentSoft" : "border-line bg-slate-50",
+              ].join(" ")}
             >
-              <div className="font-bold" style={{ color: world.line }}>多平台并发</div>
-              <p className="mt-1 leading-6 text-slate-500">
-                这条会同时在微博和 Reddit 发酵，热点会互相外溢。
-              </p>
-            </div>
-          )}
-        </div>
-        <div className="mt-4 rounded-card border border-line bg-white p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="text-sm font-bold text-slate-950">发帖身份</div>
-              <p className="mt-1 text-sm text-slate-500">
-                选择这条内容最初出现时的身份基础，会影响后续可见度和扩散强度。
-              </p>
-            </div>
-            {cost && (
-              <div className="rounded-full bg-warnSoft px-3 py-1 text-xs font-bold text-warnInk">
-                已预估费用
+              <div className="flex items-center gap-3">
+                <MultiPlatformIcon data-testid="platform-icon-multi" className="h-8 w-8 shrink-0" />
+                <div className="font-bold text-slate-950">多平台并发</div>
               </div>
-            )}
+              <p className="mt-1 leading-5 text-slate-500">
+                {selectedPlatforms.length >= 2
+                  ? "这条会同时在微博和 Reddit 发酵，热点会互相外溢。"
+                  : "同时勾选微博和 Reddit 后启用。"}
+              </p>
+            </div>
           </div>
-          <div className="mt-3 grid gap-2 md:grid-cols-3">
-            {PERSONAS.map((persona) => (
+        </div>
+      </section>
+
+      <aside
+        data-testid="compose-launch-rail"
+        className="grid gap-4 lg:sticky lg:top-24 lg:self-start"
+      >
+        <div className="rounded-card border border-line bg-white p-4 shadow-sm">
+          <div className="flex items-center gap-2 text-sm font-bold text-slate-950">
+            <ShieldIcon className="h-4 w-4" />
+            <span>发帖身份</span>
+          </div>
+          <div className="mt-3 flex items-center justify-between rounded-card border border-line px-3 py-2">
+            <div className="min-w-0">
+              <div className="truncate text-sm font-black text-slate-950">
+                {identityMode === "continue" && selectedIdentity ? "已选身份" : identitySummary.label}
+              </div>
+              <div className="mt-1 truncate text-xs text-slate-500">{identitySummary.detail}</div>
+            </div>
+            <select
+              aria-label="发帖身份类型"
+              value={posterPersona}
+              onChange={(event) => setPosterPersona(event.target.value as PersonaKind)}
+              className="ml-3 rounded-md border border-line bg-white px-2 py-1 text-sm font-semibold text-slate-700"
+            >
+              {PERSONAS.map((persona) => (
+                <option key={persona.value} value={persona.value}>
+                  {persona.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <p className="mt-3 text-sm leading-6 text-slate-500">
+            {posterPersona === "kol" ? "头部意见领袖，适合观察强扩散场景。" : posterPersona === "verified" ? "自带基础扩散，适合观点型内容。" : "普通网友视角，适合看自然评论。"}
+          </p>
+          <details className="mt-3 rounded-card border border-line bg-slate-50 p-3 text-sm">
+            <summary className="cursor-pointer font-bold text-accent">更换身份</summary>
+            <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
+              {PERSONAS.map((persona) => (
+                <label
+                  key={persona.value}
+                  className={[
+                    "cursor-pointer rounded-card border p-2",
+                    posterPersona === persona.value
+                      ? "border-accent bg-accentSoft text-accent"
+                      : "border-line bg-white text-slate-600",
+                  ].join(" ")}
+                >
+                  <span className="flex items-center justify-between gap-2">
+                    <span>
+                      <span className="block font-bold">{persona.label}</span>
+                      <span className="mt-1 block truncate text-xs text-slate-500">{persona.hint}</span>
+                    </span>
+                    <input
+                      type="radio"
+                      name="poster_persona"
+                      checked={posterPersona === persona.value}
+                      onChange={() => setPosterPersona(persona.value)}
+                    />
+                  </span>
+                </label>
+              ))}
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
               <label
-                key={persona.value}
                 className={[
-                  "cursor-pointer rounded-card border p-3 text-sm",
-                  posterPersona === persona.value
-                    ? "border-accent bg-accentSoft text-accent"
-                    : "border-line text-slate-600",
+                  "cursor-pointer rounded-card border p-3",
+                  identityMode === "new" ? "border-accent bg-accentSoft text-accent" : "border-line bg-white text-slate-600",
                 ].join(" ")}
               >
                 <span className="flex items-center justify-between gap-3">
-                  <span>
-                    <span className="block font-bold">{persona.label}</span>
-                    <span className="mt-1 block text-xs text-slate-500">{persona.hint}</span>
-                  </span>
+                  <span className="font-semibold">新身份</span>
                   <input
                     type="radio"
-                    name="poster_persona"
-                    checked={posterPersona === persona.value}
-                    onChange={() => setPosterPersona(persona.value)}
+                    name="identity_mode"
+                    checked={identityMode === "new"}
+                    onChange={() => setIdentityMode("new")}
                   />
                 </span>
-                <span className="mt-2 block text-xs text-slate-400">{persona.standing}</span>
               </label>
-            ))}
-          </div>
-          <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-            <label
-              className={[
-                "cursor-pointer rounded-card border p-3",
-                identityMode === "new" ? "border-accent bg-accentSoft text-accent" : "border-line text-slate-600",
-              ].join(" ")}
-            >
-              <span className="flex items-center justify-between gap-3">
-                <span className="font-semibold">新身份</span>
-                <input
-                  type="radio"
-                  name="identity_mode"
-                  checked={identityMode === "new"}
-                  onChange={() => setIdentityMode("new")}
-                />
-              </span>
-              <span className="mt-1 block text-xs text-slate-400">从这次内容开始建立身份</span>
-            </label>
-            <label
-              className={[
-                "cursor-pointer rounded-card border p-3",
-                identityMode === "continue" ? "border-accent bg-accentSoft text-accent" : "border-line text-slate-600",
-              ].join(" ")}
-            >
-              <span className="flex items-center justify-between gap-3">
-                <span className="font-semibold">继续身份</span>
-                <input
-                  type="radio"
-                  name="identity_mode"
-                  checked={identityMode === "continue"}
-                  onChange={() => setIdentityMode("continue")}
-                />
-              </span>
-              <span className="mt-1 block text-xs text-slate-400">沿用已经保存的人物身份</span>
-            </label>
-          </div>
-          {identityMode === "new" && (
-            <label className="mt-3 grid max-w-sm gap-2 text-sm font-semibold text-slate-700">
+              <label
+                className={[
+                  "cursor-pointer rounded-card border p-3",
+                  identityMode === "continue" ? "border-accent bg-accentSoft text-accent" : "border-line bg-white text-slate-600",
+                ].join(" ")}
+              >
+                <span className="flex items-center justify-between gap-3">
+                  <span className="font-semibold">继续身份</span>
+                  <input
+                    type="radio"
+                    name="identity_mode"
+                    checked={identityMode === "continue"}
+                    onChange={() => setIdentityMode("continue")}
+                  />
+                </span>
+              </label>
+            </div>
+            {identityMode === "new" && (
+            <label className="mt-3 grid gap-2 text-sm font-semibold text-slate-700">
               身份昵称
               <input
                 value={identityName}
+                aria-label="身份昵称"
                 onChange={(event) => setIdentityName(event.target.value)}
                 placeholder={`${personaLabel(posterPersona)}昵称，可不填`}
                 className="rounded-card border border-line px-3 py-2 text-base text-slate-950 focus:border-accent focus:outline-none"
               />
             </label>
-          )}
-          {identityMode === "continue" && (
+            )}
+            {identityMode === "continue" && (
             <div className="mt-3 rounded-card border border-line bg-slate-50 p-3"> {/* review:P7-T12 */}
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
@@ -623,6 +662,7 @@ export default function ComposeScreen() {
                 搜索身份
                 <input
                   value={identitySearch}
+                  aria-label="搜索身份"
                   onChange={(event) => setIdentitySearch(event.target.value)}
                   placeholder="输入昵称、身份类型或 ID"
                   className="rounded-card border border-line px-3 py-2 text-base text-slate-950 focus:border-accent focus:outline-none"
@@ -675,132 +715,107 @@ export default function ComposeScreen() {
                 </div>
               )}
             </div>
-          )}
+            )}
+          </details>
         </div>
-        <div className="mt-4 rounded-card border border-line bg-slate-50 p-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <div className="text-sm font-bold text-slate-950">讨论轮次</div>
-              <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
-                第 1 拍发布原帖；之后每一轮让一批用户基于当前评论区继续点赞、评论或转发。
-                轮次越多，越接近一条长微博持续发酵的过程。
-              </p>
-            </div>
-            <div className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-500">
-              当前 {selectedSteps} 轮
-            </div>
+
+        <div className="rounded-card border border-line bg-white p-4 shadow-sm">
+          <div className="flex items-center gap-2 text-sm font-bold text-slate-950">
+            <MessageCircleIcon className="h-4 w-4" />
+            <span>讨论轮次</span>
           </div>
-        </div>
-        <div className="mt-3 grid gap-2 text-sm sm:grid-cols-4">
-          {ROUNDS.map((round) => (
+          <div className="mt-3 grid grid-cols-4 gap-2 text-sm">
+            {ROUNDS.map((round) => (
+              <label
+                key={round.value}
+                className={[
+                  "cursor-pointer rounded-card border px-2 py-2 text-center",
+                  !customMode && steps === round.value ? "border-accent bg-accentSoft text-accent" : "border-line text-slate-600",
+                ].join(" ")}
+              >
+                <span className="block font-bold">{round.value} 拍</span>
+                <input
+                  className="sr-only"
+                  aria-label={round.label}
+                  type="radio"
+                  name="steps"
+                  checked={!customMode && steps === round.value}
+                  onChange={() => {
+                    setCustomMode(false);
+                    setSteps(round.value);
+                  }}
+                />
+              </label>
+            ))}
             <label
-              key={round.value}
               className={[
-                "flex min-h-16 cursor-pointer items-center justify-between rounded-card border px-3",
-                !customMode && steps === round.value ? "border-accent bg-accentSoft text-accent" : "border-line text-slate-600",
+                "cursor-pointer rounded-card border px-2 py-2 text-center",
+                customMode ? "border-accent bg-accentSoft text-accent" : "border-line text-slate-600",
               ].join(" ")}
             >
-              <span>
-                <span className="block font-semibold">{round.label}</span>
-                <span className="mt-1 block text-xs text-slate-400">{round.value} 轮 · {round.hint}</span>
-              </span>
+              <span className="block font-bold">自定义</span>
               <input
+                className="sr-only"
+                aria-label="自定义轮次"
                 type="radio"
                 name="steps"
-                checked={!customMode && steps === round.value}
-                onChange={() => {
-                  setCustomMode(false);
-                  setSteps(round.value);
-                }}
+                checked={customMode}
+                onChange={() => setCustomMode(true)}
               />
             </label>
-          ))}
-          <label
-            className={[
-              "flex min-h-16 cursor-pointer items-center justify-between rounded-card border px-3",
-              customMode ? "border-accent bg-accentSoft text-accent" : "border-line text-slate-600",
-            ].join(" ")}
-          >
-            <span>
-              <span className="block font-semibold">自定义轮次</span>
-              <span className="mt-1 block text-xs text-slate-400">1-1000 轮</span>
-            </span>
+          </div>
+          <p className="mt-3 text-sm leading-6 text-slate-500">
+            第 1 拍发布原帖；之后每轮让一批模拟用户基于当前评论区继续互动。
+          </p>
+          <label className="mt-3 grid gap-2 text-sm font-semibold text-slate-700">
+            自定义轮次数
             <input
-              type="radio"
-              name="steps"
-              checked={customMode}
-              onChange={() => setCustomMode(true)}
+              type="number"
+              min={1}
+              max={MAX_CUSTOM_STEPS}
+              aria-label="自定义轮次数"
+              value={customSteps}
+              onChange={(event) => {
+                setCustomMode(true);
+                setCustomSteps(clampSteps(Number(event.target.value)));
+              }}
+              className="rounded-card border border-line px-3 py-2 text-base text-slate-950 focus:border-accent focus:outline-none"
             />
           </label>
+          <div className="mt-2 text-xs text-slate-500">范围 1-1000 拍，当前 {selectedSteps} 拍。</div>
         </div>
-        {customMode && (
-          <div className="mt-3 rounded-card border border-line bg-white p-4">
-            <label className="grid gap-2 text-sm font-semibold text-slate-700">
-              自定义轮次数
-              <input
-                type="number"
-                min={1}
-                max={MAX_CUSTOM_STEPS}
-                value={customSteps}
-                onChange={(event) => setCustomSteps(clampSteps(Number(event.target.value)))}
-                className="max-w-48 rounded-card border border-line px-3 py-2 text-base text-slate-950 focus:border-accent focus:outline-none"
-              />
-            </label>
-            {selectedSteps > 100 && (
-              <p className="mt-3 text-sm leading-6 text-slate-500">
-                长跑会生成更多数据库记录和回放事件。评论区只保留窗口化展示，历史页会优先看摘要和热词。
-              </p>
-            )}
-          </div>
-        )}
-        {cost && (
-          <div className="mt-3 rounded-card border border-warnBorder bg-warnSoft p-3 text-sm text-warnInk"> {/* review:P7-T10 */}
-            <div>
-              预计约 ¥{cost.estimated_rmb.toFixed(2)}；本次约 {cost.budgeted_agents} 个可见人物，
-              {cost.decision_steps} 个决策拍。
-            </div>
-            <div className="mt-1">
-              自有算力不额外计费；付费 API 按 token 估算约 ¥{cost.estimated_rmb.toFixed(2)}。
-            </div>
-          </div>
-        )}
-        {error && <div className="mt-3 text-sm text-sentiment-negative">{error}</div>}
-        <div className="mt-5">
-          <Button onClick={startRun} disabled={submitting}>
-            {submitting ? "正在发起" : "开始围观"}
-          </Button>
-        </div>
-      </section>
 
-      <aside className="rounded-card border border-line bg-white p-5 shadow-sm">
-        <h2 className="font-bold">发布前设置</h2>
-        <p className="mt-2 text-sm leading-6 text-slate-500">
-          不填前端字段时会使用服务 `.env` 默认值。
-        </p>
-        <div className="mt-4 rounded-card border border-warnBorder bg-warnSoft p-3 text-sm text-warnInk">
-          <div className="text-xs font-bold uppercase tracking-wide">费用预览</div>
+        <div className="rounded-card border border-line bg-white p-4 shadow-sm">
+          <div className="flex items-center gap-2 text-sm font-bold text-slate-950">
+            <WalletIcon className="h-4 w-4" />
+            <span>预计消耗</span>
+          </div>
           {cost ? (
             <>
-              <div className="mt-2 text-xl font-black tabular">¥{cost.estimated_rmb.toFixed(2)}</div>
-              <div className="mt-1 leading-6">
-                本次约 {cost.budgeted_agents} 个可见人物，{cost.decision_steps} 个决策拍。
+              <div className="mt-3 text-2xl font-black tabular text-slate-950">
+                ¥{cost.estimated_rmb.toFixed(2)}
+              </div>
+              <div className="mt-1 text-sm text-slate-500">
+                约 ¥{cost.estimated_rmb.toFixed(2)} · {cost.budgeted_agents} 个可见人物 · {cost.decision_steps} 个决策拍
+              </div>
+              <div className="mt-3 rounded-card border border-warnBorder bg-warnSoft p-3 text-sm leading-6 text-warnInk"> {/* review:P7-T10 */}
+                自有算力不额外计费；付费 API 按 token 估算约 ¥{cost.estimated_rmb.toFixed(2)}。
               </div>
             </>
           ) : (
-            <div className="mt-2 leading-6">正在根据轮次和可见人物估算。</div>
+            <div className="mt-3 rounded-card border border-dashed border-line p-3 text-sm text-slate-500">
+              正在根据轮次和可见人物估算。
+            </div>
           )}
         </div>
-        <div className="mt-3 rounded-card border border-line bg-cream p-3 text-sm">
-          <div className="text-xs font-bold text-slate-500">当前世界</div>
-          <div className="mt-2 font-black text-slate-950">{worldSummary.label}</div>
-          <div className="mt-1 leading-6 text-slate-500">{worldSummary.detail}</div>
-        </div>
-        <div className="mt-3 rounded-card border border-line bg-cream p-3 text-sm">
-          <div className="text-xs font-bold text-slate-500">当前身份</div>
-          <div className="mt-2 font-black text-slate-950">当前：{identitySummary.label}</div>
-          <div className="mt-1 leading-6 text-slate-500">{identitySummary.detail}</div>
-        </div>
-        <details className="mt-4 min-w-0 rounded-card border border-line bg-slate-50 p-3 text-sm">
+
+        {error && <div className="rounded-card border border-red-200 bg-red-50 p-3 text-sm text-sentiment-negative">{error}</div>}
+        <Button onClick={startRun} disabled={submitting}>
+          {submitting ? "正在发起" : "开始围观"}
+        </Button>
+        <div className="text-center text-xs text-slate-400">点击即表示同意《围观服务条款》</div>
+
+        <details className="min-w-0 rounded-card border border-line bg-slate-50 p-3 text-sm">
           <summary className="cursor-pointer font-medium">BYOK 设置</summary>
           <div className="mt-3 grid min-w-0 gap-3">
             {/* review:PA-T3 */}
