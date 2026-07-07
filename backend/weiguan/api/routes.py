@@ -739,9 +739,27 @@ async def create_run(
         )
     except ValidationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    world_store = request.app.state.world_store
+    world, person = ensure_world_for_run(world_store, cfg)  # review:P15-T1
+    cfg = cfg.model_copy(update={"world_id": world.world_id, "poster_person_id": person.person_id})
     run_id = request.app.state.store.create(cfg)
+    launch_id = f"launch_{uuid4().hex}"
+    world_store.create_launch(
+        Launch(
+            launch_id=launch_id,
+            world_id=world.world_id,
+            content=cfg.content,
+            steps=cfg.steps,
+            platforms=[cfg.platform],
+            run_ids=[run_id],
+            status="running",
+            poster_person_id=person.person_id,
+            poster_persona=cfg.poster_persona,
+            created_at=datetime.now(timezone.utc).isoformat(),
+        )
+    )
     request.app.state.runner.start(run_id)
-    return {"run_id": run_id}
+    return {"run_id": run_id, "launch_id": launch_id}
 
 
 @router.get("/runs/{run_id}/frames")

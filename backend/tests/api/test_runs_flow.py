@@ -31,6 +31,21 @@ async def test_create_run_returns_id():  # review:P2-T4-AC1
     assert r.status_code == 200 and r.json()["run_id"].startswith("r_")
 
 
+async def test_create_run_persists_single_launch():  # review:P15-T1
+    async with _client() as client:
+        response = await client.post("/api/runs", json=_body(), headers=HDR)
+        body = response.json()
+        launches = (await client.get("/api/launches")).json()["launches"]
+
+    assert response.status_code == 200
+    assert body["run_id"].startswith("r_")
+    assert body["launch_id"].startswith("launch_")
+    match = [launch for launch in launches if launch["launch_id"] == body["launch_id"]]
+    assert len(match) == 1
+    assert match[0]["run_ids"] == [body["run_id"]]
+    assert match[0]["platforms"] == ["twitter"]
+
+
 async def test_get_run_returns_initial_summary_before_events():  # review:UI-P12-AC1
     async with _client() as client:
         run_id = (
