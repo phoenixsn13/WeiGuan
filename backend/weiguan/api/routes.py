@@ -295,7 +295,7 @@ def _run_summary(record) -> dict:
 
 def _multi_launch_summary(launch: Launch) -> dict:  # review:P12-T5
     data = launch.model_dump(mode="json")
-    data["kind"] = "multi"
+    data["kind"] = "multi" if len(launch.platforms) > 1 or len(launch.run_ids) > 1 else "single"  # review:P15-T2
     return data
 
 

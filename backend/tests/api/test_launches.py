@@ -28,3 +28,5 @@ async def test_launches_single_source_no_run_synthesis():  # review:P15-T2
     ids = {launch["launch_id"] for launch in launches}
     assert body["launch_id"] in ids
     assert body["run_id"] not in ids
+    match = next(launch for launch in launches if launch["launch_id"] == body["launch_id"])
+    assert match["kind"] == "single"
