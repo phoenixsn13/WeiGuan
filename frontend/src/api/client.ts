@@ -219,32 +219,12 @@ export async function fetchRuns(): Promise<RunSummary[]> {
   return response.json();
 }
 
-function launchFromRun(run: RunSummary): LaunchSummary {
-  return {
-    launch_id: run.run_id,
-    kind: "single",
-    world_id: run.world_id,
-    content: run.content,
-    steps: run.steps,
-    platforms: [run.platform],
-    run_ids: [run.run_id],
-    status: run.status,
-    clock_tick: run.current_step,
-    poster_person_id: run.poster_person_id,
-    poster_persona: run.poster_persona,
-    created_at: run.created_at,
-  };
-}
-
 export async function fetchLaunches(): Promise<LaunchSummary[]> {  // review:P13-T4
   const response = await fetch("/api/launches");
   if (!response.ok) {
     throw new Error("failed to load launches");
   }
   const data = await response.json();
-  if (Array.isArray(data)) {
-    return data.map((run) => launchFromRun(run));
-  }
   return Array.isArray(data.launches) ? data.launches : [];
 }
 
@@ -268,7 +248,7 @@ export async function fetchRunSummary(runId: string): Promise<RunSummary> {
 export async function createRun(
   body: CreateRunBody,
   creds: Creds,
-): Promise<{ run_id: string; launch_id?: string; world_id?: string }> {
+): Promise<{ run_id: string; launch_id: string; world_id?: string }> {
   const response = await fetch("/api/runs", {
     method: "POST",
     headers: {
@@ -287,7 +267,7 @@ export async function createRun(
 export async function createMultiRun(
   body: CreateMultiRunBody,
   creds: Creds,
-): Promise<{ world_id: string; run_ids: string[] }> {  // review:P11-T5
+): Promise<{ world_id: string; run_ids: string[]; launch_id: string }> {  // review:P11-T5
   const response = await fetch("/api/multi-runs", {
     method: "POST",
     headers: {

@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 
 import {
   fetchLaunches,
-  fetchRuns,
   listPersons,
   type LaunchSummary,
   type PersonView,
@@ -11,10 +10,10 @@ import {
 } from "../api/client";
 import { Button } from "../components/Button";
 import { TrendRail } from "../components/TrendRail";
-import { groupRunsByIdentity, TEMPORARY_PERSON_ID } from "../pov/identity";
+import { TEMPORARY_PERSON_ID } from "../pov/identity";
 import { labelForPlatform } from "../skins/skin";
 
-function statusLabel(status: RunSummary["status"]): string {
+function statusLabel(status: LaunchSummary["status"]): string {
   if (status === "done") return "已完成";
   if (status === "running") return "进行中";
   if (status === "error") return "已中断";
@@ -64,17 +63,35 @@ function identityUrl(group: LaunchGroup): string | null {
   return `/identity/${personId}?world_id=${worldId}`;
 }
 
-function totalsForLaunch(launch: LaunchSummary, runMap: Map<string, RunSummary>): Record<string, number> {
-  return launch.run_ids.reduce(
-    (totals, runId) => {
-      const run = runMap.get(runId);
-      totals.replies += run?.totals.replies ?? 0;
-      totals.reposts += run?.totals.reposts ?? 0;
-      totals.likes += run?.totals.likes ?? 0;
-      return totals;
-    },
-    { replies: 0, reposts: 0, likes: 0 },
-  );
+function totalsForLaunch(launch: LaunchSummary): Record<string, number> {
+  const totals = (launch as LaunchSummary & { totals?: Record<string, number> }).totals ?? {};
+  return {
+    replies: totals.replies ?? 0,
+    reposts: totals.reposts ?? 0,
+    likes: totals.likes ?? 0,
+  };
+}
+
+function launchTrendRun(launch: LaunchSummary): RunSummary {
+  return {
+    run_id: launch.launch_id,
+    world_id: launch.world_id,
+    poster_person_id: launch.poster_person_id ?? undefined,
+    poster_persona: launch.poster_persona,
+    content: launch.content,
+    steps: launch.steps,
+    platform: launch.platforms[0] ?? "twitter",
+    status: launch.status,
+    current_step: launch.clock_tick,
+    totals: totalsForLaunch(launch),
+    created_at: launch.created_at,
+  };
+}
+
+function trendRunsForHistory(launches: LaunchSummary[]): RunSummary[] {
+  return launches
+    .filter((launch) => launch.content.trim())
+    .map((launch) => launchTrendRun(launch));
 }
 
 function groupLaunchesByIdentity(persons: PersonView[], launches: LaunchSummary[]): LaunchGroup[] {
@@ -109,22 +126,18 @@ function groupLaunchesByIdentity(persons: PersonView[], launches: LaunchSummary[
 }
 
 export default function HistoryScreen() {
-  const [runs, setRuns] = useState<RunSummary[]>([]);
   const [launches, setLaunches] = useState<LaunchSummary[]>([]);
   const [persons, setPersons] = useState<PersonView[]>([]);
   const [loaded, setLoaded] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    Promise.all([fetchRuns(), fetchLaunches()])
-      .then(async ([nextRuns, nextLaunches]) => {
-        setRuns(nextRuns);
+    fetchLaunches()
+      .then(async (nextLaunches) => {
         setLaunches(nextLaunches);
         const worldIds = [
           ...new Set(
-            [...nextRuns.map((run) => run.world_id), ...nextLaunches.map((launch) => launch.world_id)].filter(
-              (id): id is string => Boolean(id),
-            ),
+            nextLaunches.map((launch) => launch.world_id).filter((id): id is string => Boolean(id)),
           ),
         ];
         const personLists = await Promise.all(
@@ -133,33 +146,14 @@ export default function HistoryScreen() {
         setPersons(personLists.flat());
       })
       .catch(() => {
-        setRuns([]);
         setLaunches([]);
         setPersons([]);
       })
       .finally(() => setLoaded(true));
   }, []);
 
-  const runMap = new Map(runs.map((run) => [run.run_id, run]));
-  const groups = launches.length > 0
-    ? groupLaunchesByIdentity(persons, launches)
-    : groupRunsByIdentity(persons, runs).map((group) => ({
-        person: group.person,
-        launches: group.runs.map((run) => ({
-          launch_id: run.run_id,
-          kind: "single",
-          world_id: run.world_id,
-          content: run.content,
-          steps: run.steps,
-          platforms: [run.platform],
-          run_ids: [run.run_id],
-          status: run.status,
-          clock_tick: run.current_step,
-          poster_person_id: run.poster_person_id,
-          poster_persona: run.poster_persona,
-          created_at: run.created_at,
-        })),
-      }));
+  const trendRuns = trendRunsForHistory(launches);
+  const groups = groupLaunchesByIdentity(persons, launches);
 
   return (
     <section className="mx-auto max-w-6xl">
@@ -174,14 +168,20 @@ export default function HistoryScreen() {
       </div>
 
       {!loaded && <HistorySkeleton />}
-      {loaded && launches.length === 0 && runs.length === 0 && (
+      {loaded && launches.length === 0 && (
         <div className="rounded-card border border-line bg-white p-8 text-sm text-slate-500 shadow-spotlight">
           还没有历史推演。先发一条内容，让一群人围观一下。
         </div>
       )}
 
       {groups.length > 0 && (
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div
+          data-testid="history-desktop-grid"
+          className="grid gap-5 lg:grid-cols-[300px_minmax(0,1fr)]"
+        >
+          <div className="lg:sticky lg:top-24 lg:self-start">
+            <TrendRail runs={trendRuns} />
+          </div>
           <div className="grid gap-4">
             {groups.map((group) => (
               <article
@@ -225,7 +225,7 @@ export default function HistoryScreen() {
                 </div>
                 <div className="mt-4 grid gap-3">
                   {group.launches.map((launch) => {
-                    const totals = totalsForLaunch(launch, runMap);
+                    const totals = totalsForLaunch(launch);
                     return (
                     <div
                       key={launch.launch_id}
@@ -278,7 +278,7 @@ export default function HistoryScreen() {
                               </button>
                             )}
                             {launch.run_ids.map((runId, index) => {
-                              const platform = launch.platforms[index] ?? runMap.get(runId)?.platform ?? "twitter";
+                              const platform = launch.platforms[index] ?? "twitter";
                               return (
                                 <span key={runId} className="flex gap-2">
                                   <button
@@ -320,9 +320,6 @@ export default function HistoryScreen() {
                 </div>
               </article>
             ))}
-          </div>
-          <div className="lg:sticky lg:top-24 lg:self-start">
-            <TrendRail runs={runs} />
           </div>
         </div>
       )}

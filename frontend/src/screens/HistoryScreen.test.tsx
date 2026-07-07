@@ -1,9 +1,19 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 
 import HistoryScreen from "./HistoryScreen";
 
-afterEach(() => vi.restoreAllMocks());
+beforeEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
+
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 function LocationProbe() {
   const location = useLocation();
@@ -35,6 +45,24 @@ function mount() {
   );
 }
 
+function launchFixture(overrides: Record<string, unknown> = {}) {
+  return {
+    launch_id: "launch_1",
+    kind: "single",
+    world_id: "w_1",
+    content: "构建砍到3秒",
+    steps: 6,
+    platforms: ["twitter"],
+    run_ids: ["r_1"],
+    status: "done",
+    clock_tick: 6,
+    poster_person_id: "p_author",
+    poster_persona: "ordinary",
+    created_at: "2026-07-04T08:00:00Z",
+    ...overrides,
+  };
+}
+
 test("renders a structured skeleton while loading history", () => {  // review:P13-T7
   vi.stubGlobal("fetch", vi.fn(() => new Promise(() => undefined)));
 
@@ -47,18 +75,12 @@ test("renders a structured skeleton while loading history", () => {  // review:P
 test("renders historical runs and opens live view", async () => {  // review:UI-P1-AC3
   vi.stubGlobal(
     "fetch",
-    vi.fn(async () => ({
+    vi.fn(async (url: string) => ({
       ok: true,
-      json: async () => [
-        {
-          run_id: "r_1",
-          content: "构建砍到3秒",
-          steps: 6,
-          platform: "twitter",
-          status: "done",
-          totals: { replies: 3, reposts: 1, likes: 8 },
-        },
-      ],
+      json: async () =>
+        url === "/api/launches"
+          ? { launches: [launchFixture({ totals: { replies: 3, reposts: 1, likes: 8 } })] }
+          : { persons: [] },
     })),
   );
 
@@ -73,42 +95,166 @@ test("renders historical runs and opens live view", async () => {  // review:UI-
 test("shows shared hot topics from saved runs", async () => {  // review:UI-P11-AC3
   vi.stubGlobal(
     "fetch",
-    vi.fn(async () => ({
+    vi.fn(async (url: string) => ({
       ok: true,
-      json: async () => [
-        {
-          run_id: "r_1",
-          content: "spacex股价怎么回事啊",
-          steps: 15,
-          platform: "twitter",
-          status: "done",
-          totals: { replies: 13, reposts: 1, likes: 6 },
-        },
-      ],
+      json: async () =>
+        url === "/api/launches"
+          ? {
+              launches: [
+                launchFixture({
+                  content: "spacex股价怎么回事啊",
+                  steps: 15,
+                  totals: { replies: 13, reposts: 1, likes: 6 },
+                }),
+              ],
+            }
+          : { persons: [] },
     })),
   );
 
   mount();
 
   expect(await screen.findByText("围观热榜")).toBeInTheDocument();
+  expect(screen.getByTestId("history-desktop-grid").className).toContain("lg:grid-cols-[300px_minmax(0,1fr)]");
   expect(screen.getAllByText("#spacex股价怎么回事啊").length).toBeGreaterThan(0);
+});
+
+test("history hot rail uses launch content when run summaries are absent", async () => {  // review:P14-HIFI-RAIL-AC2
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => ({
+      ok: true,
+      json: async () => {
+        if (url === "/api/launches") {
+          return {
+            launches: [
+              {
+                launch_id: "launch_1",
+                kind: "multi",
+                world_id: "w_1",
+                content: "AI政策会改变商业模式吗",
+                steps: 100,
+                platforms: ["twitter", "reddit"],
+                run_ids: ["run-twitter", "run-reddit"],
+                status: "done",
+                clock_tick: 100,
+                poster_person_id: "p_author",
+                poster_persona: "ordinary",
+                created_at: "2026-07-04T08:00:00Z",
+              },
+            ],
+          };
+        }
+        if (url === "/api/runs") {
+          return [];
+        }
+        return {
+          persons: [
+            {
+              person: {
+                person_id: "p_author",
+                display_name: "普通观察员",
+                persona_kind: "ordinary",
+                accounts: [],
+              },
+              stance: { stance_counts: {}, dominant: "other" },
+              total_influence: 1,
+              run_ids: ["run-twitter", "run-reddit"],
+              standing_timeline: [],
+            },
+          ],
+        };
+      },
+    })),
+  );
+
+  mount();
+
+  expect(await screen.findByText("围观热榜")).toBeInTheDocument();
+  expect(screen.getAllByText("#AI政策会改变商业模式吗").length).toBeGreaterThan(0);
+  expect(screen.getByTestId("history-desktop-grid").className).toContain("lg:grid-cols-[300px_minmax(0,1fr)]");
+});
+
+test("renders history from launches without reading runs", async () => {  // review:P15-T4
+  const spy = vi.fn(async (url: string) => {
+    if (url === "/api/runs") {
+      throw new Error("History must not read technical runs");
+    }
+    return {
+      ok: true,
+      json: async () => {
+        if (url === "/api/launches") {
+          return {
+            launches: [
+              {
+                launch_id: "launch_single",
+                kind: "single",
+                world_id: "w_1",
+                content: "单源历史内容",
+                steps: 10,
+                platforms: ["twitter"],
+                run_ids: ["r_single"],
+                status: "done",
+                clock_tick: 10,
+                poster_person_id: "p_author",
+                poster_persona: "ordinary",
+                created_at: "2026-07-04T08:00:00Z",
+              },
+            ],
+          };
+        }
+        if (url === "/api/worlds/w_1/persons") {
+          return {
+          persons: [
+            {
+              person: {
+                person_id: "p_author",
+                display_name: "历史作者",
+                persona_kind: "ordinary",
+                accounts: [],
+              },
+              stance: { stance_counts: {}, dominant: "other" },
+              total_influence: 3,
+              run_ids: ["r_single"],
+              standing_timeline: [],
+            },
+          ],
+          };
+        }
+        throw new Error(`unexpected history fetch: ${url}`);
+      },
+    };
+  });
+  vi.stubGlobal("fetch", spy);
+
+  mount();
+
+  await waitFor(() =>
+    expect(spy.mock.calls.some(([url]) => url === "/api/worlds/w_1/persons")).toBe(true),
+  );
+  expect(await screen.findByText("单源历史内容")).toBeInTheDocument();
+  expect(screen.getByText("历史作者")).toBeInTheDocument();
+  expect(spy.mock.calls.some(([url]) => url === "/api/runs")).toBe(false);
 });
 
 test("history cards keep actions in a fixed right column", async () => {  // review:UI-P11-AC6
   vi.stubGlobal(
     "fetch",
-    vi.fn(async () => ({
+    vi.fn(async (url: string) => ({
       ok: true,
-      json: async () => [
-        {
-          run_id: "r_1",
-          content: "今天meta说要建数据中心，把闲置的AI算力做成云服务，这明显就是AI泡沫破裂的前奏",
-          steps: 15,
-          platform: "twitter",
-          status: "running",
-          totals: { replies: 10, reposts: 0, likes: 4 },
-        },
-      ],
+      json: async () =>
+        url === "/api/launches"
+          ? {
+              launches: [
+                launchFixture({
+                  content: "今天meta说要建数据中心，把闲置的AI算力做成云服务，这明显就是AI泡沫破裂的前奏",
+                  steps: 15,
+                  status: "running",
+                  totals: { replies: 10, reposts: 0, likes: 4 },
+                }),
+              ],
+            }
+          : { persons: [] },
     })),
   );
 
@@ -121,18 +267,12 @@ test("history cards keep actions in a fixed right column", async () => {  // rev
 test("opens replay from historical run", async () => {  // review:UI-P1-AC4
   vi.stubGlobal(
     "fetch",
-    vi.fn(async () => ({
+    vi.fn(async (url: string) => ({
       ok: true,
-      json: async () => [
-        {
-          run_id: "r_1",
-          content: "构建砍到3秒",
-          steps: 6,
-          platform: "twitter",
-          status: "done",
-          totals: { replies: 3, reposts: 1, likes: 8 },
-        },
-      ],
+      json: async () =>
+        url === "/api/launches"
+          ? { launches: [launchFixture({ totals: { replies: 3, reposts: 1, likes: 8 } })] }
+          : { persons: [] },
     })),
   );
 
@@ -148,29 +288,27 @@ test("groups historical runs under persistent identities", async () => {  // rev
     vi.fn(async (url: string) => ({
       ok: true,
       json: async () => {
-        if (url === "/api/runs") {
-          return [
-            {
-              run_id: "r_1",
-              world_id: "w_1",
-              content: "第一条",
-              steps: 10,
-              platform: "twitter",
-              status: "done",
-              created_at: "2026-07-01T08:00:00Z",
-              totals: { replies: 3, reposts: 1, likes: 8 },
-            },
-            {
-              run_id: "r_2",
-              world_id: "w_1",
-              content: "第二条",
-              steps: 15,
-              platform: "twitter",
-              status: "done",
-              created_at: "2026-07-02T08:00:00Z",
-              totals: { replies: 4, reposts: 0, likes: 2 },
-            },
-          ];
+        if (url === "/api/launches") {
+          return {
+            launches: [
+              launchFixture({
+                launch_id: "launch_1",
+                run_ids: ["r_1"],
+                content: "第一条",
+                steps: 10,
+                created_at: "2026-07-01T08:00:00Z",
+                totals: { replies: 3, reposts: 1, likes: 8 },
+              }),
+              launchFixture({
+                launch_id: "launch_2",
+                run_ids: ["r_2"],
+                content: "第二条",
+                steps: 15,
+                created_at: "2026-07-02T08:00:00Z",
+                totals: { replies: 4, reposts: 0, likes: 2 },
+              }),
+            ],
+          };
         }
         return {
           persons: [
@@ -215,19 +353,19 @@ test("opens identity page from historical author name", async () => {  // review
     vi.fn(async (url: string) => ({
       ok: true,
       json: async () => {
-        if (url === "/api/runs") {
-          return [
-            {
-              run_id: "r_1",
-              world_id: "w_1",
-              content: "第一条",
-              steps: 10,
-              platform: "twitter",
-              status: "done",
-              created_at: "2026-07-01T08:00:00Z",
-              totals: { replies: 3, reposts: 1, likes: 8 },
-            },
-          ];
+        if (url === "/api/launches") {
+          return {
+            launches: [
+              launchFixture({
+                launch_id: "launch_1",
+                run_ids: ["r_1"],
+                content: "第一条",
+                steps: 10,
+                created_at: "2026-07-01T08:00:00Z",
+                totals: { replies: 3, reposts: 1, likes: 8 },
+              }),
+            ],
+          };
         }
         return {
           persons: [
@@ -263,19 +401,19 @@ test("links identity history groups to the multi-platform world", async () => { 
     vi.fn(async (url: string) => ({
       ok: true,
       json: async () => {
-        if (url === "/api/runs") {
-          return [
-            {
-              run_id: "r_1",
-              world_id: "w_1",
-              content: "跨平台内容",
-              steps: 15,
-              platform: "twitter",
-              status: "done",
-              created_at: "2026-07-01T08:00:00Z",
-              totals: { replies: 3, reposts: 1, likes: 8 },
-            },
-          ];
+        if (url === "/api/launches") {
+          return {
+            launches: [
+              launchFixture({
+                launch_id: "launch_1",
+                run_ids: ["r_1"],
+                content: "跨平台内容",
+                steps: 15,
+                created_at: "2026-07-01T08:00:00Z",
+                totals: { replies: 3, reposts: 1, likes: 8 },
+              }),
+            ],
+          };
         }
         return {
           persons: [
