@@ -10,6 +10,7 @@ from weiguan.api.runner import RunRunner
 from weiguan.api.store import RunStore
 from weiguan.engine.base import Engine
 from weiguan.obs.emit import NullSink
+from weiguan.world.backfill import backfill_single_launches
 from weiguan.world.store import WorldStore
 
 
@@ -26,6 +27,7 @@ def create_app(
     app.state.engine = engine
     app.state.store = RunStore(path)
     app.state.world_store = world_store or WorldStore(str(workdir))
+    backfill_single_launches(app.state.store, app.state.world_store)  # review:P15-T3
     app.state.runner = RunRunner(app.state.store, engine, world_store=app.state.world_store)
     app.state.llm_defaults = llm_defaults or LlmDefaults()
     app.state.metric_sink = NullSink()
