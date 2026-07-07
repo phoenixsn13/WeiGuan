@@ -103,16 +103,28 @@ npx vitest run src/design/tokens.test.ts src/screens/ComposeScreen.test.tsx
 
 ## 4. 图片索引
 
-当前状态截图：
+当前状态截图（2026-07-07 重新截取）：
 
-- 选圈子：![选圈子当前截图](assets/2026-07-04-current-state/gallery.png)
-- 发起页：![发起页当前截图](assets/2026-07-04-current-state/compose.png)
-- 世界总览：![世界总览当前截图](assets/2026-07-04-current-state/worlds.png)
-- 历史记录：![历史记录当前截图](assets/2026-07-04-current-state/history.png)
-- 单平台评论区：![单平台评论区当前截图](assets/2026-07-04-current-state/single-live.png)
-- 多平台现场：![多平台现场当前截图](assets/2026-07-04-current-state/world-live-filtered.png)
-- 单 run 复盘：![单 run 复盘当前截图](assets/2026-07-04-current-state/retro.png)
-- 身份页：![身份页当前截图](assets/2026-07-04-current-state/identity.png)
+- 选圈子：![选圈子当前截图](assets/2026-07-07-latest-screenshots/gallery.png)
+- 发起页：![发起页当前截图](assets/2026-07-07-latest-screenshots/compose.png)
+- 世界总览：![世界总览当前截图](assets/2026-07-07-latest-screenshots/worlds.png)
+- 历史记录：![历史记录当前截图](assets/2026-07-07-latest-screenshots/history.png)
+- 单平台评论区：![单平台评论区当前截图](assets/2026-07-07-latest-screenshots/single-live.png)
+- 多平台现场：![多平台现场当前截图](assets/2026-07-07-latest-screenshots/world-live.png)
+- 单 run 复盘：![单 run 复盘当前截图](assets/2026-07-07-latest-screenshots/retro.png)
+- Launch 复盘：![Launch 复盘当前截图](assets/2026-07-07-latest-screenshots/launch-retro.png)
+- 身份页：![身份页当前截图](assets/2026-07-07-latest-screenshots/identity.png)
+- 移动端发起页：![移动端发起页当前截图](assets/2026-07-07-latest-screenshots/mobile-compose.png)
+- 移动端评论区：![移动端评论区当前截图](assets/2026-07-07-latest-screenshots/mobile-single-live.png)
+
+截图数据说明：
+
+- 截图工具：`npx playwright screenshot --browser=chromium --channel=chrome`。
+- 桌面视口：`1440x1000 --full-page`。
+- 移动端视口：`390x844 --full-page`。
+- 后端截图数据目录：`WEIGUAN_WORKDIR=/tmp/weiguan-manual-shot`。
+- 临时数据由 `backend/.weiguan/worlds/*/events.jsonl` 中的真实事件派生，未调用 LLM，未修改仓库数据。
+- 视觉对照结论见 [2026-07-07 最新截图高保真对照](2026-07-07-weiguan-latest-visual-review.md)。
 
 P14 原型图：
 
@@ -400,6 +412,18 @@ rg -n "bg-(blue|amber|emerald|rose|green|indigo|purple)-[0-9]|text-(blue|amber|e
 - `/api/runs/{id}/snapshot?tail=200`：单平台回放窗口接口，不应首屏拉完整大 snapshot。
 - `/api/worlds/{id}/persons`：身份列表接口，世界页和历史页可用来补显示名。
 
+本次截图环境只读探测结果：
+
+| 接口 | 响应时间 |
+| --- | ---: |
+| `/api/launches` | `0.023s` |
+| `/api/worlds` | `0.120s` |
+| `/api/runs` | `0.002s` |
+| `/api/worlds/{id}/events?after=0&limit=200` | `0.004s` |
+| `/api/runs/{id}/snapshot?tail=200` | `0.003s` |
+| `/api/runs/{id}/analysis` | `0.003s` |
+| `/api/runs/{id}/flavor?world_id=...` | `0.004s` |
+
 重点问题：
 
 - 请求 pending 很久但后端已经开始执行，说明生命周期接口仍可能存在阻塞。
@@ -423,6 +447,6 @@ rg -n "bg-(blue|amber|emerald|rose|green|indigo|purple)-[0-9]|text-(blue|amber|e
 ## 17. 已知边界
 
 - 本手册不执行真实 LLM 验收；需要真实发起时由用户控制 key、成本和本地服务。
-- 当前状态截图来自 2026-07-04，P14/P14-T8 变化以原型图、自动化验收和代码接线为准；如需视觉二审，应补一组 2026-07-07 当前截图。
+- 当前状态截图已于 2026-07-07 使用 Playwright 重新截取；视觉二审结论是“功能可达，但多页未达到 P13/P14 高保真原型”。
 - 身份入口只在有明确人物归属时出现；这是设计选择，不是遗漏。
-
+- 当前临时截图数据没有 Reddit 事件，因此多平台现场只能验证世界现场布局和单平台事件流，不能证明 P13 双平台并列体验已经高保真落地。
