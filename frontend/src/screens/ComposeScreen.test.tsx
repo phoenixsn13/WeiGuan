@@ -220,7 +220,7 @@ test("selecting two platforms creates a multi-platform world run", async () => {
             },
           }
         : url === "/api/multi-runs"
-          ? { world_id: "w_multi", run_ids: ["run-twitter", "run-reddit"] }
+          ? { world_id: "w_multi", run_ids: ["run-twitter", "run-reddit"], launch_id: "launch_multi" }
           : { run_id: "r_ignored" },
   }));
   vi.stubGlobal("fetch", spy);
@@ -236,7 +236,7 @@ test("selecting two platforms creates a multi-platform world run", async () => {
   fireEvent.click(screen.getByText(/开始围观/));
 
   await waitFor(() => expect(screen.getByText("多平台现场页")).toBeInTheDocument());
-  expect(screen.getByText("URL/world/w_multi/live?run_id=run-twitter&run_id=run-reddit")).toBeInTheDocument();
+  expect(screen.getByText("URL/world/w_multi/live?launch=launch_multi&run_id=run-twitter&run_id=run-reddit")).toBeInTheDocument();
   expect(spy.mock.calls.some(([url]) => url === "/api/runs")).toBe(false);
   expect(multiRunPostBody(spy)).toMatchObject({
     content: "多平台同发",
@@ -300,7 +300,7 @@ test("continuing an identity sends world and person ids to multi-platform run", 
         };
       }
       return url === "/api/multi-runs"
-        ? { world_id: "w_1", run_ids: ["run-twitter", "run-reddit"] }
+        ? { world_id: "w_1", run_ids: ["run-twitter", "run-reddit"], launch_id: "launch_continue_multi" }
         : { run_id: "r_ignored" };
     },
   }));

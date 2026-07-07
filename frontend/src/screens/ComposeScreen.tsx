@@ -250,7 +250,7 @@ export default function ComposeScreen() {
         saveCurrentIdentity(personId, worldId);
       }
       if (selectedPlatforms.length >= 2) {  // review:P11-T5
-        const { world_id, run_ids } = await createMultiRun(
+        const { world_id, run_ids, launch_id } = await createMultiRun(
           {
             audience,
             content,
@@ -263,7 +263,11 @@ export default function ComposeScreen() {
           },
           { key, model, baseUrl, reasoningEffort, thinking },
         );
+        if (!launch_id) {
+          throw new Error("发起会话缺少 launch_id");
+        }
         const query = new URLSearchParams();
+        query.set("launch", launch_id); // review:P15-T5
         for (const runId of run_ids) {
           query.append("run_id", runId);
         }
