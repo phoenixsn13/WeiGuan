@@ -293,23 +293,6 @@ def _run_summary(record) -> dict:
     }
 
 
-def _single_launch_summary(record) -> dict:  # review:P12-T5
-    return {
-        "launch_id": record.run_id,
-        "kind": "single",
-        "world_id": record.config.world_id,
-        "content": record.config.content,
-        "steps": record.config.steps,
-        "platforms": [record.config.platform.value],
-        "run_ids": [record.run_id],
-        "status": record.status,
-        "clock_tick": record.current_step,
-        "poster_person_id": record.config.poster_person_id,
-        "poster_persona": record.config.poster_persona.value,
-        "created_at": record.created_at,
-    }
-
-
 def _multi_launch_summary(launch: Launch) -> dict:  # review:P12-T5
     data = launch.model_dump(mode="json")
     data["kind"] = "multi"
@@ -326,17 +309,7 @@ def _latest_launch_item(launch: Launch) -> dict:
     }
 
 
-def _latest_run_item(record) -> dict:
-    return {
-        "content": record.config.content,
-        "created_at": record.created_at,
-        "status": record.status,
-        "run_ids": [record.run_id],
-        "launch_id": record.run_id,
-    }
-
-
-def _world_summary(world, *, world_store, run_store) -> dict:  # review:P14-T2
+def _world_summary(world, *, world_store, run_store) -> dict:  # review:P15-T2
     launches = world_store.list_launches(world.world_id)
     records = [
         record
@@ -344,15 +317,7 @@ def _world_summary(world, *, world_store, run_store) -> dict:  # review:P14-T2
         if record.config.world_id == world.world_id
     ]
     latest_launch = launches[0] if launches else None
-    latest_record = records[0] if records else None
-    if latest_launch is not None and (
-        latest_record is None or latest_launch.created_at >= latest_record.created_at
-    ):
-        latest = _latest_launch_item(latest_launch)
-    elif latest_record is not None:
-        latest = _latest_run_item(latest_record)
-    else:
-        latest = None
+    latest = _latest_launch_item(latest_launch) if latest_launch is not None else None
 
     persons = world_store.list_persons(world.world_id)
     primary = max(
@@ -612,12 +577,11 @@ async def create_multi_run(  # review:P11-T2
 
 
 @router.get("/launches")
-def list_launches(request: Request):  # review:P12-T5
+def list_launches(request: Request):  # review:P15-T2
     launches = [
         _multi_launch_summary(launch)
         for launch in request.app.state.world_store.list_all_launches()
     ]
-    launches.extend(_single_launch_summary(record) for record in request.app.state.store.list())
     return {
         "launches": sorted(
             launches,

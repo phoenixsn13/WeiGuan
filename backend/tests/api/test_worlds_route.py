@@ -116,10 +116,18 @@ def test_world_list_returns_persistent_worlds_sorted_by_latest(tmp_path):  # rev
     assert all(item["world_id"] != hidden.world_id for item in worlds)
 
 
-def test_world_list_falls_back_to_recent_run_without_launch(tmp_path):  # review:P14-T2
+def test_world_list_latest_comes_from_launch_not_run_store(tmp_path):  # review:P15-T2
     app = _app(tmp_path)
     world = app.state.world_store.create_world(persistent=True)
-    run_id = app.state.store.create(_run_config(world.world_id, "只有单平台记录的世界"))
+    app.state.world_store.create_launch(
+        _launch(
+            world.world_id,
+            launch_id="launch_real",
+            content="真实发起会话",
+            created_at="2026-07-06T08:00:00+00:00",
+        )
+    )
+    run_id = app.state.store.create(_run_config(world.world_id, "裸 run 不再进 latest"))
     record = app.state.store.get(run_id)
     assert record is not None
     record.status = "done"
@@ -132,14 +140,14 @@ def test_world_list_falls_back_to_recent_run_without_launch(tmp_path):  # review
     assert response.status_code == 200
     worlds = response.json()["worlds"]
     assert len(worlds) == 1
-    assert worlds[0]["name"] == "只有单平台记录的世界"[:12]
+    assert worlds[0]["name"] == "真实发起会话"[:12]
     assert worlds[0]["latest"] == {
-        "content": "只有单平台记录的世界",
-        "created_at": "2026-07-06T09:00:00+00:00",
+        "content": "真实发起会话",
+        "created_at": "2026-07-06T08:00:00+00:00",
         "status": "done",
-        "run_ids": [run_id],
-        "launch_id": run_id,
+        "run_ids": ["launch_real:twitter", "launch_real:reddit"],
+        "launch_id": "launch_real",
     }
-    assert worlds[0]["platform_count"] == 1
-    assert worlds[0]["run_count"] == 1
+    assert worlds[0]["platform_count"] == 2
+    assert worlds[0]["run_count"] == 3
     assert not NAKED_ID.search(worlds[0]["name"])
