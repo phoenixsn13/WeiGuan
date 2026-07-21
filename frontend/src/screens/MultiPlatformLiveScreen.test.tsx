@@ -262,7 +262,18 @@ test("single platform live falls back to one column without bridges", () => {  /
 
   expect(screen.getByText("世界时钟 · 第 1 拍")).toBeInTheDocument();
   expect(screen.getByText("微博")).toBeInTheDocument();
+  expect(screen.getByText("本次只包含一个平台现场")).toBeInTheDocument();
   expect(screen.queryByLabelText(/跨平台桥/)).not.toBeInTheDocument();
+});
+
+test("run-scoped world live shows an intentional placeholder when one platform has no events", () => {  // review:P14-HIFI-AC1
+  renderWorldLive(
+    <MultiPlatformLiveScreen events={[events[0]]} />,
+    "/world/w_1/live?run_id=run-twitter&run_id=run-reddit",
+  );
+
+  expect(screen.getByText("Reddit 暂无现场内容")).toBeInTheDocument();
+  expect(screen.getByText("等待该平台的评论、转发或跨平台外溢。")).toBeInTheDocument();
 });
 
 test("high-fidelity world stage uses tokenized bridge color and desktop three columns", () => {  // review:P9-T8-AC1
@@ -279,14 +290,23 @@ test("high-fidelity world stage uses tokenized bridge color and desktop three co
   expect(container.querySelector(".lg\\:grid-cols-3")).not.toBeNull();
 });
 
-test("platform columns use bounded scroll viewports instead of stretching the page", () => {  // review:P11-T9-AC3
+test("world live stage is viewport-bounded with internal platform scrolling", () => {  // review:P11-T9-AC3
   renderWorldLive(<MultiPlatformLiveScreen events={events} />);
 
+  const stage = screen.getByTestId("world-live-stage");
+  const content = screen.getByTestId("world-live-content");
   const viewports = screen.getAllByTestId("platform-scroll-viewport");
+
+  expect(stage.className).toContain("h-[calc(100vh-7rem)]");
+  expect(stage.className).toContain("overflow-hidden");
+  expect(content.className).toContain("min-h-0");
+  expect(content.className).toContain("overflow-hidden");
   expect(viewports).toHaveLength(2);
   for (const viewport of viewports) {
-    expect(viewport.className).toContain("max-h-[760px]");
+    expect(viewport.className).toContain("min-h-0");
+    expect(viewport.className).toContain("flex-1");
     expect(viewport.className).toContain("overflow-y-auto");
+    expect(viewport.className).not.toContain("max-h-[760px]");
   }
 });
 

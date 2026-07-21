@@ -66,6 +66,18 @@ test("renders persistent worlds and opens the world live view", async () => {  /
                 },
                 created_at: "2026-07-02T08:00:00Z",
               },
+              {
+                world_id: "w_empty",
+                name: "空壳世界",
+                identity_count: 6,
+                total_influence: 0,
+                platform_count: 1,
+                run_count: 0,
+                primary_identity_person_id: "p_empty",
+                primary_identity_name: "普通人",
+                latest: null,
+                created_at: "2026-07-01T08:00:00Z",
+              },
             ],
           };
         }
@@ -76,7 +88,15 @@ test("renders persistent worlds and opens the world live view", async () => {  /
 
   mount();
 
-  expect(await screen.findByText("世界总览")).toBeInTheDocument();
+  expect(await screen.findByRole("heading", { name: "世界" })).toBeInTheDocument();
+  expect(screen.getByTestId("world-overview-desktop-grid").className).toContain("lg:grid-cols-[300px_minmax(0,1fr)]");
+  expect(screen.getByTestId("world-card-w_1").className).toContain("lg:grid-cols-[64px_minmax(0,1fr)_260px]");
+  expect(screen.queryByText("累计影响力")).not.toBeInTheDocument();
+  expect(screen.queryByText("空壳世界")).not.toBeInTheDocument();
+  expect(screen.getAllByText("身份数").length).toBeGreaterThan(0);
+  expect(screen.getAllByText("总影响力").length).toBeGreaterThan(0);
+  expect(screen.getByText("围观热榜")).toBeInTheDocument();
+  expect(screen.getAllByText("#AI政策会改变商业模式吗").length).toBeGreaterThan(0);
   expect(requested).toEqual(["/api/worlds"]);
   expect(screen.getByText("财经吐槽圈")).toBeInTheDocument();
   expect(screen.getByText("AI 政策会改变商业模式吗")).toBeInTheDocument();
@@ -85,6 +105,48 @@ test("renders persistent worlds and opens the world live view", async () => {  /
 
   fireEvent.click(screen.getByRole("button", { name: "看最新现场" }));
   expect(screen.getByText("多平台现场/world/w_1/live?run_id=r_1")).toBeInTheDocument();
+});
+
+test("world hot rail falls back to world name when latest content is blank", async () => {  // review:P14-HIFI-RAIL-AC1
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => ({
+      ok: true,
+      json: async () => {
+        if (url === "/api/worlds") {
+          return {
+            worlds: [
+              {
+                world_id: "w_named",
+                name: "架构阿川3的世界",
+                identity_count: 56,
+                total_influence: 181,
+                platform_count: 2,
+                run_count: 2,
+                primary_identity_person_id: "p_author",
+                primary_identity_name: "架构阿川3",
+                latest: {
+                  content: "",
+                  created_at: "2026-07-02T08:00:00Z",
+                  status: "done",
+                  run_ids: ["r_1", "r_2"],
+                  launch_id: "launch_1",
+                },
+                created_at: "2026-07-02T08:00:00Z",
+              },
+            ],
+          };
+        }
+        return {};
+      },
+    })),
+  );
+
+  mount();
+
+  expect(await screen.findByText("围观热榜")).toBeInTheDocument();
+  expect(screen.getAllByText("#架构阿川3的世界").length).toBeGreaterThan(0);
+  expect(screen.getByTestId("world-overview-desktop-grid").className).toContain("lg:grid-cols-[300px_minmax(0,1fr)]");
 });
 
 test("opens identity page from the world card primary identity name", async () => {  // review:P14-T7

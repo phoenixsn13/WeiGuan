@@ -41,7 +41,6 @@ export function buildTrendItems(runs: RunSummary[]): TrendItem[] {
 
 export function TrendRail({ runs }: { runs: RunSummary[] }) {
   const items = buildTrendItems(runs);
-  if (items.length === 0) return null;
 
   return (
     <aside className="rounded-card border border-line bg-white p-5 shadow-sm">
@@ -54,39 +53,47 @@ export function TrendRail({ runs }: { runs: RunSummary[] }) {
           热
         </span>
       </div>
-      <ol className="mt-4 space-y-3">
-        {items.map((item, index) => (
-          <li key={item.label} className="flex gap-3">
-            <span
-              className={[
-                "mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs font-black",
-                index < 3 ? "bg-brand text-slate-950" : "bg-slate-100 text-slate-500",
-              ].join(" ")}
-            >
-              {index + 1}
-            </span>
-            <div className="min-w-0">
-              <div className="truncate text-sm font-bold text-slate-950">{item.label}</div>
-              <div className="mt-0.5 text-xs text-slate-400">{item.meta}</div>
-            </div>
-          </li>
-        ))}
-      </ol>
-      <div className="mt-4 flex flex-wrap gap-2 border-t border-line pt-4">
-        {items.slice(0, 4).map((item, index) => (
-          <span
-            key={`cloud-${item.label}`}
-            className={[
-              "rounded-full px-2.5 py-1 font-semibold",
-              index === 0
-                ? "bg-blue-50 text-sm text-accent"
-                : "bg-slate-100 text-xs text-slate-500",
-            ].join(" ")}
-          >
-            {item.label}
-          </span>
-        ))}
-      </div>
+      {items.length === 0 ? (
+        <div className="mt-4 rounded-card border border-dashed border-line bg-slate-50 p-4 text-sm text-slate-500">
+          暂时还没有可展示的热榜话题。
+        </div>
+      ) : (
+        <>
+          <ol className="mt-4 space-y-3">
+            {items.map((item, index) => (
+              <li key={item.label} className="flex gap-3">
+                <span
+                  className={[
+                    "mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs font-black",
+                    index < 3 ? "bg-brand text-slate-950" : "bg-slate-100 text-slate-500",
+                  ].join(" ")}
+                >
+                  {index + 1}
+                </span>
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-bold text-slate-950">{item.label}</div>
+                  <div className="mt-0.5 text-xs text-slate-400">{item.meta}</div>
+                </div>
+              </li>
+            ))}
+          </ol>
+          <div className="mt-4 flex flex-wrap gap-2 border-t border-line pt-4">
+            {items.slice(0, 4).map((item, index) => (
+              <span
+                key={`cloud-${item.label}`}
+                className={[
+                  "rounded-full px-2.5 py-1 font-semibold",
+                  index === 0
+                    ? "bg-blue-50 text-sm text-accent"
+                    : "bg-slate-100 text-xs text-slate-500",
+                ].join(" ")}
+              >
+                {item.label}
+              </span>
+            ))}
+          </div>
+        </>
+      )}
     </aside>
   );
 }
