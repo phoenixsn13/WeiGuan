@@ -10,7 +10,7 @@
 
 1. `README.md`：当前项目怎么启动、怎么配置 `.env`、怎么验证。
 2. `docs/README.md`：文档体系导航。
-3. `HANDOFF-codex.md`：最初交给实现者的角色约束、执行顺序和铁律。
+3. `HANDOFF-codex*.md`：最初交给实现者的角色约束、执行顺序和铁律。
 4. `docs/superpowers/specs/2026-07-01-weiguan-design.md`：最初产品设计真源。
 5. `docs/superpowers/specs/2026-07-01-weiguan-social-pov-ui-design.md`：后续 UI/UX 纠偏后的社交视角设计真源。
 6. `docs/superpowers/plans/2026-07-01-weiguan-conventions-and-contracts.md`：契约、锚点、跨层边界。
