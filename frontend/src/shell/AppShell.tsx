@@ -2,6 +2,7 @@
 import { NavLink } from "react-router-dom";
 
 import { getCurrentIdentity } from "../api/useApiKey";
+import { BellIcon, BrandGlyph } from "../components/icons";
 
 function NavItem({ to, children }: { to: string; children: React.ReactNode }) {
   return (
@@ -24,9 +25,7 @@ function NavItem({ to, children }: { to: string; children: React.ReactNode }) {
 function BrandMark() {
   return (
     <div className="flex items-center gap-2">
-      <span className="grid h-8 w-8 place-items-center rounded-full bg-brand text-slate-950">
-        <span className="h-3 w-3 rounded-full border-[3px] border-slate-950" />
-      </span>
+      <BrandGlyph className="h-8 w-8 shrink-0" />
       <span className="whitespace-nowrap text-xl font-black tracking-normal text-white">
         围观
       </span>
@@ -56,6 +55,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <span className="h-2 w-2 rounded-full bg-sentiment-positive" />
               只在你发起时推演
             </div>
+            <NavLink
+              aria-label="通知"
+              className="hidden h-9 w-9 place-items-center rounded-full text-white/80 transition hover:bg-white/10 hover:text-white md:grid"
+              to="/history"
+            >
+              <BellIcon className="h-5 w-5" />
+            </NavLink>
             <NavLink
               className="grid h-9 w-9 place-items-center rounded-full bg-white/10 text-sm font-semibold text-white transition hover:bg-white/15"
               to={identityHref}

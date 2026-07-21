@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { ChevronLeftIcon, MoreHorizontalIcon, PinIcon } from "../../components/icons";
 import type { Actor } from "../../model/canonical";
 import type { PosterViewModel } from "../../pov/poster";
 import type { ActorRow, HotRow, RepostRow, TimelineRow } from "../../pov/social";
@@ -100,7 +101,7 @@ export function XFeed({
             onClick={onBack}
             disabled={!onBack}
           >
-            <span aria-hidden="true">‹</span>
+            <ChevronLeftIcon className="h-4 w-4" />
             返回
           </button>
           <div className="text-center">
@@ -112,13 +113,13 @@ export function XFeed({
             disabled
             title="更多操作还未开放"
           >
-            ...
+            <MoreHorizontalIcon className="h-5 w-5" />
           </button>
         </div>
 
         <div className="border-b border-line px-6 py-5">
           <div className="mb-3 flex items-center gap-2 text-xs font-medium text-slate-500">
-            <span className="text-brand">⌖</span>
+            <PinIcon className="h-3.5 w-3.5 text-brand" />
             置顶
           </div>
           <XPost

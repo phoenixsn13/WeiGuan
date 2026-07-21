@@ -9,6 +9,7 @@ import {
 } from "../api/client";
 import { useRunStream, type EventSourceFactory } from "../api/runStream";
 import { InterviewDrawer } from "../components/InterviewDrawer";
+import { BellIcon, HomeIcon, ListIcon, UsersIcon, ZapIcon } from "../components/icons";
 import { emptySnapshot } from "../model/accumulate";
 import type { Actor, RunSnapshot } from "../model/canonical";
 import { posterView } from "../pov/poster";
@@ -40,14 +41,6 @@ function RailButton({
       <span className="grid h-5 w-5 place-items-center">{icon}</span>
       {label}
     </button>
-  );
-}
-
-function MiniIcon({ path }: { path: string }) {
-  return (
-    <svg aria-hidden="true" className="h-5 w-5" fill="none" viewBox="0 0 24 24">
-      <path d={path} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
-    </svg>
   );
 }
 
@@ -121,11 +114,11 @@ function LiveRail({
       </div>
 
       <nav className="grid gap-2">
-        <RailButton active={mode === "comments"} onClick={() => onModeChange("comments")} icon={<MiniIcon path="M3 10.5 12 3l9 7.5M5 10v10h14V10" />} label="我的视角" />
-        <RailButton active={mode === "timeline"} onClick={() => onModeChange("timeline")} icon={<MiniIcon path="M4 5h16M4 12h16M4 19h16" />} label="时间线" />
-        <RailButton active={mode === "people"} onClick={() => onModeChange("people")} icon={<MiniIcon path="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm13 10v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />} label="人物" />
-        <RailButton active={mode === "hot"} onClick={() => onModeChange("hot")} icon={<MiniIcon path="m13 2-2 7h7l-9 13 2-8H4l9-12Z" />} label="热门" />
-        <RailButton active={mode === "notifications"} onClick={() => onModeChange("notifications")} icon={<MiniIcon path="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0" />} label="通知" />
+        <RailButton active={mode === "comments"} onClick={() => onModeChange("comments")} icon={<HomeIcon className="h-5 w-5" />} label="我的视角" />
+        <RailButton active={mode === "timeline"} onClick={() => onModeChange("timeline")} icon={<ListIcon className="h-5 w-5" />} label="时间线" />
+        <RailButton active={mode === "people"} onClick={() => onModeChange("people")} icon={<UsersIcon className="h-5 w-5" />} label="人物" />
+        <RailButton active={mode === "hot"} onClick={() => onModeChange("hot")} icon={<ZapIcon className="h-5 w-5" />} label="热门" />
+        <RailButton active={mode === "notifications"} onClick={() => onModeChange("notifications")} icon={<BellIcon className="h-5 w-5" />} label="通知" />
       </nav>
 
       <div className="mt-auto pt-8">
